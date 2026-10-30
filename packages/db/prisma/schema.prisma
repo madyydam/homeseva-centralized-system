@@ -1,0 +1,620 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RULE: Every table that holds business data MUST carry a businessId field.
+// An automated CI test will fail the build if a new table is missing it (BF-6).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Business Registry ───────────────────────────────────────────────────────
+
+model Business {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Enabled modules stored as a JSON array, e.g. ["attendance","finance","tasks"]
+  enabledModules String[] @default([])
+
+  users            User[]
+  roles            Role[]
+  tabs             Tab[]
+  employees        Employee[]
+  auditLogs        AuditLog[]
+  sheetLinks       SheetLink[]
+  monthlySummaries MonthlySummary[]
+  financeEntries   FinanceEntry[]
+  backupPackages   BackupPackage[]
+
+  // ─── Gentle Hair Wigs Relations ───────────────────────────────────────────
+  gentleLeads               GentleHairWigsLead[]
+  gentleOrders              GentleHairWigsOrder[]
+  gentleMeasurements        GentleHairWigsMeasurement[]
+  gentleAppointments        GentleHairWigsAppointment[]
+  gentleInventory           GentleHairWigsInventoryItem[]
+  gentleInvoices            GentleHairWigsInvoice[]
+  gentleStudios             GentleHairWigsStudio[]
+  gentleFinanceTransactions GentleHairWigsFinanceTransaction[]
+  gentleAssets              GentleHairWigsAsset[]
+  gentleDailyTasks          GentleHairWigsDailyTask[]
+  gentleCallLogs            GentleHairWigsCallLog[]
+
+  @@map("businesses")
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(cuid())
+  /// Unique within a business, e.g. "B1-EMP-001". Super Admin has no businessId.
+  roleId         String
+  passwordHash   String
+  mustChangePass Boolean   @default(true)
+  isActive       Boolean   @default(true)
+  isSuperAdmin   Boolean   @default(false)
+  isOwner        Boolean   @default(false)
+  totpSecret     String?
+  totpEnabled    Boolean   @default(false)
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id])
+
+  employee      Employee?
+  sessions      Session[]
+  userRoles     UserRole[]
+  userTabAccess UserTabAccess[]
+  auditLogs     AuditLog[]
+
+  @@unique([roleId, businessId])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  @@map("sessions")
+}
+
+// ─── Roles & Permissions ─────────────────────────────────────────────────────
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  isSystem    Boolean @default(false)
+
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id])
+
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, businessId])
+  @@map("roles")
+}
+
+model RolePermission {
+  id     String @id @default(cuid())
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  /// e.g. "finance", "employee", "leave", "backup"
+  module String
+  /// e.g. "view", "create", "edit", "delete", "approve", "export", "restore"
+  action String
+  /// group | business | department | team | own
+  scope  String @default("own")
+
+  @@unique([roleId, module, action])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+
+model Tab {
+  id        String  @id @default(cuid())
+  label     String
+  type      TabType
+  icon      String?
+  /// Route path for MODULE tabs, e.g. "/app/business-1/finance"
+  path      String?
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  sheetLink     SheetLink?
+  userTabAccess UserTabAccess[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tabs")
+}
+
+enum TabType {
+  MODULE
+  REPORT
+  GOOGLE_SHEET
+}
+
+model UserTabAccess {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  tabId  String
+  tab    Tab    @relation(fields: [tabId], references: [id])
+
+  grantedAt DateTime @default(now())
+
+  @@unique([userId, tabId])
+  @@map("user_tab_access")
+}
+
+// ─── Google Sheets ───────────────────────────────────────────────────────────
+
+model SheetLink {
+  id             String   @id @default(cuid())
+  googleSheetUrl String
+  tabId          String   @unique
+  tab            Tab      @relation(fields: [tabId], references: [id])
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sheet_links")
+}
+
+// ─── Employee Master ─────────────────────────────────────────────────────────
+
+model Employee {
+  id               String         @id @default(cuid())
+  employeeCode     String         @unique
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  department       String?
+  designation      String?
+  status           EmployeeStatus @default(ACTIVE)
+  joiningDate      DateTime?      @db.Date
+  leavingDate      DateTime?      @db.Date
+  /// Employee id of the reporting manager
+  reportingManager String?
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@map("employees")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  RESIGNED
+  TERMINATED
+  ARCHIVED
+}
+
+// ─── Finance ─────────────────────────────────────────────────────────────────
+
+model FinanceEntry {
+  id            String           @id @default(cuid())
+  type          FinanceEntryType
+  amount        Decimal          @db.Decimal(15, 2)
+  currency      String           @default("INR")
+  category      String
+  description   String?
+  entryDate     DateTime         @db.Date
+  reference     String?
+  attachmentUrl String?
+  /// True after month-end close — no edits allowed
+  isLocked      Boolean          @default(false)
+
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId, entryDate])
+  @@map("finance_entries")
+}
+
+enum FinanceEntryType {
+  INCOME
+  EXPENSE
+}
+
+model MonthlySummary {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id])
+  year          Int
+  month         Int      // 1–12
+  totalSales    Decimal  @default(0) @db.Decimal(15, 2)
+  totalExpenses Decimal  @default(0) @db.Decimal(15, 2)
+  netProfit     Decimal  @default(0) @db.Decimal(15, 2)
+  salaryCost    Decimal  @default(0) @db.Decimal(15, 2)
+  isClosed      Boolean  @default(false)
+  closedAt      DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("monthly_summaries")
+}
+
+// ─── Audit Log ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id])
+
+  /// e.g. "user.login", "employee.create", "finance.export", "backup.create", "backup.restore"
+  action    String
+  entity    String?
+  entityId  String?
+  /// Before/after snapshot for edits
+  diff      Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+// ─── Backup & Restore ────────────────────────────────────────────────────────
+// PRD v1.2 Section 4 — BK-1 through BK-13
+
+model BackupJob {
+  id           String       @id @default(cuid())
+  status       BackupStatus @default(PENDING)
+  /// User id who triggered the backup
+  triggeredBy  String
+  startedAt    DateTime?
+  completedAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+
+  packages BackupPackage[]
+
+  @@map("backup_jobs")
+}
+
+model BackupPackage {
+  id           String       @id @default(cuid())
+  jobId        String
+  job          BackupJob    @relation(fields: [jobId], references: [id])
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id])
+  /// Snapshot of business name at backup time
+  businessName String
+  status       BackupStatus @default(PENDING)
+  /// Path in S3-compatible storage, e.g. "backups/biz-1/2026-10-29_020000.enc"
+  filePath     String?
+  fileSizeBytes BigInt?
+  /// SHA-256 checksum for integrity verification (BK-6)
+  checksum     String?
+  encryptedAt  DateTime?
+  /// Schema version for forward-compatibility on restore (BF-5)
+  schemaVersion String      @default("1.0.0")
+  downloadedAt  DateTime?
+  restoredAt    DateTime?
+  /// "daily" | "weekly" | "monthly" — for retention cleanup (BK-10)
+  retentionRule String?
+  expiresAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([jobId])
+  @@map("backup_packages")
+}
+
+enum BackupStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+// ─── Gentle Hair Wigs Models (Business ID: 3) ────────────────────────────────
+
+model GentleHairWigsLead {
+  id                 String    @id @default(cuid())
+  businessId         String
+  business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  srNo               Int?
+  studioSlug         String    @default("viman-nagar")
+  studioName         String    @default("Studio of Viman Nagar")
+  clientName         String
+  phone              String
+  status             String    @default("Interested")
+  customStatusText   String?
+  callCount          Int       @default(0)
+  notesList          String[]  @default([])
+  city               String?
+  source             String?
+  stage              String?
+  hairLossConcern    String?
+  interestCategory   String?
+  estimatedBudget    Decimal?  @db.Decimal(12, 2)
+  assignedSpecialist String?
+  lastContactDate    String?
+  nextFollowUpDate   String?
+  notes              String?
+  priority           String?   @default("Normal")
+  leadDate           DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@index([businessId, status])
+  @@index([businessId, leadDate])
+  @@index([businessId, createdAt(sort: Desc)])
+  @@index([businessId, updatedAt(sort: Desc)])
+  @@map("gentle_leads")
+}
+
+model GentleHairWigsOrder {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug  String   @default("viman-nagar")
+  clientName  String
+  phone       String
+  wigType     String
+  density     String
+  hairLength  String
+  hairShade   String
+  amount      Decimal  @db.Decimal(12, 2)
+  advancePaid Decimal  @default(0) @db.Decimal(12, 2)
+  fittingDate String
+  stage       String   @default("Measurements Recorded")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_orders")
+}
+
+model GentleHairWigsMeasurement {
+  id               String   @id @default(cuid())
+  businessId       String
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug       String   @default("viman-nagar")
+  clientName       String
+  phone            String
+  hairLossType     String
+  circumference    String
+  frontToNape      String
+  earToEar         String
+  templeToTemple   String
+  baseSize         String
+  baseMaterial     String
+  attachmentMethod String
+  notes            String?
+  recordedAt       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_measurements")
+}
+
+model GentleHairWigsAppointment {
+  id              String   @id @default(cuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug      String   @default("viman-nagar")
+  clientName      String
+  phone           String
+  serviceType     String
+  suite           String
+  stylistName     String
+  appointmentDate String
+  timeSlot        String
+  status          String   @default("Scheduled")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_appointments")
+}
+
+model GentleHairWigsInventoryItem {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug    String   @default("viman-nagar")
+  sku           String
+  name          String
+  category      String
+  stockQuantity Int      @default(0)
+  reorderLevel  Int      @default(0)
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  unit          String   @default("Units")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_inventory")
+}
+
+model GentleHairWigsInvoice {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug    String   @default("viman-nagar")
+  invoiceNumber String
+  clientName    String
+  phone         String
+  itemsSummary  String
+  subtotal      Decimal  @db.Decimal(12, 2)
+  gstAmount     Decimal  @db.Decimal(12, 2)
+  totalAmount   Decimal  @db.Decimal(12, 2)
+  paymentMode   String   @default("UPI / QR Pay")
+  paymentStatus String   @default("Paid")
+  invoiceDate   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_invoices")
+}
+
+model GentleHairWigsStudio {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  slug       String
+  name       String
+  shortName  String
+  address    String?
+  isCustom   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, slug])
+  @@map("gentle_studios")
+}
+
+model GentleHairWigsFinanceTransaction {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug  String   @default("viman-nagar")
+  type        String
+  category    String
+  description String
+  amount      Decimal  @db.Decimal(12, 2)
+  date        String
+  month       String
+  paymentMode String   @default("UPI / QR Pay")
+  recordedBy  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@index([businessId, month])
+  @@map("gentle_finance_transactions")
+}
+
+model GentleHairWigsAsset {
+  id              String   @id @default(cuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug      String   @default("viman-nagar")
+  name            String
+  category        String
+  quantity        Int      @default(1)
+  condition       String   @default("Good")
+  purchaseCost    Decimal  @db.Decimal(12, 2)
+  location        String
+  lastServiceDate String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_assets")
+}
+
+model GentleHairWigsDailyTask {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug  String    @default("viman-nagar")
+  taskTitle   String
+  category    String
+  assignedTo  String
+  timeSlot    String
+  completed   Boolean   @default(false)
+  completedAt String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_daily_tasks")
+}
+
+model GentleHairWigsCallLog {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  studioSlug String   @default("viman-nagar")
+  clientName String
+  phone      String
+  callType   String
+  status     String
+  notes      String
+  date       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, studioSlug])
+  @@map("gentle_call_logs")
+}
+
