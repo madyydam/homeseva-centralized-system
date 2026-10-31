@@ -61,18 +61,6 @@ export async function POST(req: NextRequest) {
       matched = bcrypt.compareSync(cleanVal, adminRecord.pin8_hash);
     }
 
-    if (!matched && (field === 'password' || field === 'pin4' || field === 'pin8')) {
-      const newAttempts = (adminRecord.failed_attempts || 0) + 1;
-      let updatePayload: Record<string, any> = { failed_attempts: newAttempts };
-
-      if (newAttempts >= 5) {
-        const lockTime = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-        updatePayload.locked_until = lockTime;
-      }
-
-      await admin.from('super_admin_credentials').update(updatePayload).eq('id', 'primary');
-    }
-
     return NextResponse.json({ success: true, matched });
   } catch (err: any) {
     console.error('Error verifying super admin field:', err);
