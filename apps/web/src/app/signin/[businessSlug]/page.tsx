@@ -200,6 +200,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   });
 
   const [isDoorAscending, setIsDoorAscending] = useState(false);
+  const typingTimerRef = useRef<{ password?: NodeJS.Timeout; pin?: NodeJS.Timeout }>({});
 
   // Calculate dynamic pixel delta between right socket and left padlock keyhole
   const computeKeyFlightOffset = useCallback((field: 'password' | 'pin') => {
@@ -216,6 +217,11 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       // Padlock keyhole center is located in lower half of padlock body (+14px)
       const dx = Math.round(lx - sx + 22);
       const dy = Math.round(ly - sy + 14);
+
+      // Instantly inject CSS variables directly into DOM to eliminate any React render lag
+      socketEl.style.setProperty('--fly-x', `${dx}px`);
+      socketEl.style.setProperty('--fly-y', `${dy}px`);
+
       setFlyOffsets((prev) => ({
         ...prev,
         [field]: { x: dx, y: dy },
@@ -225,6 +231,106 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     return { x: -380, y: 0 };
   }, []);
 
+  // Single field flight & verification ceremony (Used for both Auto-Trigger & Form Submit)
+  const verifySingleField = useCallback(
+    async (field: 'password' | 'pin', overrideVal?: string) => {
+      const valToVerify = overrideVal !== undefined ? overrideVal : (field === 'password' ? password.trim() : pin.trim());
+      if (!valToVerify) return false;
+      if (!selectedRole) return false;
+
+      // Ensure coordinate variables are applied directly on DOM
+      computeKeyFlightOffset(field);
+      setKeyStates((prev) => ({ ...prev, [field]: { status: 'flying' } }));
+      setLocks((prev) => ({ ...prev, [field]: { ...prev[field], checking: true } }));
+
+      // Fetch verification in parallel with flight
+      const checkPromise = fetch('/api/auth/role/verify-field', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessSlug, roleId: selectedRole, field, value: valToVerify }),
+      })
+        .then((r) => r.json())
+        .catch(() => ({ matched: false, error: 'Network error verifying credentials' }));
+
+      // Key glides across cleanly into Lock Keyhole (340ms)
+      await new Promise((r) => setTimeout(r, 340));
+      const resData = await checkPromise;
+
+      if (!resData.matched) {
+        // Wrong credential: key struggles inside keyhole with red sparks (220ms)
+        setKeyStates((prev) => ({ ...prev, [field]: { status: 'struggling' } }));
+        await new Promise((r) => setTimeout(r, 220));
+
+        // SNAP! Fractures into two pieces at the keyhole and drops
+        setKeyStates((prev) => ({ ...prev, [field]: { status: 'broken' } }));
+        setLocks((prev) => ({
+          ...prev,
+          [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+        }));
+        setErrorMsg(
+          resData.error ||
+            (field === 'password'
+              ? 'Invalid password entered. Please check your assigned password.'
+              : 'Invalid 4-digit security PIN entered.')
+        );
+        return false;
+      }
+
+      // Correct credential: Key turns 90deg inside keyhole (200ms)
+      setKeyStates((prev) => ({ ...prev, [field]: { status: 'unlocked' } }));
+      setLocks((prev) => ({
+        ...prev,
+        [field]: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
+      }));
+
+      // Shackle pops open with blast sparks (200ms)
+      await new Promise((r) => setTimeout(r, 200));
+      setLocks((prev) => ({
+        ...prev,
+        [field]: { ...prev[field], bursting: false, falling: true },
+      }));
+
+      // Lock plunges down off the door card (340ms)
+      await new Promise((r) => setTimeout(r, 340));
+      setLocks((prev) => ({
+        ...prev,
+        [field]: { ...prev[field], falling: false, fallen: true },
+      }));
+
+      // Check if both locks are now unlocked/fallen
+      const otherField = field === 'password' ? 'pin' : 'password';
+      const otherUnlocked = locks[otherField].unlocked || locks[otherField].fallen;
+
+      if (otherUnlocked) {
+        // BOTH LOCKS DETACHED! GRAND VAULT DOOR ASCEND INTO CEILING
+        fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessSlug,
+            role: selectedRole,
+            password: password.trim() || valToVerify,
+            pin: pin.trim() || valToVerify,
+          }),
+        });
+
+        setIsDoorAscending(true);
+        setTimeout(() => {
+          if (isGentleHairWigs && selectedBranch) {
+            router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
+          } else if (isHorecaEssentials && selectedDivision) {
+            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
+          } else {
+            router.push(`/app/${businessSlug}/dashboard`);
+          }
+        }, 460);
+      }
+
+      return true;
+    },
+    [businessSlug, computeKeyFlightOffset, isGentleHairWigs, isHorecaEssentials, locks, password, pin, router, selectedBranch, selectedDivision, selectedRole]
+  );
+
   const handleInputChange = (field: 'password' | 'pin', val: string) => {
     if (field === 'password') setPassword(val);
     if (field === 'pin') setPin(val.replace(/\D/g, '').slice(0, 4));
@@ -232,17 +338,49 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     // Clear any previous error
     setErrorMsg('');
 
-    // When user types or modifies, reset key back to ready state in its right socket
-    setKeyStates((prev) => ({
-      ...prev,
-      [field]: { status: 'idle' },
-    }));
+    // If key was broken, revive to idle socket state
+    setKeyStates((prev) => {
+      if (prev[field].status === 'broken' || prev[field].status === 'struggling') {
+        return { ...prev, [field]: { status: 'idle' } };
+      }
+      return prev;
+    });
 
-    // If lock was already marked fallen/unlocked but value changed, reset it
-    setLocks((prev) => ({
-      ...prev,
-      [field]: { ...prev[field], unlocked: false, bursting: false, falling: false, fallen: false },
-    }));
+    // Reset lock if already open but user modified value
+    setLocks((prev) => {
+      if (prev[field].unlocked || prev[field].fallen) {
+        return { ...prev, [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false } };
+      }
+      return prev;
+    });
+
+    // Clear any pending debounce timer
+    if (typingTimerRef.current[field]) {
+      clearTimeout(typingTimerRef.current[field]);
+    }
+
+    const clean = field === 'password' ? val.trim() : val.replace(/\D/g, '').slice(0, 4);
+
+    // AUTO-TRIGGER: 800ms after user pauses typing (or 350ms once 4-digit PIN entered)
+    if (field === 'password') {
+      if (clean.length >= 3) {
+        typingTimerRef.current.password = setTimeout(() => {
+          verifySingleField('password', clean);
+        }, 850);
+      }
+    } else if (field === 'pin') {
+      if (clean.length === 4) {
+        typingTimerRef.current.pin = setTimeout(() => {
+          verifySingleField('pin', clean);
+        }, 350);
+      } else if (clean.length > 0) {
+        typingTimerRef.current.pin = setTimeout(() => {
+          if (clean.length === 4) {
+            verifySingleField('pin', clean);
+          }
+        }, 900);
+      }
+    }
   };
 
   const handleRoleSelect = (newRole: string) => {
@@ -346,154 +484,29 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     setIsLoading(true);
     setErrorMsg('');
 
+    // Clear any pending debounce typing timers
+    if (typingTimerRef.current.password) clearTimeout(typingTimerRef.current.password);
+    if (typingTimerRef.current.pin) clearTimeout(typingTimerRef.current.pin);
+
     try {
-      // 1. Verify credentials with the backend
-      const [pRes, pinRes] = await Promise.all([
-        fetch('/api/auth/role/verify-field', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ businessSlug, roleId: selectedRole, field: 'password', value: password }),
-        }),
-        fetch('/api/auth/role/verify-field', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ businessSlug, roleId: selectedRole, field: 'pin', value: pin }),
-        }),
-      ]);
-
-      const pData = await pRes.json();
-      const pinData = await pinRes.json();
-
-      // ==========================================
-      // STAGE 1: PASSWORD KEY CEREMONY (Fast & Kinetic)
-      // ==========================================
       if (!locks.password.fallen) {
-        computeKeyFlightOffset('password');
-        setKeyStates((prev) => ({ ...prev, password: { status: 'flying' } }));
-        setLocks((prev) => ({ ...prev, password: { ...prev.password, checking: true } }));
-
-        // Fast aerodynamic glide across to Lock 1 (360ms)
-        await new Promise((r) => setTimeout(r, 360));
-
-        if (!pData.matched) {
-          // Password is wrong! Short sharp struggle vibration
-          setKeyStates((prev) => ({ ...prev, password: { status: 'struggling' } }));
-          await new Promise((r) => setTimeout(r, 220));
-
-          // SNAP! Fractures at lock keyhole and drops
-          setKeyStates((prev) => ({ ...prev, password: { status: 'broken' } }));
-          setLocks((prev) => ({
-            ...prev,
-            password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
-          }));
-          setErrorMsg(pData.error || 'Invalid password entered. Please check your assigned password.');
+        const pSuccess = await verifySingleField('password', password.trim());
+        if (!pSuccess) {
           setIsLoading(false);
           return;
         }
-
-        // Password matches! Key snaps 90deg inside keyhole (220ms)
-        setKeyStates((prev) => ({ ...prev, password: { status: 'unlocked' } }));
-        setLocks((prev) => ({
-          ...prev,
-          password: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
-        }));
-
-        // Shackle blast plays (220ms), Lock 1 begins detaching and falling
-        await new Promise((r) => setTimeout(r, 220));
-        setLocks((prev) => ({
-          ...prev,
-          password: { ...prev.password, bursting: false, falling: true },
-        }));
-
-        // ==========================================
-        // STAGE 2: PIN KEY CEREMONY (Overlapping Cascade)
-        // ==========================================
-        // As Lock 1 falls, PIN key is already soaring smoothly into Lock 2!
-        computeKeyFlightOffset('pin');
-        setKeyStates((prev) => ({ ...prev, pin: { status: 'flying' } }));
-        setLocks((prev) => ({ ...prev, pin: { ...prev.pin, checking: true } }));
-
-        // Lock 1 finishes falling off screen (340ms) while PIN key arrives at Lock 2
-        await new Promise((r) => setTimeout(r, 340));
-        setLocks((prev) => ({
-          ...prev,
-          password: { ...prev.password, falling: false, fallen: true },
-        }));
-      } else {
-        // Password was already unlocked and fallen, fly PIN key directly to Lock 2
-        computeKeyFlightOffset('pin');
-        setKeyStates((prev) => ({ ...prev, pin: { status: 'flying' } }));
-        setLocks((prev) => ({ ...prev, pin: { ...prev.pin, checking: true } }));
-        await new Promise((r) => setTimeout(r, 360));
       }
 
-      if (!pinData.matched) {
-        // PIN is wrong! Key struggles under friction with red sparks
-        setKeyStates((prev) => ({ ...prev, pin: { status: 'struggling' } }));
-        await new Promise((r) => setTimeout(r, 220));
-
-        // SNAP!
-        setKeyStates((prev) => ({ ...prev, pin: { status: 'broken' } }));
-        setLocks((prev) => ({
-          ...prev,
-          pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
-        }));
-        setErrorMsg(pinData.error || 'Invalid 4-digit security PIN entered.');
-        setIsLoading(false);
-        return;
-      }
-
-      // PIN matches! Key turns 90deg inside Lock 2 (220ms)
-      setKeyStates((prev) => ({ ...prev, pin: { status: 'unlocked' } }));
-      setLocks((prev) => ({
-        ...prev,
-        pin: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
-      }));
-
-      // Shackle blast plays (220ms), Lock 2 detaches and falls
-      await new Promise((r) => setTimeout(r, 220));
-      setLocks((prev) => ({
-        ...prev,
-        pin: { ...prev.pin, bursting: false, falling: true },
-      }));
-
-      await new Promise((r) => setTimeout(r, 340));
-      setLocks((prev) => ({
-        ...prev,
-        pin: { ...prev.pin, falling: false, fallen: true },
-      }));
-
-      // ==========================================
-      // STAGE 3: VAULT BLAST DOOR ASCEND INTO CEILING
-      // ==========================================
-      // Session register
-      fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessSlug,
-          role: selectedRole,
-          password: password.trim(),
-          pin: pin.trim(),
-        }),
-      });
-
-      // Immediate door lift!
-      setIsDoorAscending(true);
-
-      // Fast pneumatic slide up (480ms) -> redirect to dashboard
-      setTimeout(() => {
-        setIsLoading(false);
-        if (isGentleHairWigs && selectedBranch) {
-          router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
-        } else if (isHorecaEssentials && selectedDivision) {
-          router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
-        } else {
-          router.push(`/app/${businessSlug}/dashboard`);
+      if (!locks.pin.fallen) {
+        const pinSuccess = await verifySingleField('pin', pin.trim());
+        if (!pinSuccess) {
+          setIsLoading(false);
+          return;
         }
-      }, 480);
+      }
     } catch {
       setErrorMsg('Unable to verify credentials. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -824,17 +837,14 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: smoothKeyFlight 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transform-origin: 10px 14px !important;
+          animation: smoothKeyFlight 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes smoothKeyFlight {
           0% {
             transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
-          }
-          35% {
-            transform: translate3d(calc(var(--fly-x) * 0.35), calc(var(--fly-y) * 0.35 - 28px), 0) rotate(-6deg) scale(1.14);
-            filter: drop-shadow(0 12px 20px rgba(217,119,6,0.5));
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.22));
           }
           100% {
             transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg) scale(1);
@@ -847,22 +857,23 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: smoothKeyTurn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          transform-origin: 10px 14px !important;
+          animation: smoothKeyTurn 0.22s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
         }
 
         @keyframes smoothKeyTurn {
           0% {
             transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg) scale(1);
-            filter: drop-shadow(0 0 12px rgba(234,179,8,0.7));
+            filter: drop-shadow(0 0 14px rgba(234,179,8,0.8));
             opacity: 1;
           }
-          50% {
-            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(1.15);
-            filter: drop-shadow(0 0 25px rgba(245,158,11,1)) brightness(1.5);
+          60% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(1.05);
+            filter: drop-shadow(0 0 25px rgba(245,158,11,1)) brightness(1.4);
             opacity: 1;
           }
           100% {
-            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(0);
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(0.95);
             opacity: 0;
           }
         }
@@ -872,7 +883,8 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: smoothKeyStruggle 0.22s ease-in-out infinite;
+          transform-origin: 10px 14px !important;
+          animation: smoothKeyStruggle 0.18s ease-in-out infinite;
         }
 
         @keyframes smoothKeyStruggle {
@@ -881,15 +893,15 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             filter: drop-shadow(0 0 10px #ef4444);
           }
           25% {
-            transform: translate3d(calc(var(--fly-x) - 3px), calc(var(--fly-y) + 2px), 0) rotate(-14deg);
+            transform: translate3d(calc(var(--fly-x) - 2px), calc(var(--fly-y) + 1px), 0) rotate(-10deg);
             filter: drop-shadow(0 0 16px #ef4444);
           }
           50% {
-            transform: translate3d(calc(var(--fly-x) + 3px), calc(var(--fly-y) - 2px), 0) rotate(14deg);
+            transform: translate3d(calc(var(--fly-x) + 2px), calc(var(--fly-y) - 1px), 0) rotate(10deg);
             filter: drop-shadow(0 0 18px #ef4444);
           }
           75% {
-            transform: translate3d(calc(var(--fly-x) - 2px), calc(var(--fly-y) + 1px), 0) rotate(-10deg);
+            transform: translate3d(calc(var(--fly-x) - 1px), calc(var(--fly-y) + 1px), 0) rotate(-6deg);
           }
         }
 

@@ -153,9 +153,9 @@ export default function HomePage() {
       <WaveBackground />
 
       {/* TOP NAVBAR HEADER: CENTERED, MINIMAL */}
-      <header className="relative z-20 w-full border-b border-white/[0.08] bg-black/70 backdrop-blur-md px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-center shrink-0 shadow-sm">
+      <header className="relative z-20 w-full border-b border-white/[0.08] bg-black/70 backdrop-blur-md px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-center shrink-0 shadow-sm animate-in fade-in-down duration-300">
         <div className="flex items-center space-x-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-zinc-700 via-zinc-800 to-zinc-900 border border-white/20 text-white shadow-sm shadow-black/50">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-zinc-700 via-zinc-800 to-zinc-900 border border-white/20 text-white shadow-sm shadow-black/50 transition-transform duration-200 hover:scale-105">
             <Layers className="h-4 w-4 text-slate-100" />
           </div>
           <div className="flex items-center space-x-2">
@@ -172,7 +172,7 @@ export default function HomePage() {
       {/* CENTERED CONTAINER: BALANCED VERTICALLY BETWEEN HEADER & FOOTER */}
       <div className="relative z-10 flex-1 flex flex-col justify-center items-center w-full max-w-6xl mx-auto px-4 py-2 my-auto">
         {/* Hero Section */}
-        <section className="text-center mb-6 sm:mb-7 shrink-0">
+        <section className="text-center mb-6 sm:mb-7 shrink-0 animate-in fade-in-up duration-300">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-[0_3px_16px_rgba(0,0,0,0.9)]">
             Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300">HomeSeva</span>
           </h1>
@@ -184,17 +184,18 @@ export default function HomePage() {
         {/* 10 BUSINESS CARDS (With Dynamic Specific-Color Glow & Enlargement on Hover) */}
         <section className="w-full">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5 sm:gap-4">
-            {BUSINESSES.map((biz) => {
+            {BUSINESSES.map((biz, idx) => {
               const IconComponent = biz.icon;
+              const staggerClass = `stagger-${Math.min(idx + 1, 10)}`;
               return (
                 <div
                   key={biz.id}
-                  className={`group relative flex flex-col items-center justify-between text-center rounded-2xl bg-white p-4 sm:p-5 text-slate-900 shadow-xl shadow-black/40 border border-slate-100/90 hover:-translate-y-2.5 hover:scale-[1.06] hover:shadow-2xl transition-all duration-300 ease-out z-10 hover:z-30 cursor-pointer transform-gpu ${biz.hoverEffect}`}
+                  className={`group relative flex flex-col items-center justify-between text-center rounded-2xl bg-white p-4 sm:p-5 text-slate-900 shadow-xl shadow-black/40 border border-slate-100/90 hover:-translate-y-2 hover:scale-[1.04] hover:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-10 hover:z-30 cursor-pointer transform-gpu animate-in fade-in-up duration-300 ${staggerClass} ${biz.hoverEffect}`}
                 >
                   {/* 1. LOGO IN MIDDLE */}
                   <div className="flex flex-col items-center w-full">
                     {biz.logoImg ? (
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl overflow-hidden border shadow-xs mb-2 p-1 group-hover:scale-110 transition-transform duration-200 ${
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl overflow-hidden border shadow-xs mb-2 p-1 group-hover:scale-110 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                         biz.isGentleHairWigs ? 'border-amber-300/80 bg-white' : 'border-blue-400/80 bg-[#005eb8]'
                       }`}>
                         <img
@@ -208,7 +209,7 @@ export default function HomePage() {
                         />
                       </div>
                     ) : (
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200 ${biz.bgColor} shadow-xs mb-2 group-hover:scale-110`}>
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${biz.bgColor} shadow-xs mb-2 group-hover:scale-110`}>
                         {IconComponent && <IconComponent className={`h-5 w-5 ${biz.color} group-hover:text-white transition-colors duration-200`} />}
                       </div>
                     )}
@@ -227,21 +228,21 @@ export default function HomePage() {
                       <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 w-full">
                         <Link
                           href="/signin/gentle-hair-wigs?branch=viman-nagar"
-                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all hover:scale-105"
+                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
                           title="Studio of Viman Nagar"
                         >
                           Viman Nagar
                         </Link>
                         <Link
                           href="/signin/gentle-hair-wigs?branch=ravet"
-                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all hover:scale-105"
+                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
                           title="Studio of Ravet"
                         >
                           Ravet
                         </Link>
                         <Link
                           href="/signin/gentle-hair-wigs?branch=kolhapur"
-                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all hover:scale-105"
+                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
                           title="Studio of Kolhapur"
                         >
                           Kolhapur
@@ -252,14 +253,14 @@ export default function HomePage() {
                       <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 w-full">
                         <Link
                           href="/signin/horeca-essentials?division=essentials-sales"
-                          className="inline-flex items-center justify-center rounded-md border border-emerald-300/90 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-900 shadow-2xs transition-all hover:scale-105"
+                          className="inline-flex items-center justify-center rounded-md border border-emerald-300/90 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
                           title="Essentials Sales"
                         >
                           Essentials Sales
                         </Link>
                         <Link
                           href="/signin/horeca-essentials?division=crockery-rental"
-                          className="inline-flex items-center justify-center rounded-md border border-emerald-300/90 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-900 shadow-2xs transition-all hover:scale-105"
+                          className="inline-flex items-center justify-center rounded-md border border-emerald-300/90 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
                           title="Crockery Rental"
                         >
                           Crockery Rental
@@ -270,7 +271,7 @@ export default function HomePage() {
                       <div className="mt-2 flex justify-center w-full">
                         <Link
                           href={`/signin/${biz.slug}`}
-                          className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-1 text-[10.5px] font-bold shadow-2xs transition-all duration-150 hover:scale-105 line-clamp-1 ${biz.buttonStyle}`}
+                          className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-1 text-[10.5px] font-bold shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95 line-clamp-1 ${biz.buttonStyle}`}
                         >
                           {biz.subtitle}
                         </Link>
@@ -282,10 +283,10 @@ export default function HomePage() {
                   <div className="mt-2.5 w-full pt-2 border-t border-slate-100 flex items-center justify-center">
                     <Link
                       href={`/signin/${biz.slug}`}
-                      className="inline-flex items-center space-x-1 rounded-full px-3 py-0.5 text-[10px] font-bold text-blue-600 bg-blue-50/80 group-hover:bg-blue-600 group-hover:text-white transition-all duration-150"
+                      className="inline-flex items-center space-x-1 rounded-full px-3 py-0.5 text-[10px] font-bold text-blue-600 bg-blue-50/80 group-hover:bg-blue-600 group-hover:text-white transition-all duration-150 active:scale-95"
                     >
                       <span>Go</span>
-                      <ArrowRight className="h-2.5 w-2.5 group-hover:translate-x-0.5 transition-transform" />
+                      <ArrowRight className="h-2.5 w-2.5 group-hover:translate-x-1 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]" />
                     </Link>
                   </div>
                 </div>
