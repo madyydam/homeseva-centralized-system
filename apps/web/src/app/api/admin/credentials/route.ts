@@ -33,6 +33,9 @@ export async function GET(req: NextRequest) {
 
     const superAdminConfig = {
       username: superAdminRow.username,
+      hasPassword: !!superAdminRow.password_hash,
+      hasPin4: !!superAdminRow.pin4_hash,
+      hasPin8: !!superAdminRow.pin8_hash,
       lastUpdated: superAdminRow.updated_at,
     };
 
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, superAdmin: superAdminConfig });
     }
 
-    // 2. Fetch all businesses with their roles and credentials
+    // 2. Fetch all businesses with their roles (MASKED: NO PASSWORDS OR PINS EVER RETURNED)
     const { data: businesses, error } = await admin
       .from('businesses')
       .select(`
@@ -64,8 +67,9 @@ export async function GET(req: NextRequest) {
         role: r.role_id,
         label: r.label || r.role_id,
         department: r.department || 'General',
-        password: r.password,
-        pin: r.pin,
+        // CRITICAL SECURITY ENFORCEMENT: Never send plaintext passwords or pins to client!
+        hasPassword: !!(r.password && r.password.trim()),
+        hasPin: !!(r.pin && r.pin.trim()),
         lastUpdated: r.updated_at,
       })),
     }));

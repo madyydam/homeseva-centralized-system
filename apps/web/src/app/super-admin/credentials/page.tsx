@@ -16,8 +16,6 @@ import {
   HardDrive,
   ExternalLink,
   ShieldCheck,
-  Check,
-  Copy,
   Fingerprint,
   UserCheck,
   LogOut,
@@ -31,8 +29,8 @@ interface RoleItem {
   role: string;
   label: string;
   department: string;
-  password?: string;
-  pin?: string;
+  hasPassword?: boolean;
+  hasPin?: boolean;
   lastUpdated?: string;
 }
 
@@ -65,7 +63,6 @@ export default function SuperAdminCredentialsPage() {
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Tab View Mode: 'roles' | 'tab-access'
   const [viewMode, setViewMode] = useState<'roles' | 'tab-access'>('roles');
@@ -105,12 +102,6 @@ export default function SuperAdminCredentialsPage() {
     if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
     setNotification({ type, message });
     notifTimerRef.current = setTimeout(() => setNotification(null), 3500);
-  };
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 1800);
   };
 
   // Fetch all credentials on mount
@@ -751,7 +742,7 @@ export default function SuperAdminCredentialsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {currentCompany.roles.map((roleItem) => {
                   const roleKey = roleItem.role;
-                  const buffer = roleInputs[roleKey] || { password: roleItem.password || '', pin: roleItem.pin || '' };
+                  const buffer = roleInputs[roleKey] || { password: '', pin: '' };
                   const isPassVisible = !!visibleInputs[`pass-${roleKey}`];
                   const isPinVisible = !!visibleInputs[`pin-${roleKey}`];
                   const isSaving = savingRoleId === roleKey;
@@ -777,36 +768,43 @@ export default function SuperAdminCredentialsPage() {
                           </span>
                         </div>
 
-                        {/* Password Field */}
+                        {/* Security Status Badges */}
+                        <div className="flex items-center space-x-2 mb-3.5">
+                          <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            roleItem.hasPassword
+                              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                              : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
+                          }`}>
+                            <Lock className="h-2.5 w-2.5" />
+                            <span>{roleItem.hasPassword ? 'Password Active' : 'No Password'}</span>
+                          </span>
+                          <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            roleItem.hasPin
+                              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                              : 'bg-slate-800 border border-slate-700 text-slate-400'
+                          }`}>
+                            <KeyRound className="h-2.5 w-2.5" />
+                            <span>{roleItem.hasPin ? 'PIN Active' : 'No PIN'}</span>
+                          </span>
+                        </div>
+
+                        {/* Rotate Password Field (Write-Only) */}
                         <div className="space-y-1 mb-3">
                           <div className="flex items-center justify-between text-[11px]">
                             <label className="font-bold text-slate-300 flex items-center space-x-1">
                               <Lock className="h-3 w-3 text-slate-400" />
-                              <span>Role Password</span>
+                              <span>Set New Password</span>
                             </label>
-                            <div className="flex items-center space-x-1">
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(buffer.password, `pass-${roleKey}`)}
-                                className="text-slate-400 hover:text-white p-0.5"
-                                title="Copy password"
-                              >
-                                {copiedKey === `pass-${roleKey}` ? (
-                                  <Check className="h-3 w-3 text-emerald-400" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setVisibleInputs((prev) => ({ ...prev, [`pass-${roleKey}`]: !prev[`pass-${roleKey}`] }))
-                                }
-                                className="text-slate-400 hover:text-white p-0.5"
-                              >
-                                {isPassVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setVisibleInputs((prev) => ({ ...prev, [`pass-${roleKey}`]: !prev[`pass-${roleKey}`] }))
+                              }
+                              className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                              title="Toggle visibility"
+                            >
+                              {isPassVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </button>
                           </div>
 
                           <div className="relative">
@@ -814,42 +812,29 @@ export default function SuperAdminCredentialsPage() {
                               type={isPassVisible ? 'text' : 'password'}
                               value={buffer.password}
                               onChange={(e) => handleRoleInputChange(roleKey, 'password', e.target.value)}
-                              placeholder="Enter role password"
+                              placeholder="Enter new password to rotate"
                               className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 px-3 text-xs font-mono text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             />
                           </div>
                         </div>
 
-                        {/* 4-Digit Security PIN */}
+                        {/* Rotate 4-Digit Security PIN (Write-Only) */}
                         <div className="space-y-1 mb-4">
                           <div className="flex items-center justify-between text-[11px]">
                             <label className="font-bold text-slate-300 flex items-center space-x-1">
                               <KeyRound className="h-3 w-3 text-amber-400" />
-                              <span>Security PIN</span>
+                              <span>Set New 4-Digit PIN</span>
                             </label>
-                            <div className="flex items-center space-x-1">
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(buffer.pin, `pin-${roleKey}`)}
-                                className="text-slate-400 hover:text-white p-0.5"
-                                title="Copy PIN"
-                              >
-                                {copiedKey === `pin-${roleKey}` ? (
-                                  <Check className="h-3 w-3 text-emerald-400" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setVisibleInputs((prev) => ({ ...prev, [`pin-${roleKey}`]: !prev[`pin-${roleKey}`] }))
-                                }
-                                className="text-slate-400 hover:text-white p-0.5"
-                              >
-                                {isPinVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setVisibleInputs((prev) => ({ ...prev, [`pin-${roleKey}`]: !prev[`pin-${roleKey}`] }))
+                              }
+                              className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                              title="Toggle visibility"
+                            >
+                              {isPinVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </button>
                           </div>
 
                           <div className="relative">
@@ -858,7 +843,7 @@ export default function SuperAdminCredentialsPage() {
                               value={buffer.pin}
                               maxLength={6}
                               onChange={(e) => handleRoleInputChange(roleKey, 'pin', e.target.value)}
-                              placeholder="4-digit PIN"
+                              placeholder="New 4-digit PIN"
                               className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 px-3 text-xs font-mono tracking-widest text-amber-300 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                             />
                           </div>

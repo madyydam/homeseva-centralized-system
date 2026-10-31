@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
         `)
         .order('name');
 
-      const companies: BusinessCredentials[] = (businesses || []).map((b: any) => ({
+      const companies = (businesses || []).map((b: any) => ({
         businessId: b.id,
         businessSlug: b.slug,
         businessName: b.name,
@@ -94,8 +94,8 @@ export async function GET(req: NextRequest) {
           role: r.role_id,
           label: r.label || r.role_id,
           department: r.department || 'General',
-          password: r.password,
-          pin: r.pin,
+          hasPassword: !!(r.password && r.password.trim()),
+          hasPin: !!(r.pin && r.pin.trim()),
           lastUpdated: r.updated_at,
         })),
       }));
