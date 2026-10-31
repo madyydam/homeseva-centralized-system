@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -90,7 +90,7 @@ const DEFAULT_BUSINESS_ROLES: Record<string, DynamicRole[]> = {
   ],
 };
 
-export default function BusinessSignInPage({ params }: SignInPageProps) {
+function BusinessSignInContent({ params }: SignInPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const branchParam = searchParams.get('branch');
@@ -1288,5 +1288,13 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
       {/* Bottom spacer */}
       <div className="relative z-10" />
     </main>
+  );
+}
+
+export default function BusinessSignInPage(props: SignInPageProps) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400">Loading...</div>}>
+      <BusinessSignInContent {...props} />
+    </Suspense>
   );
 }
