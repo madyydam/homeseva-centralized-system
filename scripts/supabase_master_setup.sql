@@ -306,9 +306,9 @@ INSERT INTO public.super_admin_credentials (id, username, password_hash, pin4_ha
 VALUES (
   'primary',
   'madyydam',
-  '$2b$10$ytkjeErV8X9Kre6IUx.xF.xh1WIoamVgkZV4W39dnILTjhD4Yp9wu',
-  '$2b$10$KnS90viDCq3SzOWQXsCVheQvd18EsIKz52onXaJhiFHVnvGEnry8a',
-  '$2b$10$vMg/bnOW2jmhddWDHW63/eZBh3tbXIfj/SM9OioBQPRbCVKJh5rzC',
+  '$2b$10$R4emat0IyIbP5tcfdN/ZZuWzAM28idBi8MkARtzJJkFAVDjhddwg6',
+  '$2b$10$3zNPvFgZjSp8Apo5DCsnwuGBPMeaRpgFVV2UVl2DS3e25uDx6RpaG',
+  '$2b$10$/PVeF0UemnSuE2dxO8NlK.flh4JrKr8Uv8iu1xXkZPVZKIq79nojm',
   0,
   NULL
 )
