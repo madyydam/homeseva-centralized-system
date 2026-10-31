@@ -63,6 +63,19 @@ ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DE
 
 DO $$
 BEGIN
+  -- Handle legacy Prisma NOT NULL constraints without DB-level defaults
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'businesses' AND column_name = 'updatedAt') THEN
+    ALTER TABLE public.businesses ALTER COLUMN "updatedAt" SET DEFAULT NOW();
+    ALTER TABLE public.businesses ALTER COLUMN "updatedAt" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'businesses' AND column_name = 'createdAt') THEN
+    ALTER TABLE public.businesses ALTER COLUMN "createdAt" SET DEFAULT NOW();
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'businesses' AND column_name = 'id') THEN
+    ALTER TABLE public.businesses ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text;
+  END IF;
+
+  -- Synchronize data
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'businesses' AND column_name = 'isActive') THEN
     UPDATE public.businesses SET is_active = "isActive" WHERE is_active IS NULL;
   END IF;
@@ -123,9 +136,34 @@ ALTER TABLE public.tabs ADD COLUMN IF NOT EXISTS path TEXT;
 ALTER TABLE public.tabs ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
 ALTER TABLE public.tabs ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
--- Synchronize existing camelCase columns from Prisma to snake_case
+-- Synchronize existing camelCase columns from Prisma to snake_case & handle constraints
 DO $$
 BEGIN
+  -- Handle legacy Prisma NOT NULL constraints on tabs
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'businessId') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "businessId" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'updatedAt') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "updatedAt" SET DEFAULT NOW();
+    ALTER TABLE public.tabs ALTER COLUMN "updatedAt" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'createdAt') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "createdAt" SET DEFAULT NOW();
+    ALTER TABLE public.tabs ALTER COLUMN "createdAt" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'type') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "type" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'sortOrder') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "sortOrder" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'isActive') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "isActive" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'id') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text;
+  END IF;
+
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'businessId') THEN
     UPDATE public.tabs SET business_id = "businessId" WHERE business_id IS NULL;
   END IF;
@@ -279,6 +317,13 @@ ON CONFLICT (slug) DO UPDATE SET
   theme_color = EXCLUDED.theme_color,
   is_active = true,
   updated_at = NOW();
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'businesses' AND column_name = 'updatedAt') THEN
+    UPDATE public.businesses SET "updatedAt" = NOW() WHERE "updatedAt" IS NULL;
+  END IF;
+END $$;
 
 -- -----------------------------------------------------------------------------
 -- 11. SEED: BUSINESS ROLES & TABS FOR ALL 10 BUSINESSES
