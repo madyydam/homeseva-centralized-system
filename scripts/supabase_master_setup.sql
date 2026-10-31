@@ -140,6 +140,31 @@ ALTER TABLE public.tabs ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 DO $$
 BEGIN
   -- Handle legacy Prisma NOT NULL constraints on tabs
+  -- Handle legacy Prisma NOT NULL constraints on tabs
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'businessId') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "businessId" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'updatedAt') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "updatedAt" SET DEFAULT NOW();
+    ALTER TABLE public.tabs ALTER COLUMN "updatedAt" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'createdAt') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "createdAt" SET DEFAULT NOW();
+    ALTER TABLE public.tabs ALTER COLUMN "createdAt" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'type') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "type" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'sortOrder') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "sortOrder" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'isActive') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "isActive" DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'id') THEN
+    ALTER TABLE public.tabs ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text;
+  END IF;
+
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabs' AND column_name = 'businessId') THEN
     ALTER TABLE public.tabs ALTER COLUMN "businessId" DROP NOT NULL;
   END IF;
