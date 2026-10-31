@@ -7,50 +7,73 @@ import {
   ShieldAlert,
   Lock,
   Mail,
+  KeyRound,
   KeySquare,
   ArrowRight,
   ArrowLeft,
   Server,
   Terminal,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import WaveBackground from '../../../components/WaveBackground';
 
 export default function SuperAdminSignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [totp, setTotp] = useState('');
+  const [pin4, setPin4] = useState('');
+  const [pin8, setPin8] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      setErrorMsg('Please enter both email and password.');
+    if (!username.trim() || !password.trim()) {
+      setErrorMsg('Please enter both Master Username and Password.');
+      return;
+    }
+    if (!pin4.trim()) {
+      setErrorMsg('Please enter your 4-digit terminal security PIN.');
+      return;
+    }
+    if (!pin8.trim()) {
+      setErrorMsg('Please enter your 8-digit master authority PIN.');
       return;
     }
 
     setIsLoading(true);
     setErrorMsg('');
 
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      setIsLoading(false);
-      // Validates super admin credentials
-      if (password.trim() === 'ChangeMe@123' || password.trim() === 'SuperAdmin@2026' || password.length >= 6) {
-        router.push('/super-admin/credentials');
-      } else {
-        setErrorMsg('Invalid Master Admin credentials. Please check your password.');
+    try {
+      const res = await fetch('/api/auth/role-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-super-admin',
+          username: username.trim(),
+          password: password.trim(),
+          pin4: pin4.trim(),
+          pin8: pin8.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setErrorMsg(data.error || 'Invalid credentials. Master access denied.');
+        setIsLoading(false);
+        return;
       }
-    }, 450);
+
+      setIsLoading(false);
+      router.push('/super-admin/credentials');
+    } catch (err: any) {
+      console.error('Super admin auth error:', err);
+      setErrorMsg('Unable to reach authentication server. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -97,7 +120,7 @@ export default function SuperAdminSignInPage() {
             </p>
           </div>
 
-          {/* Form */}
+          {/* Form with 4-Factor Authentication */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {errorMsg && (
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-center space-x-2">
@@ -106,16 +129,18 @@ export default function SuperAdminSignInPage() {
               </div>
             )}
 
+            {/* 1. Master Username / Email */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Master Admin Email
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>1. Master Admin Username</span>
+                <span className="text-[10px] text-slate-500 font-mono">Factor 1 of 4</span>
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="superadmin@homeseva.internal"
                   required
                   className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 font-mono transition"
@@ -123,41 +148,71 @@ export default function SuperAdminSignInPage() {
               </div>
             </div>
 
+            {/* 2. Master Password */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Password
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>2. Master Password</span>
+                <span className="text-[10px] text-slate-500 font-mono">Factor 2 of 4</span>
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter master password"
                   required
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 font-mono transition"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 font-mono transition"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Mandatory 2FA Authenticator Code (AUTH-6)
+            {/* 3. 4-Digit Terminal Security PIN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span>3. 4-Digit Security PIN</span>
                 </label>
-                <span className="text-[11px] text-indigo-400 font-mono">TOTP Active</span>
+                <div className="relative">
+                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+                  <input
+                    type="password"
+                    maxLength={4}
+                    inputMode="numeric"
+                    value={pin4}
+                    onChange={(e) => setPin4(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••"
+                    required
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-amber-300 placeholder:text-slate-700 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/15 font-mono tracking-widest text-center font-black transition"
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <KeySquare className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
-                  type="text"
-                  value={totp}
-                  onChange={(e) => setTotp(e.target.value)}
-                  maxLength={6}
-                  placeholder="6-digit code"
-                  required
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 font-mono tracking-widest transition text-center font-bold"
-                />
+
+              {/* 4. 8-Digit Master Authority / Recovery Key */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span>4. 8-Digit Master Key</span>
+                </label>
+                <div className="relative">
+                  <KeySquare className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-400" />
+                  <input
+                    type="password"
+                    maxLength={8}
+                    inputMode="numeric"
+                    value={pin8}
+                    onChange={(e) => setPin8(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••••••"
+                    required
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-purple-300 placeholder:text-slate-700 focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-500/15 font-mono tracking-widest text-center font-black transition"
+                  />
+                </div>
               </div>
             </div>
 

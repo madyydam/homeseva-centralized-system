@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ShieldAlert,
   HardDrive,
@@ -21,6 +22,7 @@ import {
   Square,
   FileCheck,
   KeyRound,
+  LogOut,
 } from 'lucide-react';
 
 interface BusinessBackup {
@@ -49,6 +51,7 @@ const INITIAL_BUSINESSES: BusinessBackup[] = [
 ];
 
 export default function SuperAdminBackupPage() {
+  const router = useRouter();
   const [businesses, setBusinesses] = useState(INITIAL_BUSINESSES);
   const [selectedIds, setSelectedIds] = useState<string[]>(INITIAL_BUSINESSES.map((b) => b.id));
   const [isProcessing, setIsProcessing] = useState(false);
@@ -131,12 +134,23 @@ export default function SuperAdminBackupPage() {
               <KeyRound className="h-3.5 w-3.5 text-slate-400" />
               <span>Role Passwords &amp; PINs</span>
             </Link>
-            <Link
-              href="/"
-              className="rounded-xl border border-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await fetch('/api/auth/role-credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'logout' }),
+                  });
+                } catch (e) {}
+                router.push('/super-admin/signin');
+              }}
+              className="inline-flex items-center space-x-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 hover:text-white transition cursor-pointer"
             >
-              Exit
-            </Link>
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Lock Console</span>
+            </button>
           </div>
         </div>
       </header>
