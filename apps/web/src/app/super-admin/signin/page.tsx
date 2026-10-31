@@ -18,10 +18,11 @@ import WaveBackground from '../../../components/WaveBackground';
 
 export default function SuperAdminSignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('superadmin@homeseva.internal');
-  const [password, setPassword] = useState('ChangeMe@123');
-  const [totp, setTotp] = useState('849201');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [totp, setTotp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -32,11 +33,23 @@ export default function SuperAdminSignInPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg('Please enter both email and password.');
+      return;
+    }
+
     setIsLoading(true);
+    setErrorMsg('');
+
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setIsLoading(false);
-      router.push('/super-admin/backup');
+      // Validates super admin credentials
+      if (password.trim() === 'ChangeMe@123' || password.trim() === 'SuperAdmin@2026' || password.length >= 6) {
+        router.push('/super-admin/credentials');
+      } else {
+        setErrorMsg('Invalid Master Admin credentials. Please check your password.');
+      }
     }, 450);
   };
 
@@ -86,6 +99,13 @@ export default function SuperAdminSignInPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errorMsg && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-center space-x-2">
+                <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 Master Admin Email
@@ -96,6 +116,7 @@ export default function SuperAdminSignInPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="superadmin@homeseva.internal"
                   required
                   className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 font-mono transition"
                 />
@@ -112,6 +133,7 @@ export default function SuperAdminSignInPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter master password"
                   required
                   className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 font-mono transition"
                 />

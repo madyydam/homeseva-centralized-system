@@ -121,9 +121,9 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
   const [selectedBranch, setSelectedBranch] = useState<'viman-nagar' | 'ravet' | 'kolhapur' | null>(initialBranch);
   const [selectedRole, setSelectedRole] = useState('Studio Manager');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [roleId, setRoleId] = useState('B1-MGR-001');
-  const [password, setPassword] = useState('GentleHair@123');
-  const [pin, setPin] = useState('2408');
+  const [roleId, setRoleId] = useState('');
+  const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -154,22 +154,27 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
     }
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
+    const activeTimeout = timeoutRef.current;
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (activeTimeout) clearTimeout(activeTimeout);
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isGentleHairWigs) {
       if (!selectedBranch) {
         setErrorMsg('Please select a studio branch');
         return;
       }
-      if (!password.trim() || !pin.trim()) {
-        setErrorMsg('Please enter both password and PIN');
+      if (!password.trim()) {
+        setErrorMsg('Please enter your password');
+        return;
+      }
+      if (!pin.trim()) {
+        setErrorMsg('Please enter your 4-digit security PIN');
         return;
       }
     } else if (isHorecaEssentials) {
@@ -189,8 +194,27 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
     setIsLoading(true);
     setErrorMsg('');
 
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
+    try {
+      const activeRole = isGentleHairWigs ? selectedRole : roleId;
+      const res = await fetch('/api/auth/role-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify',
+          businessSlug,
+          role: activeRole,
+          password: password.trim(),
+          pin: pin.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setErrorMsg(data.error || 'Authentication failed. Please check your credentials.');
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(false);
       if (isGentleHairWigs && selectedBranch) {
         router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
@@ -199,7 +223,11 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
       } else {
         router.push(`/app/${businessSlug}/dashboard`);
       }
-    }, 450);
+    } catch (err: any) {
+      console.error('Sign in verification error:', err);
+      setErrorMsg('Unable to verify credentials. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   const currentRoleOption =
@@ -705,8 +733,9 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                       type="text"
                       value={roleId}
                       onChange={(e) => setRoleId(e.target.value)}
+                      placeholder="Enter Role ID (e.g. B1-MGR-001)"
                       required
-                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-mono text-slate-900 focus:border-blue-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-mono text-slate-900 focus:border-blue-500 focus:outline-none placeholder:text-slate-400"
                     />
                   </div>
                 )}
@@ -720,8 +749,9 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter assigned password"
                       required
-                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-9 text-xs text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-9 text-xs text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 placeholder:text-slate-400"
                     />
                     <button
                       type="button"
@@ -746,8 +776,9 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                       maxLength={6}
                       value={pin}
                       onChange={(e) => setPin(e.target.value)}
+                      placeholder="••••"
                       required
-                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-mono tracking-widest text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-mono tracking-widest text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 placeholder:text-slate-400"
                     />
                   </div>
                 </div>

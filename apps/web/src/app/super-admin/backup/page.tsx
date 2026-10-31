@@ -20,6 +20,7 @@ import {
   CheckSquare,
   Square,
   FileCheck,
+  KeyRound,
 } from 'lucide-react';
 
 interface BusinessBackup {
@@ -115,16 +116,26 @@ export default function SuperAdminBackupPage() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-400 font-mono bg-emerald-950/60 border border-emerald-800/60 rounded-full px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              S3 Storage Connected: homeseva-files
-            </span>
+          <div className="flex items-center space-x-2">
+            <Link
+              href="/super-admin/backup"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-indigo-500 bg-indigo-600/30 text-xs font-bold text-indigo-300 shadow-glow-indigo"
+            >
+              <HardDrive className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Backups &amp; S3</span>
+            </Link>
+            <Link
+              href="/super-admin/credentials"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-slate-400" />
+              <span>Role Passwords &amp; PINs</span>
+            </Link>
             <Link
               href="/"
-              className="rounded-xl border border-slate-700 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              className="rounded-xl border border-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
             >
-              Log Out
+              Exit
             </Link>
           </div>
         </div>
