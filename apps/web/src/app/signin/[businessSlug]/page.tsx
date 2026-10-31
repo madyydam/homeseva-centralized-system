@@ -530,9 +530,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to All Businesses</span>
         </Link>
-        <span className="text-[11px] font-mono text-zinc-400">
-          HomeSeva Centralized Access
-        </span>
       </div>
 
       {/* Main Single-Screen Card Container */}
@@ -1070,7 +1067,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
 
                       {isLoadingRoles ? (
                         <div className="w-full flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500">
-                          Loading roles from Supabase...
+                          Loading roles...
                         </div>
                       ) : roles.length > 0 ? (
                         <>
@@ -1271,10 +1268,8 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
         </div>
       </div>
 
-      {/* Clean Bottom Bar */}
-      <footer className="relative z-10 py-2.5 text-center text-[11px] text-zinc-400 shrink-0 bg-black/40 backdrop-blur-xs border-t border-white/[0.06]">
-        HomeSeva Centralized System · Single Source of Truth: Supabase
-      </footer>
+      {/* Bottom spacer */}
+      <div className="relative z-10" />
     </main>
   );
 }

@@ -295,10 +295,7 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Clean Bottom Bar */}
-      <footer className="relative z-10 py-2.5 text-center text-[11px] text-zinc-400 shrink-0 bg-black/40 backdrop-blur-xs border-t border-white/[0.06]">
-        HomeSeva Centralized System · Strict Isolation · Single Database
-      </footer>
+      <div className="relative z-10" />
     </main>
   );
 }
