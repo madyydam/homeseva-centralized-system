@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
-  reactStrictMode: true,
+  reactStrictMode: false,
   images: {
     remotePatterns: [
       {
@@ -11,6 +11,12 @@ const nextConfig = {
         pathname: '/homeseva-files/**',
       },
     ],
+  },
+  webpack: (config, { isServer, dev }) => {
+    if (isServer && dev) {
+      config.output.chunkFilename = 'chunks/[name].js';
+    }
+    return config;
   },
 };
 

@@ -63,6 +63,33 @@ function getRoleIcon(roleName: string, dept: string = '') {
   return UserCheck;
 }
 
+const DEFAULT_BUSINESS_ROLES: Record<string, DynamicRole[]> = {
+  'gentle-hair-wigs': [
+    { id: '1', role_id: 'Studio Manager', label: 'Studio Manager', department: 'Operations', description: 'Studio operations & roster' },
+    { id: '2', role_id: 'Cold Caller', label: 'Cold Caller / Telecaller', department: 'Telecalling', description: 'Leads & calling desk' },
+    { id: '3', role_id: 'Senior Wig Specialist & Stylist', label: 'Senior Wig Specialist & Stylist', department: 'Styling', description: 'Custom hair fittings & styling' },
+    { id: '4', role_id: 'Scalp & Measurement Consultant', label: 'Scalp & Measurement Consultant', department: 'Consultation', description: 'Head contouring & templates' },
+    { id: '5', role_id: 'Billing & Front Desk', label: 'Billing & Front Desk', department: 'Front Desk', description: 'POS & invoices register' },
+    { id: '6', role_id: 'Inventory Coordinator (Wigs & Patches)', label: 'Inventory Coordinator (Wigs & Patches)', department: 'Inventory', description: 'Stock, lace systems & patches' },
+    { id: '7', role_id: 'Studio Partner / Owner', label: 'Studio Partner / Owner', department: 'Executive', description: 'Studio P&L & audits' },
+  ],
+  'horeca-essentials': [
+    { id: '1', role_id: 'Store Operations Manager', label: 'Store Operations Manager', department: 'Operations', description: 'Store & warehouse manager' },
+    { id: '2', role_id: 'B2B Sales Executive', label: 'B2B Sales Executive', department: 'Sales', description: 'Commercial kitchen sales' },
+    { id: '3', role_id: 'Crockery Hire Coordinator', label: 'Crockery Hire Coordinator', department: 'Rentals', description: 'Event & banquet hire' },
+    { id: '4', role_id: 'Accountant & Billing', label: 'Accountant & Billing', department: 'Finance', description: 'GST invoicing & ledger' },
+  ],
+  'ecolab-distribution': [
+    { id: '1', role_id: 'Territory Sales Manager', label: 'Territory Sales Manager', department: 'Sales', description: 'Institutional sales' },
+    { id: '2', role_id: 'Institutional Account Specialist', label: 'Institutional Account Specialist', department: 'Accounts', description: 'Commercial accounts' },
+    { id: '3', role_id: 'Chemical Safety Auditor', label: 'Chemical Safety Auditor', department: 'Quality', description: 'Safety & sanitation audits' },
+  ],
+  'prefab-construction': [
+    { id: '1', role_id: 'Site Project Manager', label: 'Site Project Manager', department: 'Projects', description: 'Site execution & delivery' },
+    { id: '2', role_id: 'Civil Structural Engineer', label: 'Civil Structural Engineer', department: 'Engineering', description: 'Structural designs & CAD' },
+  ],
+};
+
 export default function BusinessSignInPage({ params }: SignInPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -126,11 +153,12 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
 
   const [selectedBranch, setSelectedBranch] = useState<'viman-nagar' | 'ravet' | 'kolhapur' | null>(initialBranch);
 
-  // Dynamic roles fetched from Supabase API
-  const [roles, setRoles] = useState<DynamicRole[]>([]);
-  const [selectedRole, setSelectedRole] = useState('');
+  // Dynamic roles fetched from Supabase API (pre-populated with catalog defaults)
+  const fallbackRoles = DEFAULT_BUSINESS_ROLES[businessSlug] || [];
+  const [roles, setRoles] = useState<DynamicRole[]>(fallbackRoles);
+  const [selectedRole, setSelectedRole] = useState(fallbackRoles[0]?.role_id || '');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
@@ -1160,18 +1188,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                             </div>
                           )}
                         </>
-                      ) : (
-                        <div>
-                          <input
-                            type="text"
-                            value={selectedRole}
-                            onChange={(e) => setSelectedRole(e.target.value)}
-                            placeholder="Enter Role ID"
-                            required
-                            className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-mono text-slate-900 focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      )}
+                      ) : null}
                     </div>
 
                     {/* 2. PASSWORD INPUT (Linked to Left Column Lock 1) */}
