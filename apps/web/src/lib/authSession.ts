@@ -45,6 +45,7 @@ export interface SessionPayload {
   role: string;
   businessSlug?: string;
   isSuperAdmin?: boolean;
+  username?: string;
   exp: number; // Unix timestamp in ms
 }
 
@@ -115,3 +116,23 @@ export async function verifySession(token: string | null | undefined): Promise<S
 
 export const SUPER_ADMIN_COOKIE = 'homeseva_sa_token';
 export const USER_SESSION_COOKIE = 'homeseva_user_session';
+
+export async function getCurrentSuperAdminSession(): Promise<SessionPayload | null> {
+  const { cookies } = await import('next/headers');
+  const token = cookies().get(SUPER_ADMIN_COOKIE)?.value;
+  const session = await verifySession(token);
+  if (session && session.isSuperAdmin) {
+    return session;
+  }
+  return null;
+}
+
+export async function getCurrentStaffSession(): Promise<SessionPayload | null> {
+  const { cookies } = await import('next/headers');
+  const token = cookies().get(USER_SESSION_COOKIE)?.value;
+  const session = await verifySession(token);
+  if (session && !session.isSuperAdmin) {
+    return session;
+  }
+  return null;
+}

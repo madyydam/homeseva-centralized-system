@@ -17,28 +17,64 @@ import {
   ExternalLink,
   ShieldCheck,
   Check,
+  Copy,
   Fingerprint,
   UserCheck,
   LogOut,
-  RefreshCw,
+  PlusCircle,
+  Sliders,
+  X,
 } from 'lucide-react';
-import { RoleCredential, BusinessCredentials, SuperAdminConfig } from '../../api/auth/role-credentials/route';
+
+interface RoleItem {
+  id?: string;
+  role: string;
+  label: string;
+  department: string;
+  password?: string;
+  pin?: string;
+  lastUpdated?: string;
+}
+
+interface CompanyItem {
+  businessId: string;
+  businessSlug: string;
+  businessName: string;
+  roles: RoleItem[];
+}
+
+interface TabItem {
+  id: string;
+  tab_key: string;
+  label: string;
+  description?: string;
+}
+
+interface RoleTabAccess {
+  role_id: string;
+  tab_id: string;
+  can_view: boolean;
+  can_edit: boolean;
+}
 
 export default function SuperAdminCredentialsPage() {
   const router = useRouter();
-  const [companies, setCompanies] = useState<BusinessCredentials[]>([]);
+  const [companies, setCompanies] = useState<CompanyItem[]>([]);
   const [selectedSlug, setSelectedSlug] = useState('gentle-hair-wigs');
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Tab View Mode: 'roles' | 'tab-access'
+  const [viewMode, setViewMode] = useState<'roles' | 'tab-access'>('roles');
 
   // Super Admin Master Credentials Rotation Form
-  const [adminUsername, setAdminUsername] = useState('superadmin@homeseva.internal');
+  const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPin4, setAdminPin4] = useState('');
   const [adminPin8, setAdminPin8] = useState('');
-  const [adminStatus, setAdminStatus] = useState<SuperAdminConfig | null>(null);
   const [isSavingAdmin, setIsSavingAdmin] = useState(false);
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [showAdminPin4, setShowAdminPin4] = useState(false);
@@ -48,6 +84,21 @@ export default function SuperAdminCredentialsPage() {
   const [roleInputs, setRoleInputs] = useState<Record<string, { password: string; pin: string }>>({});
   const [visibleInputs, setVisibleInputs] = useState<Record<string, boolean>>({});
 
+  // Tab Access State
+  const [tabsList, setTabsList] = useState<TabItem[]>([]);
+  const [tabAccessMap, setTabAccessMap] = useState<Record<string, Record<string, boolean>>>({}); // { [roleId]: { [tabId]: boolean } }
+  const [selectedAccessRoleId, setSelectedAccessRoleId] = useState<string>('');
+  const [isSavingTabAccess, setIsSavingTabAccess] = useState(false);
+
+  // Create Role Modal State
+  const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleLabel, setNewRoleLabel] = useState('');
+  const [newRoleDept, setNewRoleDept] = useState('');
+  const [newRolePass, setNewRolePass] = useState('');
+  const [newRolePin, setNewRolePin] = useState('');
+  const [isCreatingRole, setIsCreatingRole] = useState(false);
+
   const notifTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const showNotification = (type: 'success' | 'error', message: string) => {
@@ -56,11 +107,17 @@ export default function SuperAdminCredentialsPage() {
     notifTimerRef.current = setTimeout(() => setNotification(null), 3500);
   };
 
-  // Fetch all credentials on mount (strictly guarded)
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1800);
+  };
+
+  // Fetch all credentials on mount
   const fetchCredentials = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/auth/role-credentials?action=all');
+      const res = await fetch('/api/admin/credentials');
       if (res.status === 401) {
         router.push('/super-admin/signin');
         return;
@@ -70,7 +127,6 @@ export default function SuperAdminCredentialsPage() {
         setCompanies(data.companies);
       }
       if (data.superAdmin) {
-        setAdminStatus(data.superAdmin);
         setAdminUsername(data.superAdmin.username);
       }
     } catch (err: any) {
@@ -81,21 +137,42 @@ export default function SuperAdminCredentialsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchCredentials();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleSignOut = async () => {
+  // Fetch tab access for current company
+  const fetchTabAccess = async (slug: string) => {
     try {
-      await fetch('/api/auth/role-credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'logout' }),
-      });
-    } catch (err) {
+      const res = await fetch(`/api/admin/tab-access?businessSlug=${slug}`);
+      const data = await res.json();
+      if (data.success) {
+        setTabsList(data.tabs || []);
+        const map: Record<string, Record<string, boolean>> = {};
+        (data.access || []).forEach((item: RoleTabAccess) => {
+          if (!map[item.role_id]) map[item.role_id] = {};
+          const roleEntry = map[item.role_id];
+          if (roleEntry) {
+            roleEntry[item.tab_id] = item.can_view;
+          }
+        });
+        setTabAccessMap(map);
+        if (data.roles && data.roles.length > 0 && !selectedAccessRoleId) {
+          setSelectedAccessRoleId(data.roles[0].id || data.roles[0].role_id);
+        }
+      }
+    } catch {
       // ignore
     }
+  };
+
+  useEffect(() => {
+    fetchCredentials();
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === 'tab-access') {
+      fetchTabAccess(selectedSlug);
+    }
+  }, [selectedSlug, viewMode]);
+
+  const handleSignOut = async () => {
     router.push('/super-admin/signin');
   };
 
@@ -119,7 +196,7 @@ export default function SuperAdminCredentialsPage() {
 
     setIsSavingAdmin(true);
     try {
-      const res = await fetch('/api/auth/role-credentials', {
+      const res = await fetch('/api/admin/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,7 +223,7 @@ export default function SuperAdminCredentialsPage() {
       } else {
         showNotification('error', data.error || 'Failed to update master credentials');
       }
-    } catch (err) {
+    } catch {
       showNotification('error', 'Network error updating master credentials.');
     } finally {
       setIsSavingAdmin(false);
@@ -167,13 +244,13 @@ export default function SuperAdminCredentialsPage() {
   const handleSaveRole = async (roleName: string) => {
     const item = roleInputs[roleName];
     if (!item || !item.password.trim()) {
-      showNotification('error', `Please enter a new password for "${roleName}" to update.`);
+      showNotification('error', `Please enter a password for "${roleName}".`);
       return;
     }
 
     setSavingRoleId(roleName);
     try {
-      const res = await fetch('/api/auth/role-credentials', {
+      const res = await fetch('/api/admin/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,29 +271,28 @@ export default function SuperAdminCredentialsPage() {
       if (!data.success) {
         showNotification('error', data.error || 'Failed to update credentials');
       } else {
-        showNotification('success', `Saved! Password & PIN for "${roleName}" locked in database.`);
-        // Clear input buffer for this role
+        showNotification('success', `Saved! Password & PIN for "${roleName}" updated in Supabase.`);
         setRoleInputs((prev) => ({
           ...prev,
           [roleName]: { password: '', pin: '' },
         }));
         fetchCredentials();
       }
-    } catch (err: any) {
+    } catch {
       showNotification('error', 'Network error while updating credentials.');
     } finally {
       setSavingRoleId(null);
     }
   };
 
-  // Save all changed roles for this company
+  // Save all changed roles
   const handleSaveAll = async () => {
     const currentCompany = companies.find((c) => c.businessSlug === selectedSlug);
     if (!currentCompany) return;
 
     const changedRoles = Object.entries(roleInputs).filter(([_, val]) => val.password.trim());
     if (changedRoles.length === 0) {
-      showNotification('error', 'No new passwords entered to save. Enter a new password for at least one role.');
+      showNotification('error', 'No new passwords entered to save. Enter a password for at least one role.');
       return;
     }
 
@@ -228,7 +304,7 @@ export default function SuperAdminCredentialsPage() {
         pin: val.pin.trim(),
       }));
 
-      const res = await fetch('/api/auth/role-credentials', {
+      const res = await fetch('/api/admin/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -247,14 +323,93 @@ export default function SuperAdminCredentialsPage() {
       if (!data.success) {
         showNotification('error', data.error || 'Failed to save credentials');
       } else {
-        showNotification('success', `All updated role credentials for "${currentCompany.businessName}" saved in database!`);
+        showNotification('success', `All updated role credentials for "${currentCompany.businessName}" saved in Supabase!`);
         setRoleInputs({});
         fetchCredentials();
       }
-    } catch (err) {
+    } catch {
       showNotification('error', 'Network error while saving all credentials.');
     } finally {
       setIsSavingAll(false);
+    }
+  };
+
+  // Handle Create Role
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleName.trim() || !newRolePass.trim()) {
+      showNotification('error', 'Role ID and Password are required.');
+      return;
+    }
+
+    setIsCreatingRole(true);
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-role',
+          businessSlug: selectedSlug,
+          roleId: newRoleName.trim(),
+          label: (newRoleLabel || newRoleName).trim(),
+          department: (newRoleDept || 'General').trim(),
+          password: newRolePass.trim(),
+          pin: (newRolePin || '1111').trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showNotification('success', `Role "${newRoleName}" created successfully!`);
+        setIsCreateRoleOpen(false);
+        setNewRoleName('');
+        setNewRoleLabel('');
+        setNewRoleDept('');
+        setNewRolePass('');
+        setNewRolePin('');
+        fetchCredentials();
+      } else {
+        showNotification('error', data.error || 'Failed to create role');
+      }
+    } catch {
+      showNotification('error', 'Network error creating role');
+    } finally {
+      setIsCreatingRole(false);
+    }
+  };
+
+  // Save Tab Access
+  const handleSaveTabAccess = async () => {
+    if (!selectedAccessRoleId) return;
+    setIsSavingTabAccess(true);
+
+    try {
+      const roleMap = tabAccessMap[selectedAccessRoleId] || {};
+      const payload = Object.entries(roleMap).map(([tabId, canView]) => ({
+        tabId,
+        canView,
+      }));
+
+      const res = await fetch('/api/admin/tab-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessSlug: selectedSlug,
+          roleId: selectedAccessRoleId,
+          tabAccessList: payload,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showNotification('success', 'Tab access configuration saved successfully!');
+      } else {
+        showNotification('error', data.error || 'Failed to save tab access');
+      }
+    } catch {
+      showNotification('error', 'Network error saving tab access');
+    } finally {
+      setIsSavingTabAccess(false);
     }
   };
 
@@ -277,7 +432,7 @@ export default function SuperAdminCredentialsPage() {
               <span className="flex h-7 items-center rounded-md bg-indigo-600 px-2.5 text-xs font-bold text-white shadow-glow-indigo">
                 SUPER ADMIN
               </span>
-              <h1 className="text-sm font-bold text-white">Central Security &amp; Role Credentials Console</h1>
+              <h1 className="text-sm font-bold text-white">Central Security &amp; Role Management Console</h1>
             </div>
           </div>
 
@@ -288,20 +443,13 @@ export default function SuperAdminCredentialsPage() {
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
             >
               <HardDrive className="h-3.5 w-3.5 text-slate-400" />
-              <span>Backups &amp; S3</span>
-            </Link>
-            <Link
-              href="/super-admin/credentials"
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-indigo-500 bg-indigo-600/30 text-xs font-bold text-indigo-300 shadow-glow-indigo"
-            >
-              <KeyRound className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Role Passwords &amp; PINs</span>
+              <span>Backups</span>
             </Link>
             <button
               type="button"
               onClick={handleSignOut}
               className="inline-flex items-center space-x-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 hover:text-white transition cursor-pointer"
-              title="Lock Console & Sign Out"
+              title="Sign Out"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>Lock Console</span>
@@ -358,7 +506,7 @@ export default function SuperAdminCredentialsPage() {
                 <Link href="/super-admin/signin" className="text-amber-300 underline font-medium hover:text-amber-200">
                   /super-admin/signin
                 </Link>
-                . Credentials are encrypted in Supabase and never exposed to clients.
+                . Values are cryptographically hashed using Bcrypt before storage.
               </p>
             </div>
 
@@ -370,7 +518,7 @@ export default function SuperAdminCredentialsPage() {
                 className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 transition cursor-pointer disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
-                <span>{isSavingAdmin ? 'Locking in Database...' : 'Save & Lock New Master Keys'}</span>
+                <span>{isSavingAdmin ? 'Hashing & Locking...' : 'Save & Lock Master Keys'}</span>
               </button>
             </div>
           </div>
@@ -387,10 +535,10 @@ export default function SuperAdminCredentialsPage() {
                 type="text"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
-                placeholder="superadmin@homeseva.internal"
+                placeholder="madyydam"
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-mono text-white placeholder-slate-600 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
-              <p className="text-[10px] text-slate-500">Root identifier or admin email</p>
+              <p className="text-[10px] text-slate-500">Root identifier or master username</p>
             </div>
 
             {/* Factor 2: New Password */}
@@ -415,7 +563,7 @@ export default function SuperAdminCredentialsPage() {
                 placeholder="Enter new master password"
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-mono text-white placeholder-slate-600 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
-              <p className="text-[10px] text-slate-500">High entropy master password</p>
+              <p className="text-[10px] text-slate-500">Bcrypt hashed before saving</p>
             </div>
 
             {/* Factor 3: New 4-Digit PIN */}
@@ -441,7 +589,7 @@ export default function SuperAdminCredentialsPage() {
                 placeholder="••••"
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-center text-xs font-mono font-bold tracking-widest text-emerald-400 placeholder-slate-600 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
-              <p className="text-[10px] text-slate-500 text-center">Terminal security PIN</p>
+              <p className="text-[10px] text-slate-500 text-center">4-digit security PIN</p>
             </div>
 
             {/* Factor 4: New 8-Digit PIN */}
@@ -449,7 +597,7 @@ export default function SuperAdminCredentialsPage() {
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
-                  <span>4. New 8-Digit Key</span>
+                  <span>4. New 8-Digit PIN</span>
                 </label>
                 <button
                   type="button"
@@ -467,49 +615,72 @@ export default function SuperAdminCredentialsPage() {
                 placeholder="••••••••"
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-center text-xs font-mono font-bold tracking-widest text-purple-400 placeholder-slate-600 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400"
               />
-              <p className="text-[10px] text-slate-500 text-center">Master recovery key</p>
+              <p className="text-[10px] text-slate-500 text-center">8-digit master authority key</p>
             </div>
           </div>
         </div>
 
-        {/* Company Selector Ribbon */}
+        {/* Company Selector Ribbon & Controls */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div>
               <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
                 <Building2 className="h-4 w-4 text-indigo-400" />
-                <span>Select Company to Manage Passwords &amp; PINs</span>
+                <span>Select Company Workspace</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage passwords and PINs securely. Passwords are saved directly to Supabase.
+                Configure roles, tab access, passwords, and security PINs for any of the 10 businesses.
               </p>
             </div>
 
-            {currentCompany && (
-              <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
+              {/* Mode Toggle: Roles vs Tab Access */}
+              <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('roles')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                    viewMode === 'roles' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Roles &amp; Credentials
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('tab-access')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                    viewMode === 'tab-access' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tab Access Control
+                </button>
+              </div>
+
+              {/* Add Custom Role Button */}
+              <button
+                type="button"
+                onClick={() => setIsCreateRoleOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/50 bg-indigo-600/20 text-xs font-bold text-indigo-300 hover:bg-indigo-600/30 transition cursor-pointer"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>Add Role</span>
+              </button>
+
+              {currentCompany && (
                 <Link
                   href={`/signin/${currentCompany.businessSlug}`}
                   target="_blank"
                   className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-700 transition"
-                  title="Open live sign in page to test"
+                  title="Test Sign In"
                 >
                   <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
                   <span>Test Sign In</span>
                 </Link>
-                <button
-                  type="button"
-                  onClick={handleSaveAll}
-                  disabled={isSavingAll}
-                  className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black text-white shadow-glow-indigo transition cursor-pointer disabled:opacity-60"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  <span>{isSavingAll ? 'Saving All...' : 'Save All Updated Roles'}</span>
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Company Badges Carousel / Grid */}
+          {/* Company Badges Carousel */}
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
             {companies.map((comp) => {
               const isSelected = selectedSlug === comp.businessSlug;
@@ -538,154 +709,389 @@ export default function SuperAdminCredentialsPage() {
           </div>
         </div>
 
-        {/* Roles & Credentials Card Grid */}
-        {isLoading ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-12 text-center text-slate-400">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent mb-3" />
-            <p className="text-xs font-bold font-mono">Loading company security credentials...</p>
-          </div>
-        ) : !currentCompany || currentCompany.roles.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-12 text-center text-slate-400">
-            <ShieldAlert className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-            <p className="text-sm font-bold text-white">No roles registered for this company.</p>
-          </div>
+        {/* VIEW MODE 1: ROLES & CREDENTIALS */}
+        {viewMode === 'roles' ? (
+          isLoading ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-12 text-center text-slate-400">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent mb-3" />
+              <p className="text-xs font-bold font-mono">Loading company security credentials...</p>
+            </div>
+          ) : !currentCompany || currentCompany.roles.length === 0 ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-12 text-center text-slate-400">
+              <ShieldAlert className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+              <p className="text-sm font-bold text-white">No roles registered for this company.</p>
+              <button
+                type="button"
+                onClick={() => setIsCreateRoleOpen(true)}
+                className="mt-3 inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-xs font-bold text-white"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>Create First Role</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                <span>
+                  Managing roles &amp; credentials for: <strong className="text-white">{currentCompany.businessName}</strong> ({currentCompany.roles.length} roles)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSavingAll}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black text-white shadow-glow-indigo transition cursor-pointer disabled:opacity-60"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  <span>{isSavingAll ? 'Saving All...' : 'Save All Updated Roles'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentCompany.roles.map((roleItem) => {
+                  const roleKey = roleItem.role;
+                  const buffer = roleInputs[roleKey] || { password: roleItem.password || '', pin: roleItem.pin || '' };
+                  const isPassVisible = !!visibleInputs[`pass-${roleKey}`];
+                  const isPinVisible = !!visibleInputs[`pin-${roleKey}`];
+                  const isSaving = savingRoleId === roleKey;
+
+                  return (
+                    <div
+                      key={roleKey}
+                      className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl hover:border-slate-700 transition flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Role Header */}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-black text-white truncate leading-snug">
+                              {roleItem.label || roleItem.role}
+                            </h3>
+                            <span className="text-[10px] font-mono text-indigo-400">
+                              Role ID: {roleItem.role}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-500/40 bg-indigo-500/10 text-indigo-300 shrink-0">
+                            {roleItem.department}
+                          </span>
+                        </div>
+
+                        {/* Password Field */}
+                        <div className="space-y-1 mb-3">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <label className="font-bold text-slate-300 flex items-center space-x-1">
+                              <Lock className="h-3 w-3 text-slate-400" />
+                              <span>Role Password</span>
+                            </label>
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(buffer.password, `pass-${roleKey}`)}
+                                className="text-slate-400 hover:text-white p-0.5"
+                                title="Copy password"
+                              >
+                                {copiedKey === `pass-${roleKey}` ? (
+                                  <Check className="h-3 w-3 text-emerald-400" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVisibleInputs((prev) => ({ ...prev, [`pass-${roleKey}`]: !prev[`pass-${roleKey}`] }))
+                                }
+                                className="text-slate-400 hover:text-white p-0.5"
+                              >
+                                {isPassVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type={isPassVisible ? 'text' : 'password'}
+                              value={buffer.password}
+                              onChange={(e) => handleRoleInputChange(roleKey, 'password', e.target.value)}
+                              placeholder="Enter role password"
+                              className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 px-3 text-xs font-mono text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 4-Digit Security PIN */}
+                        <div className="space-y-1 mb-4">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <label className="font-bold text-slate-300 flex items-center space-x-1">
+                              <KeyRound className="h-3 w-3 text-amber-400" />
+                              <span>Security PIN</span>
+                            </label>
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(buffer.pin, `pin-${roleKey}`)}
+                                className="text-slate-400 hover:text-white p-0.5"
+                                title="Copy PIN"
+                              >
+                                {copiedKey === `pin-${roleKey}` ? (
+                                  <Check className="h-3 w-3 text-emerald-400" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setVisibleInputs((prev) => ({ ...prev, [`pin-${roleKey}`]: !prev[`pin-${roleKey}`] }))
+                                }
+                                className="text-slate-400 hover:text-white p-0.5"
+                              >
+                                {isPinVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type={isPinVisible ? 'text' : 'password'}
+                              value={buffer.pin}
+                              maxLength={6}
+                              onChange={(e) => handleRoleInputChange(roleKey, 'pin', e.target.value)}
+                              placeholder="4-digit PIN"
+                              className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 px-3 text-xs font-mono tracking-widest text-amber-300 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-500">
+                          {roleItem.lastUpdated ? 'Synced' : 'Default'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveRole(roleKey)}
+                          disabled={isSaving}
+                          className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                        >
+                          <Save className="h-3 w-3" />
+                          <span>{isSaving ? 'Saving...' : 'Save Role'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-              <span>
-                Managing credentials for: <strong className="text-white">{currentCompany.businessName}</strong> ({currentCompany.roles.length} configured roles)
-              </span>
-              <span className="text-[11px] font-mono text-emerald-400 flex items-center space-x-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Supabase Database Sync Active</span>
-              </span>
+          /* VIEW MODE 2: TAB ACCESS CONTROL */
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+              <div>
+                <h3 className="text-sm font-black text-white flex items-center space-x-2">
+                  <Sliders className="h-4 w-4 text-indigo-400" />
+                  <span>Configure Tab Visibility &amp; Module Access</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Choose which tabs and workspaces each role is authorized to see inside{' '}
+                  <strong className="text-white">{currentCompany?.businessName || selectedSlug}</strong>.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveTabAccess}
+                disabled={isSavingTabAccess}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black text-white shadow-glow-indigo transition cursor-pointer disabled:opacity-50"
+              >
+                <Save className="h-3.5 w-3.5" />
+                <span>{isSavingTabAccess ? 'Saving Access...' : 'Save Tab Access'}</span>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {currentCompany.roles.map((roleItem) => {
-                const roleKey = roleItem.role;
-                const buffer = roleInputs[roleKey] || { password: '', pin: '' };
-                const isPassVisible = !!visibleInputs[`pass-${roleKey}`];
-                const isPinVisible = !!visibleInputs[`pin-${roleKey}`];
-                const isSaving = savingRoleId === roleKey;
+            {/* Select Role for Tab Configuration */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-2">
+                1. Select Role to Configure Tab Permissions:
+              </label>
+              <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
+                {(currentCompany?.roles || []).map((r) => {
+                  const rId = r.id || r.role;
+                  const isSelected = selectedAccessRoleId === rId;
+                  return (
+                    <button
+                      key={r.role}
+                      type="button"
+                      onClick={() => setSelectedAccessRoleId(rId)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <span>{r.label || r.role}</span>
+                      <span className="text-[10px] text-slate-400">({r.department})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-                return (
-                  <div
-                    key={roleKey}
-                    className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl hover:border-slate-700 transition flex flex-col justify-between"
-                  >
-                    <div>
-                      {/* Role Header */}
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-black text-white truncate leading-snug">
-                            {roleItem.label || roleItem.role}
-                          </h3>
-                          <span className="text-[10px] font-mono text-indigo-400">
-                            Role ID: {roleItem.role}
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-500/40 bg-indigo-500/10 text-indigo-300 shrink-0">
-                          {roleItem.department}
-                        </span>
-                      </div>
-
-                      {/* Security Status Badges */}
-                      <div className="flex items-center space-x-2 mb-4">
-                        <span className="flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded-md bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 font-mono font-medium">
-                          <Lock className="h-2.5 w-2.5" />
-                          <span>Password Active</span>
-                        </span>
-                        {roleItem.hasPin && (
-                          <span className="flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded-md bg-amber-950/80 border border-amber-800/80 text-amber-400 font-mono font-medium">
-                            <KeyRound className="h-2.5 w-2.5" />
-                            <span>PIN Active</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Set New Password */}
-                      <div className="space-y-1 mb-3">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <label className="font-bold text-slate-300 flex items-center space-x-1">
-                            <Lock className="h-3 w-3 text-slate-400" />
-                            <span>Set New Password</span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setVisibleInputs((prev) => ({ ...prev, [`pass-${roleKey}`]: !prev[`pass-${roleKey}`] }))
-                            }
-                            className="text-slate-400 hover:text-white p-0.5"
-                          >
-                            {isPassVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </button>
-                        </div>
-
-                        <div className="relative">
-                          <input
-                            type={isPassVisible ? 'text' : 'password'}
-                            value={buffer.password}
-                            onChange={(e) => handleRoleInputChange(roleKey, 'password', e.target.value)}
-                            placeholder="Enter new password to change"
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 px-3 text-xs font-mono text-white placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Set New 4-Digit Security PIN */}
-                      <div className="space-y-1 mb-4">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <label className="font-bold text-slate-300 flex items-center space-x-1">
-                            <KeyRound className="h-3 w-3 text-amber-400" />
-                            <span>Set New 4-Digit PIN</span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setVisibleInputs((prev) => ({ ...prev, [`pin-${roleKey}`]: !prev[`pin-${roleKey}`] }))
-                            }
-                            className="text-slate-400 hover:text-white p-0.5"
-                          >
-                            {isPinVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </button>
-                        </div>
-
-                        <div className="relative">
-                          <input
-                            type={isPinVisible ? 'text' : 'password'}
-                            value={buffer.pin}
-                            maxLength={4}
-                            onChange={(e) => handleRoleInputChange(roleKey, 'pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                            placeholder="4-digit PIN (leave empty to keep)"
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950 py-2 px-3 text-xs font-mono tracking-widest text-amber-300 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer Actions */}
-                    <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                      <span className="text-[10px] text-slate-500">
-                        {buffer.password ? 'Ready to update' : 'Encrypted in Supabase'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveRole(roleKey)}
-                        disabled={isSaving || !buffer.password.trim()}
-                        className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            {/* Tabs Checklist */}
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-300 mb-2">
+                2. Enable/Disable Tab Access:
+              </label>
+              {tabsList.length === 0 ? (
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-6 text-center text-xs text-slate-400">
+                  Tabs for this business are dynamically inherited. All core tabs active by default.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {tabsList.map((tab) => {
+                    const isChecked = tabAccessMap[selectedAccessRoleId]?.[tab.id] ?? true;
+                    return (
+                      <label
+                        key={tab.id}
+                        className={`flex items-start space-x-3 p-3.5 rounded-xl border transition cursor-pointer ${
+                          isChecked
+                            ? 'bg-indigo-950/40 border-indigo-500/50 text-white'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-400'
+                        }`}
                       >
-                        <Save className="h-3 w-3" />
-                        <span>{isSaving ? 'Saving...' : 'Update Role'}</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setTabAccessMap((prev) => ({
+                              ...prev,
+                              [selectedAccessRoleId]: {
+                                ...(prev[selectedAccessRoleId] || {}),
+                                [tab.id]: val,
+                              },
+                            }));
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 bg-slate-900"
+                        />
+                        <div>
+                          <div className="text-xs font-bold">{tab.label}</div>
+                          {tab.description && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">{tab.description}</div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
       </main>
+
+      {/* CREATE CUSTOM ROLE MODAL */}
+      {isCreateRoleOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl text-white relative">
+            <button
+              type="button"
+              onClick={() => setIsCreateRoleOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-base font-black text-white mb-1 flex items-center space-x-2">
+              <PlusCircle className="h-5 w-5 text-indigo-400" />
+              <span>Create Custom Role</span>
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Add a new role to <strong className="text-indigo-300">{currentCompany?.businessName || selectedSlug}</strong>.
+            </p>
+
+            <form onSubmit={handleCreateRole} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Role ID *</label>
+                <input
+                  type="text"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  placeholder="e.g. Lead Hair Consultant"
+                  required
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Role Display Label</label>
+                <input
+                  type="text"
+                  value={newRoleLabel}
+                  onChange={(e) => setNewRoleLabel(e.target.value)}
+                  placeholder="e.g. Senior Hair Specialist"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Department</label>
+                <input
+                  type="text"
+                  value={newRoleDept}
+                  onChange={(e) => setNewRoleDept(e.target.value)}
+                  placeholder="e.g. Styling / Operations"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Password *</label>
+                  <input
+                    type="text"
+                    value={newRolePass}
+                    onChange={(e) => setNewRolePass(e.target.value)}
+                    placeholder="Enter password"
+                    required
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">4-Digit PIN</label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={newRolePin}
+                    onChange={(e) => setNewRolePin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="1111"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-mono tracking-widest text-center text-amber-300 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateRoleOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-700 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingRole}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-black text-white shadow-glow-indigo transition disabled:opacity-50"
+                >
+                  {isCreatingRole ? 'Creating...' : 'Create Role'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

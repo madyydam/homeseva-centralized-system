@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Lock,
-  User,
   Eye,
   EyeOff,
   ArrowRight,
@@ -25,6 +24,12 @@ import {
   Check,
   UtensilsCrossed,
   PhoneCall,
+  Laptop,
+  Smartphone,
+  Printer,
+  Boxes,
+  Home,
+  UserCheck,
 } from 'lucide-react';
 import WaveBackground from '../../../components/WaveBackground';
 
@@ -34,65 +39,27 @@ interface SignInPageProps {
   };
 }
 
-interface RoleOption {
+interface DynamicRole {
   id: string;
+  role_id: string;
   label: string;
-  desc: string;
-  icon: any;
-  badge: string;
+  description?: string;
+  department?: string;
 }
 
-const GENTLE_ROLE_OPTIONS: RoleOption[] = [
-  {
-    id: 'Studio Manager',
-    label: 'Studio Manager',
-    desc: 'Studio operations, staff roster & desk oversight',
-    icon: ShieldCheck,
-    badge: 'Operations',
-  },
-  {
-    id: 'Cold Caller',
-    label: 'Cold Caller / Telecaller',
-    desc: 'Dedicated telecalling, follow-ups & monthly lead sheets CRM',
-    icon: PhoneCall,
-    badge: 'Telecalling',
-  },
-  {
-    id: 'Senior Wig Specialist & Stylist',
-    label: 'Senior Wig Specialist & Stylist',
-    desc: 'Custom hair fittings, styling & cutting suites',
-    icon: Scissors,
-    badge: 'Styling',
-  },
-  {
-    id: 'Scalp & Measurement Consultant',
-    label: 'Scalp & Measurement Consultant',
-    desc: 'Head contouring, base templates & scalp scans',
-    icon: Ruler,
-    badge: 'Consultant',
-  },
-  {
-    id: 'Billing & Front Desk',
-    label: 'Billing & Front Desk',
-    desc: 'Counter POS, appointments & invoicing register',
-    icon: Receipt,
-    badge: 'Front Desk',
-  },
-  {
-    id: 'Inventory Coordinator (Wigs & Patches)',
-    label: 'Inventory Coordinator (Wigs & Patches)',
-    desc: 'Lace systems, patch stock, tapes & adhesives',
-    icon: Package,
-    badge: 'Inventory',
-  },
-  {
-    id: 'Studio Partner / Owner',
-    label: 'Studio Partner / Owner',
-    desc: 'Executive P&L oversight, studio audits & reports',
-    icon: Award,
-    badge: 'Executive',
-  },
-];
+// Icon helper mapped dynamically by role keyword
+function getRoleIcon(roleName: string, dept: string = '') {
+  const text = `${roleName} ${dept}`.toLowerCase();
+  if (text.includes('manager') || text.includes('supervisor') || text.includes('director')) return ShieldCheck;
+  if (text.includes('call') || text.includes('telecaller')) return PhoneCall;
+  if (text.includes('stylist') || text.includes('hair') || text.includes('cut')) return Scissors;
+  if (text.includes('measurement') || text.includes('consultant')) return Ruler;
+  if (text.includes('billing') || text.includes('desk') || text.includes('front') || text.includes('account')) return Receipt;
+  if (text.includes('inventory') || text.includes('warehouse') || text.includes('stock')) return Package;
+  if (text.includes('partner') || text.includes('owner') || text.includes('lead')) return Award;
+  if (text.includes('engineer') || text.includes('site') || text.includes('civil')) return Building2;
+  return UserCheck;
+}
 
 export default function BusinessSignInPage({ params }: SignInPageProps) {
   const router = useRouter();
@@ -119,16 +86,40 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
       : null;
 
   const [selectedBranch, setSelectedBranch] = useState<'viman-nagar' | 'ravet' | 'kolhapur' | null>(initialBranch);
-  const [selectedRole, setSelectedRole] = useState('Studio Manager');
+
+  // Dynamic roles fetched from Supabase API
+  const [roles, setRoles] = useState<DynamicRole[]>([]);
+  const [selectedRole, setSelectedRole] = useState('');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [roleId, setRoleId] = useState('');
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Fetch dynamic roles from Supabase on mount
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        setIsLoadingRoles(true);
+        const res = await fetch(`/api/auth/businesses?slug=${businessSlug}`);
+        const data = await res.json();
+        if (data.success && data.business?.roles) {
+          setRoles(data.business.roles);
+          if (data.business.roles.length > 0) {
+            setSelectedRole(data.business.roles[0].role_id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load roles from API:', err);
+      } finally {
+        setIsLoadingRoles(false);
+      }
+    }
+    loadRoles();
+  }, [businessSlug]);
 
   // Update if branchParam or divisionParam changes
   useEffect(() => {
@@ -140,7 +131,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
     }
   }, [branchParam, divisionParam]);
 
-  // Handle clicking outside custom dropdown & ESC key to close it cleanly
+  // Handle clicking outside custom dropdown & ESC key
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -154,11 +145,9 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
     }
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
-    const activeTimeout = timeoutRef.current;
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
-      if (activeTimeout) clearTimeout(activeTimeout);
     };
   }, []);
 
@@ -182,12 +171,12 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
         setErrorMsg('Please select a practice: Essentials Sales or Crockery Rental');
         return;
       }
-      if (!roleId.trim() || !password.trim()) {
-        setErrorMsg('Please enter Staff ID and password');
+      if (!selectedRole || !password.trim()) {
+        setErrorMsg('Please select your role and enter password');
         return;
       }
-    } else if (!roleId.trim() || !password.trim()) {
-      setErrorMsg('Please enter Role ID and password');
+    } else if (!selectedRole || !password.trim()) {
+      setErrorMsg('Please select a role and enter password');
       return;
     }
 
@@ -195,14 +184,12 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
     setErrorMsg('');
 
     try {
-      const activeRole = isGentleHairWigs ? selectedRole : roleId;
-      const res = await fetch('/api/auth/role-credentials', {
+      const res = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'verify',
           businessSlug,
-          role: activeRole,
+          role: selectedRole,
           password: password.trim(),
           pin: pin.trim(),
         }),
@@ -223,16 +210,16 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
       } else {
         router.push(`/app/${businessSlug}/dashboard`);
       }
-    } catch (err: any) {
-      console.error('Sign in verification error:', err);
+    } catch {
       setErrorMsg('Unable to verify credentials. Please try again.');
       setIsLoading(false);
     }
   };
 
-  const currentRoleOption =
-    GENTLE_ROLE_OPTIONS.find((r) => r.id === selectedRole) || GENTLE_ROLE_OPTIONS[0]!;
-  const CurrentRoleIcon = currentRoleOption.icon;
+  const currentRoleObj = roles.find((r) => r.role_id === selectedRole) || roles[0];
+  const CurrentRoleIcon = currentRoleObj
+    ? getRoleIcon(currentRoleObj.label || currentRoleObj.role_id, currentRoleObj.department)
+    : ShieldCheck;
 
   return (
     <main className="relative min-h-screen bg-[#050609] text-white flex flex-col justify-between p-3 sm:p-6 overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
@@ -253,7 +240,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
         </span>
       </div>
 
-      {/* Main Single-Screen Card Container (Fits 100% comfortably, spacious & uncollapsed) */}
+      {/* Main Single-Screen Card Container */}
       <div className="relative z-10 w-full max-w-5xl mx-auto my-auto py-2 sm:py-4 shrink-0 px-1 sm:px-4">
         <div className="rounded-3xl border border-slate-700/80 bg-white text-slate-900 shadow-2xl overflow-hidden">
           {/* Luxury Banner Header */}
@@ -320,7 +307,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
             </div>
           </div>
 
-          {/* Body: HORECA ESSENTIALS - 2 PRACTICES SELECTION */}
+          {/* STEP 1: HORECA ESSENTIALS PRACTICE SELECTION */}
           {isHorecaEssentials && !selectedDivision ? (
             <div className="p-6 sm:p-8 pb-8 sm:pb-10 space-y-6 bg-slate-50/70">
               <div className="text-center">
@@ -332,9 +319,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                 </p>
               </div>
 
-              {/* 2 Spacious Practice Options */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2.5xl mx-auto items-stretch">
-                {/* 1. Essentials Sales */}
                 <button
                   type="button"
                   onClick={() => setSelectedDivision('essentials-sales')}
@@ -344,9 +329,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                     <div className="flex items-center justify-between mb-3.5">
                       <span className="rounded-lg bg-emerald-50 border border-emerald-200/90 px-2.5 py-1 text-[11px] font-bold text-emerald-900 shadow-2xs">
                         B2B Supply &amp; Distribution
-                      </span>
-                      <span className="text-xs font-bold text-slate-400 font-mono">
-                        14 Staff
                       </span>
                     </div>
 
@@ -375,7 +357,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                   </div>
                 </button>
 
-                {/* 2. Crockery Rental */}
                 <button
                   type="button"
                   onClick={() => setSelectedDivision('crockery-rental')}
@@ -385,9 +366,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                     <div className="flex items-center justify-between mb-3.5">
                       <span className="rounded-lg bg-emerald-50 border border-emerald-200/90 px-2.5 py-1 text-[11px] font-bold text-emerald-900 shadow-2xs">
                         Banquet &amp; Event Hire
-                      </span>
-                      <span className="text-xs font-bold text-slate-400 font-mono">
-                        18 Staff
                       </span>
                     </div>
 
@@ -418,6 +396,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
               </div>
             </div>
           ) : isGentleHairWigs && !selectedBranch ? (
+            /* STEP 1: GENTLE HAIR WIGS STUDIO SELECTION */
             <div className="p-6 sm:p-8 pb-8 sm:pb-10 space-y-6 bg-slate-50/70">
               <div className="text-center">
                 <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
@@ -428,9 +407,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                 </p>
               </div>
 
-              {/* 3 Spacious Studio Options Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl lg:max-w-6xl mx-auto items-stretch">
-                {/* 1. Studio of Viman Nagar */}
                 <button
                   type="button"
                   onClick={() => setSelectedBranch('viman-nagar')}
@@ -440,9 +417,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                     <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                       <span className="rounded-lg bg-amber-50 border border-amber-200/90 px-2.5 py-1 text-[11px] font-bold text-amber-900 shadow-2xs">
                         Pune East
-                      </span>
-                      <span className="text-xs font-bold text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded-md">
-                        24 Staff
                       </span>
                     </div>
 
@@ -476,7 +450,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                   </div>
                 </button>
 
-                {/* 2. Studio of Ravet */}
                 <button
                   type="button"
                   onClick={() => setSelectedBranch('ravet')}
@@ -486,9 +459,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                     <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                       <span className="rounded-lg bg-amber-50 border border-amber-200/90 px-2.5 py-1 text-[11px] font-bold text-amber-900 shadow-2xs">
                         PCMC Lounge
-                      </span>
-                      <span className="text-xs font-bold text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded-md">
-                        18 Staff
                       </span>
                     </div>
 
@@ -522,7 +492,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                   </div>
                 </button>
 
-                {/* 3. Studio of Kolhapur */}
                 <button
                   type="button"
                   onClick={() => setSelectedBranch('kolhapur')}
@@ -532,9 +501,6 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                     <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                       <span className="rounded-lg bg-amber-50 border border-amber-200/90 px-2.5 py-1 text-[11px] font-bold text-amber-900 shadow-2xs">
                         South Maharashtra
-                      </span>
-                      <span className="text-xs font-bold text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded-md">
-                        16 Staff
                       </span>
                     </div>
 
@@ -570,9 +536,9 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
               </div>
             </div>
           ) : (
-            /* STEP 2 - COMPACT LOGIN FORM (With Custom Luxury Role Dropdown) */
+            /* STEP 2: DYNAMIC ROLE & CREDENTIALS FORM */
             <div className="p-6 sm:p-7 bg-white">
-              {/* Active Branch Pill with Change button */}
+              {/* Branch Pill */}
               {isGentleHairWigs && selectedBranch && (
                 <div className="mb-4 flex items-center justify-between bg-amber-50/80 border border-amber-200 rounded-xl px-3.5 py-2">
                   <div className="flex items-center space-x-2.5 min-w-0">
@@ -598,7 +564,7 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                 </div>
               )}
 
-              {/* Active Division Pill with Change button for HORECA Essentials */}
+              {/* Division Pill */}
               {isHorecaEssentials && selectedDivision && (
                 <div className="mb-4 flex items-center justify-between bg-emerald-50/80 border border-emerald-200 rounded-xl px-3.5 py-2">
                   <div className="flex items-center space-x-2.5 min-w-0">
@@ -630,115 +596,128 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
               )}
 
               <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-3.5">
-                {/* 1. CUSTOM LUXURY ROLE DROPDOWN WITH ICONS & DESCRIPTIONS */}
-                {isGentleHairWigs ? (
-                  <div className="relative" ref={dropdownRef}>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Select Studio Role
-                    </label>
+                {/* 1. DYNAMIC ROLE DROPDOWN (Fetched from Supabase) */}
+                <div className="relative" ref={dropdownRef}>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Select Your Role
+                  </label>
 
-                    {/* Trigger Button */}
-                    <button
-                      type="button"
-                      onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                      className="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white p-2.5 text-left transition hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-2xs"
-                    >
-                      <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 border border-amber-200 text-amber-800 shrink-0">
-                          <CurrentRoleIcon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-black text-slate-900 truncate">
-                            {currentRoleOption.label}
+                  {isLoadingRoles ? (
+                    <div className="w-full flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500">
+                      Loading roles from Supabase...
+                    </div>
+                  ) : roles.length > 0 ? (
+                    <>
+                      {/* Trigger Button */}
+                      <button
+                        type="button"
+                        onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                        className="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white p-2.5 text-left transition hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-2xs"
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg shrink-0 ${
+                            isGentleHairWigs
+                              ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                              : isHorecaEssentials
+                              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                              : 'bg-blue-50 border border-blue-200 text-blue-800'
+                          }`}>
+                            <CurrentRoleIcon className="h-4 w-4" />
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {currentRoleOption.desc}
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 truncate">
+                              {currentRoleObj?.label || selectedRole}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {currentRoleObj?.description || currentRoleObj?.department || 'Authorized Personnel'}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <ChevronDown
-                        className={`h-4 w-4 text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${
-                          isRoleDropdownOpen ? 'rotate-180 text-amber-600' : ''
-                        }`}
-                      />
-                    </button>
+                        <ChevronDown
+                          className={`h-4 w-4 text-slate-400 transition-transform duration-200 shrink-0 ml-2 ${
+                            isRoleDropdownOpen ? 'rotate-180 text-amber-600' : ''
+                          }`}
+                        />
+                      </button>
 
-                    {/* Floating Custom Menu */}
-                    {isRoleDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-amber-200/90 bg-white p-1.5 shadow-2xl shadow-amber-950/20 max-h-64 overflow-y-auto space-y-1">
-                        {GENTLE_ROLE_OPTIONS.map((opt) => {
-                          const OptionIcon = opt.icon;
-                          const isSelected = selectedRole === opt.id;
-                          return (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedRole(opt.id);
-                                setIsRoleDropdownOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
-                                isSelected
-                                  ? 'bg-amber-50/90 border border-amber-300/80 shadow-2xs'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div className="flex items-center space-x-2.5 min-w-0">
-                                <div
-                                  className={`flex h-8 w-8 items-center justify-center rounded-lg shrink-0 transition-colors ${
-                                    isSelected
-                                      ? 'bg-amber-600 text-white shadow-xs'
-                                      : 'bg-slate-100 border border-slate-200 text-slate-600'
-                                  }`}
-                                >
-                                  <OptionIcon className="h-4 w-4" />
-                                </div>
-                                <div className="min-w-0">
+                      {/* Dropdown Menu */}
+                      {isRoleDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl max-h-64 overflow-y-auto space-y-1">
+                          {roles.map((opt) => {
+                            const OptionIcon = getRoleIcon(opt.label || opt.role_id, opt.department);
+                            const isSelected = selectedRole === opt.role_id;
+                            return (
+                              <button
+                                key={opt.role_id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedRole(opt.role_id);
+                                  setIsRoleDropdownOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
+                                  isSelected
+                                    ? 'bg-amber-50/90 border border-amber-300/80 shadow-2xs'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2.5 min-w-0">
                                   <div
-                                    className={`text-xs font-extrabold truncate ${
-                                      isSelected ? 'text-amber-950 font-black' : 'text-slate-900'
+                                    className={`flex h-8 w-8 items-center justify-center rounded-lg shrink-0 transition-colors ${
+                                      isSelected
+                                        ? 'bg-amber-600 text-white shadow-xs'
+                                        : 'bg-slate-100 border border-slate-200 text-slate-600'
                                     }`}
                                   >
-                                    {opt.label}
+                                    <OptionIcon className="h-4 w-4" />
                                   </div>
-                                  <div className="text-[10.5px] text-slate-400 truncate">
-                                    {opt.desc}
+                                  <div className="min-w-0">
+                                    <div
+                                      className={`text-xs font-extrabold truncate ${
+                                        isSelected ? 'text-amber-950 font-black' : 'text-slate-900'
+                                      }`}
+                                    >
+                                      {opt.label || opt.role_id}
+                                    </div>
+                                    <div className="text-[10.5px] text-slate-400 truncate">
+                                      {opt.description || opt.department}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
 
-                              <div className="flex items-center space-x-1.5 shrink-0 ml-2">
-                                <span
-                                  className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${
-                                    isSelected
-                                      ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                      : 'bg-slate-50 text-slate-500 border-slate-200'
-                                  }`}
-                                >
-                                  {opt.badge}
-                                </span>
-                                {isSelected && <Check className="h-4 w-4 text-amber-700 stroke-[3]" />}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Role ID</label>
-                    <input
-                      type="text"
-                      value={roleId}
-                      onChange={(e) => setRoleId(e.target.value)}
-                      placeholder="Enter Role ID (e.g. B1-MGR-001)"
-                      required
-                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-mono text-slate-900 focus:border-blue-500 focus:outline-none placeholder:text-slate-400"
-                    />
-                  </div>
-                )}
+                                <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                                  {opt.department && (
+                                    <span
+                                      className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${
+                                        isSelected
+                                          ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                                      }`}
+                                    >
+                                      {opt.department}
+                                    </span>
+                                  )}
+                                  {isSelected && <Check className="h-4 w-4 text-amber-700 stroke-[3]" />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        value={selectedRole}
+                        onChange={(e) => setSelectedRole(e.target.value)}
+                        placeholder="Enter Role ID"
+                        required
+                        className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-mono text-slate-900 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
 
                 {/* 2. PASSWORD */}
                 <div>
@@ -800,20 +779,8 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     ) : (
                       <>
-                        <span>
-                          {isHorecaEssentials
-                            ? `Sign In to ${selectedDivision === 'crockery-rental' ? 'Crockery Rental' : 'Essentials Sales'}`
-                            : isGentleHairWigs
-                            ? `Sign In to ${
-                                selectedBranch === 'viman-nagar'
-                                  ? 'Viman Nagar Studio'
-                                  : selectedBranch === 'ravet'
-                                  ? 'Ravet Studio'
-                                  : 'Kolhapur Studio'
-                              }`
-                            : 'Sign In to Workspace'}
-                        </span>
-                        <ArrowRight className="h-3.5 w-3.5" />
+                        <span>Verify Credentials &amp; Open Workspace</span>
+                        <ArrowRight className="h-4 w-4" />
                       </>
                     )}
                   </button>
@@ -824,14 +791,10 @@ export default function BusinessSignInPage({ params }: SignInPageProps) {
         </div>
       </div>
 
-      {/* Discrete Bottom Footer */}
-      <div className="relative z-10 text-center py-1 text-[11px] text-zinc-400 shrink-0">
-        {isGentleHairWigs
-          ? 'Gentle Hair Wigs Studio · Multi-Branch Security'
-          : isHorecaEssentials
-          ? 'HORECA Essentials · Commercial Sales & Rental Desks'
-          : 'HomeSeva Multi-Enterprise Management System'}
-      </div>
+      {/* Clean Bottom Bar */}
+      <footer className="relative z-10 py-2.5 text-center text-[11px] text-zinc-400 shrink-0 bg-black/40 backdrop-blur-xs border-t border-white/[0.06]">
+        HomeSeva Centralized System · Single Source of Truth: Supabase
+      </footer>
     </main>
   );
 }
