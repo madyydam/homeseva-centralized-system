@@ -260,37 +260,6 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     setIsDoorAscending(false);
   };
 
-  // Grand Door Ascend: When both locks have fallen off, the entire screen lifts upward like an armored blast door
-  useEffect(() => {
-    if (locks.password.fallen && locks.pin.fallen && !isDoorAscending) {
-      const doorTimer = setTimeout(() => {
-        setIsDoorAscending(true);
-        // After door clears screen (950ms), redirect to authorized workspace
-        setTimeout(() => {
-          if (isGentleHairWigs && selectedBranch) {
-            router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
-          } else if (isHorecaEssentials && selectedDivision) {
-            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
-          } else {
-            router.push(`/app/${businessSlug}/dashboard`);
-          }
-        }, 950);
-      }, 450);
-      return () => clearTimeout(doorTimer);
-    }
-  }, [
-    locks.password.fallen,
-    locks.pin.fallen,
-    isDoorAscending,
-    businessSlug,
-    isGentleHairWigs,
-    isHorecaEssentials,
-    selectedBranch,
-    selectedDivision,
-    selectedRole,
-    router,
-  ]);
-
   // Fetch dynamic roles from Supabase on mount
   useEffect(() => {
     async function loadRoles() {
@@ -396,68 +365,74 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       const pinData = await pinRes.json();
 
       // ==========================================
-      // STAGE 1: PASSWORD KEY CEREMONY
+      // STAGE 1: PASSWORD KEY CEREMONY (Fast & Kinetic)
       // ==========================================
-      computeKeyFlightOffset('password');
-      setKeyStates((prev) => ({ ...prev, password: { status: 'flying' } }));
-      setLocks((prev) => ({ ...prev, password: { ...prev.password, checking: true } }));
+      if (!locks.password.fallen) {
+        computeKeyFlightOffset('password');
+        setKeyStates((prev) => ({ ...prev, password: { status: 'flying' } }));
+        setLocks((prev) => ({ ...prev, password: { ...prev.password, checking: true } }));
 
-      // Wait for Password Key to glide smoothly across and arrive at Lock 1 (750ms)
-      await new Promise((r) => setTimeout(r, 750));
+        // Fast aerodynamic glide across to Lock 1 (360ms)
+        await new Promise((r) => setTimeout(r, 360));
 
-      if (!pData.matched) {
-        // Password is wrong! Key struggles under friction with red sparks
-        setKeyStates((prev) => ({ ...prev, password: { status: 'struggling' } }));
-        await new Promise((r) => setTimeout(r, 420));
+        if (!pData.matched) {
+          // Password is wrong! Short sharp struggle vibration
+          setKeyStates((prev) => ({ ...prev, password: { status: 'struggling' } }));
+          await new Promise((r) => setTimeout(r, 220));
 
-        // SNAP! Key fractures in two pieces at Lock 1 keyhole and tumbles down!
-        setKeyStates((prev) => ({ ...prev, password: { status: 'broken' } }));
+          // SNAP! Fractures at lock keyhole and drops
+          setKeyStates((prev) => ({ ...prev, password: { status: 'broken' } }));
+          setLocks((prev) => ({
+            ...prev,
+            password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+          }));
+          setErrorMsg(pData.error || 'Invalid password entered. Please check your assigned password.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Password matches! Key snaps 90deg inside keyhole (220ms)
+        setKeyStates((prev) => ({ ...prev, password: { status: 'unlocked' } }));
         setLocks((prev) => ({
           ...prev,
-          password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+          password: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
         }));
-        setErrorMsg(pData.error || 'Invalid password entered. Please check your assigned password.');
-        setIsLoading(false);
-        return;
+
+        // Shackle blast plays (220ms), Lock 1 begins detaching and falling
+        await new Promise((r) => setTimeout(r, 220));
+        setLocks((prev) => ({
+          ...prev,
+          password: { ...prev.password, bursting: false, falling: true },
+        }));
+
+        // ==========================================
+        // STAGE 2: PIN KEY CEREMONY (Overlapping Cascade)
+        // ==========================================
+        // As Lock 1 falls, PIN key is already soaring smoothly into Lock 2!
+        computeKeyFlightOffset('pin');
+        setKeyStates((prev) => ({ ...prev, pin: { status: 'flying' } }));
+        setLocks((prev) => ({ ...prev, pin: { ...prev.pin, checking: true } }));
+
+        // Lock 1 finishes falling off screen (340ms) while PIN key arrives at Lock 2
+        await new Promise((r) => setTimeout(r, 340));
+        setLocks((prev) => ({
+          ...prev,
+          password: { ...prev.password, falling: false, fallen: true },
+        }));
+      } else {
+        // Password was already unlocked and fallen, fly PIN key directly to Lock 2
+        computeKeyFlightOffset('pin');
+        setKeyStates((prev) => ({ ...prev, pin: { status: 'flying' } }));
+        setLocks((prev) => ({ ...prev, pin: { ...prev.pin, checking: true } }));
+        await new Promise((r) => setTimeout(r, 360));
       }
-
-      // Password matches! Key enters keyhole and turns 90deg with golden flash
-      setKeyStates((prev) => ({ ...prev, password: { status: 'unlocked' } }));
-      setLocks((prev) => ({
-        ...prev,
-        password: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
-      }));
-
-      // Shackle blast plays (600ms), then Lock 1 detaches and falls off screen
-      await new Promise((r) => setTimeout(r, 600));
-      setLocks((prev) => ({
-        ...prev,
-        password: { ...prev.password, bursting: false, falling: true },
-      }));
-
-      // Lock 1 has fallen off (750ms), seal shows detached
-      await new Promise((r) => setTimeout(r, 750));
-      setLocks((prev) => ({
-        ...prev,
-        password: { ...prev.password, falling: false, fallen: true },
-      }));
-
-      // ==========================================
-      // STAGE 2: PIN KEY CEREMONY
-      // ==========================================
-      computeKeyFlightOffset('pin');
-      setKeyStates((prev) => ({ ...prev, pin: { status: 'flying' } }));
-      setLocks((prev) => ({ ...prev, pin: { ...prev.pin, checking: true } }));
-
-      // Wait for PIN Key to glide smoothly across and arrive at Lock 2 (750ms)
-      await new Promise((r) => setTimeout(r, 750));
 
       if (!pinData.matched) {
         // PIN is wrong! Key struggles under friction with red sparks
         setKeyStates((prev) => ({ ...prev, pin: { status: 'struggling' } }));
-        await new Promise((r) => setTimeout(r, 420));
+        await new Promise((r) => setTimeout(r, 220));
 
-        // SNAP! PIN Key fractures in two pieces at Lock 2 keyhole and tumbles down!
+        // SNAP!
         setKeyStates((prev) => ({ ...prev, pin: { status: 'broken' } }));
         setLocks((prev) => ({
           ...prev,
@@ -468,21 +443,21 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         return;
       }
 
-      // PIN matches! Key enters keyhole and turns 90deg
+      // PIN matches! Key turns 90deg inside Lock 2 (220ms)
       setKeyStates((prev) => ({ ...prev, pin: { status: 'unlocked' } }));
       setLocks((prev) => ({
         ...prev,
         pin: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
       }));
 
-      // Shackle blast plays (600ms), then Lock 2 detaches and falls off screen
-      await new Promise((r) => setTimeout(r, 600));
+      // Shackle blast plays (220ms), Lock 2 detaches and falls
+      await new Promise((r) => setTimeout(r, 220));
       setLocks((prev) => ({
         ...prev,
         pin: { ...prev.pin, bursting: false, falling: true },
       }));
 
-      await new Promise((r) => setTimeout(r, 750));
+      await new Promise((r) => setTimeout(r, 340));
       setLocks((prev) => ({
         ...prev,
         pin: { ...prev.pin, falling: false, fallen: true },
@@ -491,8 +466,8 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       // ==========================================
       // STAGE 3: VAULT BLAST DOOR ASCEND INTO CEILING
       // ==========================================
-      // Register session
-      await fetch('/api/auth/verify', {
+      // Session register
+      fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -503,10 +478,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         }),
       });
 
-      await new Promise((r) => setTimeout(r, 400));
+      // Immediate door lift!
       setIsDoorAscending(true);
 
-      // After door ascends into ceiling (1000ms), transition smoothly to authorized dashboard
+      // Fast pneumatic slide up (480ms) -> redirect to dashboard
       setTimeout(() => {
         setIsLoading(false);
         if (isGentleHairWigs && selectedBranch) {
@@ -516,7 +491,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         } else {
           router.push(`/app/${businessSlug}/dashboard`);
         }
-      }, 1000);
+      }, 480);
     } catch {
       setErrorMsg('Unable to verify credentials. Please try again.');
       setIsLoading(false);
@@ -844,12 +819,12 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           transition: transform 0.3s ease;
         }
 
-        /* 1. Buttery Smooth Flying Key Animation (Socket -> Lock Keyhole) */
+        /* 1. Ultra-Smooth Fast Flying Key Animation (Socket -> Lock Keyhole) */
         .key-flight-active {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: smoothKeyFlight 0.75s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+          animation: smoothKeyFlight 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes smoothKeyFlight {
@@ -857,29 +832,22 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
           }
-          20% {
-            /* Lifts smoothly out of cradle with elegant elevation */
-            transform: translate3d(calc(var(--fly-x) * 0.18), calc(var(--fly-y) * 0.18 - 32px), 0) rotate(-6deg) scale(1.15);
-            filter: drop-shadow(0 14px 24px rgba(217,119,6,0.4));
-          }
-          65% {
-            /* Glides across the screen at peak altitude */
-            transform: translate3d(calc(var(--fly-x) * 0.70), calc(var(--fly-y) * 0.70 - 16px), 0) rotate(3deg) scale(1.1);
-            filter: drop-shadow(0 12px 20px rgba(217,119,6,0.45));
+          35% {
+            transform: translate3d(calc(var(--fly-x) * 0.35), calc(var(--fly-y) * 0.35 - 28px), 0) rotate(-6deg) scale(1.14);
+            filter: drop-shadow(0 12px 20px rgba(217,119,6,0.5));
           }
           100% {
-            /* Blade tip glides precisely into lock keyhole center */
             transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg) scale(1);
-            filter: drop-shadow(0 0 14px rgba(234,179,8,0.8));
+            filter: drop-shadow(0 0 16px rgba(234,179,8,0.9));
           }
         }
 
-        /* 2. Key Smooth 90-Degree Turn Inside Keyhole (When Matched) */
+        /* 2. Key Fast 90-Degree Turn Inside Keyhole (When Matched) */
         .key-unlock-active {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: smoothKeyTurn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          animation: smoothKeyTurn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
         @keyframes smoothKeyTurn {
@@ -888,18 +856,13 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             filter: drop-shadow(0 0 12px rgba(234,179,8,0.7));
             opacity: 1;
           }
-          45% {
-            /* Turns 90 degrees with radiant specular shine */
+          50% {
             transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(1.15);
-            filter: drop-shadow(0 0 25px rgba(245,158,11,1)) brightness(1.4);
+            filter: drop-shadow(0 0 25px rgba(245,158,11,1)) brightness(1.5);
             opacity: 1;
           }
-          80% {
-            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(0.9);
-            opacity: 0.8;
-          }
           100% {
-            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(0.2);
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(-90deg) scale(0);
             opacity: 0;
           }
         }
@@ -909,7 +872,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: smoothKeyStruggle 0.38s ease-in-out infinite;
+          animation: smoothKeyStruggle 0.22s ease-in-out infinite;
         }
 
         @keyframes smoothKeyStruggle {
@@ -917,19 +880,16 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg);
             filter: drop-shadow(0 0 10px #ef4444);
           }
-          20% {
-            transform: translate3d(calc(var(--fly-x) - 2px), calc(var(--fly-y) + 2px), 0) rotate(-14deg);
+          25% {
+            transform: translate3d(calc(var(--fly-x) - 3px), calc(var(--fly-y) + 2px), 0) rotate(-14deg);
             filter: drop-shadow(0 0 16px #ef4444);
           }
-          40% {
-            transform: translate3d(calc(var(--fly-x) + 3px), calc(var(--fly-y) - 2px), 0) rotate(12deg);
+          50% {
+            transform: translate3d(calc(var(--fly-x) + 3px), calc(var(--fly-y) - 2px), 0) rotate(14deg);
             filter: drop-shadow(0 0 18px #ef4444);
           }
-          60% {
-            transform: translate3d(calc(var(--fly-x) - 3px), calc(var(--fly-y) + 1px), 0) rotate(-10deg);
-          }
-          80% {
-            transform: translate3d(calc(var(--fly-x) + 2px), calc(var(--fly-y) - 1px), 0) rotate(8deg);
+          75% {
+            transform: translate3d(calc(var(--fly-x) - 2px), calc(var(--fly-y) + 1px), 0) rotate(-10deg);
           }
         }
 
@@ -938,7 +898,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: brokenBladePlunge 0.95s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+          animation: brokenBladePlunge 0.38s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
         }
 
         @keyframes brokenBladePlunge {
@@ -959,7 +919,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           position: absolute !important;
           z-index: 100 !important;
           pointer-events: none;
-          animation: brokenHeadPlunge 1.05s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+          animation: brokenHeadPlunge 0.42s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
         }
 
         @keyframes brokenHeadPlunge {
@@ -978,7 +938,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
         /* 5. Padlock Detaching & Falling Off Screen */
         .padlock-falling {
-          animation: padlockDetachFall 0.85s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
+          animation: padlockDetachFall 0.38s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
           pointer-events: none;
           z-index: 70 !important;
         }
@@ -988,18 +948,18 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             transform: perspective(700px) translateY(0) rotate(0deg) scale(1);
             opacity: 1;
           }
-          18% {
-            transform: perspective(700px) translateY(-14px) rotate(-6deg) scale(1.04);
+          15% {
+            transform: perspective(700px) translateY(-10px) rotate(-5deg) scale(1.03);
           }
           100% {
-            transform: perspective(700px) translateY(600px) rotate(30deg) scale(0.85);
+            transform: perspective(700px) translateY(600px) rotate(26deg) scale(0.85);
             opacity: 0;
           }
         }
 
         /* 6. Vault Door Ascending into Ceiling */
         .vault-door-ascend {
-          animation: doorSlideUpCeiling 1.05s cubic-bezier(0.7, 0, 0.3, 1) forwards !important;
+          animation: doorSlideUpCeiling 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
           pointer-events: none;
         }
 
@@ -1008,9 +968,6 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             transform: translateY(0);
             opacity: 1;
             filter: drop-shadow(0 25px 50px rgba(0,0,0,0.5));
-          }
-          12% {
-            transform: translateY(12px);
           }
           100% {
             transform: translateY(-140vh);
