@@ -3,12 +3,6 @@ import { verifySession, SUPER_ADMIN_COOKIE, USER_SESSION_COOKIE } from './lib/au
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths except:
-     * 1. /api (API routes handle their own auth headers/cookies)
-     * 2. /_next (Next.js internals)
-     * 3. /_static, /favicon.ico, static images, robots.txt, etc.
-     */
     '/super-admin/:path*',
     '/app/:path*',
   ],
@@ -17,13 +11,9 @@ export const config = {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 1. SUPER ADMIN ROUTE SHIELD
-  // ─────────────────────────────────────────────────────────────────────────────
+  // 1. Super Admin route protection
   if (pathname.startsWith('/super-admin')) {
-    // Whitelist public signin route
     if (pathname === '/super-admin/signin') {
-      // If already logged in as super admin, redirect to console
       const existingToken = req.cookies.get(SUPER_ADMIN_COOKIE)?.value;
       if (existingToken) {
         const session = await verifySession(existingToken);
@@ -34,7 +24,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Guard all other /super-admin/* routes
     const token = req.cookies.get(SUPER_ADMIN_COOKIE)?.value;
     const session = await verifySession(token);
 
@@ -47,21 +36,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 2. COMPANY BUSINESS WORKSPACES SHIELD (/app/:businessSlug/*)
-  // ─────────────────────────────────────────────────────────────────────────────
+  // 2. Company Business Workspaces route protection (/app/:businessSlug/*)
   if (pathname.startsWith('/app/')) {
     const segments = pathname.split('/').filter(Boolean);
     const businessSlug = segments[1] || '';
 
-    // Check if Super Admin is accessing (root privilege across all workspaces)
     const saToken = req.cookies.get(SUPER_ADMIN_COOKIE)?.value;
     const saSession = await verifySession(saToken);
     if (saSession && saSession.isSuperAdmin) {
       return NextResponse.next();
     }
 
-    // Check staff role session
     const staffToken = req.cookies.get(USER_SESSION_COOKIE)?.value;
     const staffSession = await verifySession(staffToken);
 
@@ -70,7 +55,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(targetUrl);
     }
 
-    // If staff session belongs to a different company workspace, redirect to their own
     if (businessSlug && staffSession.businessSlug && staffSession.businessSlug !== businessSlug) {
       const properUrl = new URL(`/signin/${businessSlug}`, req.url);
       return NextResponse.redirect(properUrl);

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     // 1. Fetch Super Admin credentials info
     const { data: superAdminRow, error: saError } = await admin
       .from('super_admin_credentials')
-      .select('username, updated_at')
+      .select('username, password_hash, pin4_hash, pin8_hash, updated_at')
       .eq('id', 'primary')
       .single();
 
