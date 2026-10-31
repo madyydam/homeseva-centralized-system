@@ -164,12 +164,14 @@ export default function SuperAdminCredentialsPage() {
 
   useEffect(() => {
     fetchCredentials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (viewMode === 'tab-access') {
       fetchTabAccess(selectedSlug);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSlug, viewMode]);
 
   const handleSignOut = async () => {
