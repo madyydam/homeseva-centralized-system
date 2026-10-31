@@ -181,6 +181,15 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
   });
 
+  // Dynamic Coordinate Offsets: measured from socket on right to padlock keyhole on left
+  const [flyOffsets, setFlyOffsets] = useState<{
+    password: { x: number; y: number };
+    pin: { x: number; y: number };
+  }>({
+    password: { x: -380, y: 0 },
+    pin: { x: -380, y: 0 },
+  });
+
   // Flying 3D Keys State: idle | flying | struggling | broken | unlocked
   const [keyStates, setKeyStates] = useState<{
     password: KeyState;
@@ -197,6 +206,28 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     pin: null,
   });
 
+  // Calculate dynamic pixel delta between right socket and left padlock keyhole
+  const computeKeyFlightOffset = useCallback((field: 'password' | 'pin') => {
+    const socketEl = document.getElementById(`key-socket-${field}`);
+    const lockEl = document.getElementById(`padlock-keyhole-${field}`);
+    if (socketEl && lockEl) {
+      const sRect = socketEl.getBoundingClientRect();
+      const lRect = lockEl.getBoundingClientRect();
+      const sx = sRect.left + sRect.width / 2;
+      const sy = sRect.top + sRect.height / 2;
+      const lx = lRect.left + lRect.width / 2;
+      const ly = lRect.top + lRect.height / 2;
+      const dx = Math.round(lx - sx);
+      const dy = Math.round(ly - sy);
+      setFlyOffsets((prev) => ({
+        ...prev,
+        [field]: { x: dx, y: dy },
+      }));
+      return { x: dx, y: dy };
+    }
+    return { x: -380, y: 0 };
+  }, []);
+
   // Verify single field with server
   const verifyRoleField = useCallback(
     async (field: 'password' | 'pin', val: string, roleToTest?: string) => {
@@ -212,6 +243,9 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         }));
         return;
       }
+
+      // Compute exact real-time offset to the left lock
+      computeKeyFlightOffset(field);
 
       // 1. Key lifts off from the right socket and flies horizontally across to the padlock!
       setKeyStates((prev) => ({
@@ -245,16 +279,16 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           setErrorMsg('');
         }
 
-        // Wait for key flight to arrive at the lock's keyhole (550ms)
+        // Wait for key flight to arrive at the lock's keyhole (580ms)
         setTimeout(() => {
           if (data.success && data.matched) {
-            // Key smoothly turns inside keyhole!
+            // Key enters keyhole and smoothly turns 90deg with golden flash!
             setKeyStates((prev) => ({
               ...prev,
               [field]: { status: 'unlocked' },
             }));
 
-            // Shackle clicks and detonates open
+            // Shackle clicks and detonates open with blast shockwave
             setLocks((prev) => ({
               ...prev,
               [field]: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
@@ -273,7 +307,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                   ...prev,
                   [field]: { ...prev[field], falling: false, fallen: true },
                 }));
-              }, 750);
+              }, 850);
             }, 650);
           } else {
             // Key enters keyhole, wiggles/shudders under friction strain with red sparks...
@@ -282,7 +316,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
               [field]: { status: 'struggling' },
             }));
 
-            // SNAP! Key breaks in two pieces and both tumble down!
+            // SNAP! Key breaks in two pieces AT THE LOCK KEYHOLE and both tumble down!
             setTimeout(() => {
               setKeyStates((prev) => ({
                 ...prev,
@@ -292,9 +326,9 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                 ...prev,
                 [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
               }));
-            }, 380);
+            }, 420);
           }
-        }, 550);
+        }, 580);
       } catch {
         setKeyStates((prev) => ({
           ...prev,
@@ -306,7 +340,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         }));
       }
     },
-    [businessSlug, selectedRole]
+    [businessSlug, selectedRole, computeKeyFlightOffset]
   );
 
   const handleInputChange = (field: 'password' | 'pin', val: string) => {
@@ -463,6 +497,9 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       return;
     }
 
+    computeKeyFlightOffset('password');
+    computeKeyFlightOffset('pin');
+
     setIsLoading(true);
     setErrorMsg('');
 
@@ -482,9 +519,15 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       if (!data.success) {
         setErrorMsg(data.error || 'Authentication failed. Please check your credentials.');
         setKeyStates({
-          password: { status: 'broken' },
-          pin: { status: 'broken' },
+          password: { status: 'struggling' },
+          pin: { status: 'struggling' },
         });
+        setTimeout(() => {
+          setKeyStates({
+            password: { status: 'broken' },
+            pin: { status: 'broken' },
+          });
+        }, 400);
         setIsLoading(false);
         return;
       }
@@ -578,37 +621,47 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     const isStruggling = kState === 'struggling';
     const isBroken = kState === 'broken';
     const isUnlocked = kState === 'unlocked';
+    const offset = flyOffsets[field] || { x: -380, y: 0 };
 
     const animClass = isFlying
-      ? field === 'password'
-        ? 'key-flying-password'
-        : 'key-flying-pin'
+      ? 'key-flight-active'
       : isStruggling
-      ? 'key-struggling'
+      ? 'key-struggle-active'
       : isUnlocked
-      ? 'key-unlocked-turn'
+      ? 'key-unlock-active'
       : '';
 
     if (isBroken) {
       return (
-        <div className="relative w-full h-full flex items-center justify-center">
-          {/* Red friction strain sparks */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {[...Array(6)].map((_, i) => (
+        <div
+          className="relative w-full h-full flex items-center justify-center pointer-events-none"
+          style={{
+            '--fly-x': `${offset.x}px`,
+            '--fly-y': `${offset.y}px`,
+          } as any}
+        >
+          {/* Red friction strain sparks AT THE LOCK KEYHOLE ON THE LEFT */}
+          <div
+            className="absolute pointer-events-none z-50 flex items-center justify-center"
+            style={{
+              transform: `translate3d(${offset.x}px, ${offset.y}px, 0)`,
+            }}
+          >
+            {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="absolute h-1 w-1 rounded-full bg-rose-500"
+                className="absolute h-1.5 w-1.5 rounded-full bg-rose-500"
                 style={{
-                  boxShadow: '0 0 6px #ef4444',
-                  animation: 'sparkBlastRole 0.5s ease-out forwards',
-                  '--tx': `${(i % 2 === 0 ? 1 : -1) * (14 + i * 6)}px`,
-                  '--ty': `${(i % 3 === 0 ? -1 : 1) * (10 + i * 4)}px`,
+                  boxShadow: '0 0 8px #ef4444',
+                  animation: 'sparkBlastRole 0.55s ease-out forwards',
+                  '--tx': `${(i % 2 === 0 ? 1 : -1) * (18 + i * 5)}px`,
+                  '--ty': `${(i % 3 === 0 ? -1 : 1) * (12 + i * 4)}px`,
                 } as any}
               />
             ))}
           </div>
 
-          {/* Broken Key Head Piece tumbling down */}
+          {/* Broken Key Head Piece tumbling down AT THE LOCK ON THE LEFT */}
           <div className="broken-head-falling absolute">
             <svg viewBox="0 0 32 28" className="w-6 h-6 select-none drop-shadow-md">
               <defs>
@@ -627,7 +680,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             </svg>
           </div>
 
-          {/* Broken Key Blade Piece falling down */}
+          {/* Broken Key Blade Piece falling down AT THE LOCK ON THE LEFT */}
           <div className="broken-blade-falling absolute">
             <svg viewBox="0 0 46 28" className="w-8 h-6 select-none drop-shadow-md">
               <defs>
@@ -646,7 +699,13 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     }
 
     return (
-      <div className={`relative flex items-center justify-center ${animClass}`}>
+      <div
+        className={`relative flex items-center justify-center ${animClass}`}
+        style={{
+          '--fly-x': `${offset.x}px`,
+          '--fly-y': `${offset.y}px`,
+        } as any}
+      >
         <svg
           viewBox="0 0 74 28"
           className="w-12 sm:w-14 h-6 select-none drop-shadow-md transition-transform"
@@ -808,6 +867,171 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           transform-origin: 30px 48px;
           transition: transform 0.3s ease;
         }
+
+        /* 1. Flying Key Animation (Socket -> Lock Keyhole) */
+        .key-flight-active {
+          position: absolute !important;
+          z-index: 100 !important;
+          pointer-events: none;
+          animation: keyFlightMotion 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        @keyframes keyFlightMotion {
+          0% {
+            transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+          }
+          30% {
+            transform: translate3d(calc(var(--fly-x) * 0.35), calc(var(--fly-y) * 0.35 - 35px), 0) scale(1.22) rotate(-14deg);
+            filter: drop-shadow(0 0 16px #f59e0b);
+          }
+          75% {
+            transform: translate3d(calc(var(--fly-x) * 0.85), calc(var(--fly-y) * 0.85 - 12px), 0) scale(1.08) rotate(6deg);
+          }
+          100% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) scale(1) rotate(0deg);
+            filter: drop-shadow(0 0 12px #f59e0b);
+          }
+        }
+
+        /* 2. Key Turning Inside Keyhole (When Matched) */
+        .key-unlock-active {
+          position: absolute !important;
+          z-index: 100 !important;
+          pointer-events: none;
+          animation: keyUnlockTurn 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes keyUnlockTurn {
+          0% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg) scale(1);
+            filter: drop-shadow(0 0 12px #f59e0b);
+            opacity: 1;
+          }
+          40% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(90deg) scale(1.15);
+            filter: drop-shadow(0 0 24px #f59e0b) brightness(1.5);
+            opacity: 1;
+          }
+          75% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(90deg) scale(0.9);
+            opacity: 0.8;
+          }
+          100% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(90deg) scale(0.2);
+            opacity: 0;
+          }
+        }
+
+        /* 3. Key Struggling inside Lock Keyhole (Friction Strain before Break) */
+        .key-struggle-active {
+          position: absolute !important;
+          z-index: 100 !important;
+          pointer-events: none;
+          animation: keyStruggleFriction 0.42s ease-in-out infinite;
+        }
+
+        @keyframes keyStruggleFriction {
+          0%, 100% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg);
+            filter: drop-shadow(0 0 8px #ef4444);
+          }
+          25% {
+            transform: translate3d(calc(var(--fly-x) - 4px), calc(var(--fly-y) + 3px), 0) rotate(-16deg);
+            filter: drop-shadow(0 0 14px #ef4444);
+          }
+          50% {
+            transform: translate3d(calc(var(--fly-x) + 4px), calc(var(--fly-y) - 3px), 0) rotate(16deg);
+            filter: drop-shadow(0 0 16px #ef4444);
+          }
+          75% {
+            transform: translate3d(calc(var(--fly-x) - 2px), calc(var(--fly-y) + 2px), 0) rotate(-10deg);
+          }
+        }
+
+        /* 4. Broken Key Pieces Falling Down AT THE LOCK KEYHOLE ON THE LEFT */
+        .broken-blade-falling {
+          position: absolute !important;
+          z-index: 100 !important;
+          pointer-events: none;
+          animation: brokenBladePlunge 1s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+        }
+
+        @keyframes brokenBladePlunge {
+          0% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg);
+            opacity: 1;
+          }
+          20% {
+            transform: translate3d(calc(var(--fly-x) + 14px), calc(var(--fly-y) - 18px), 0) rotate(24deg);
+          }
+          100% {
+            transform: translate3d(calc(var(--fly-x) + 26px), calc(var(--fly-y) + 480px), 0) rotate(190deg);
+            opacity: 0;
+          }
+        }
+
+        .broken-head-falling {
+          position: absolute !important;
+          z-index: 100 !important;
+          pointer-events: none;
+          animation: brokenHeadPlunge 1.1s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+        }
+
+        @keyframes brokenHeadPlunge {
+          0% {
+            transform: translate3d(var(--fly-x), var(--fly-y), 0) rotate(0deg);
+            opacity: 1;
+          }
+          22% {
+            transform: translate3d(calc(var(--fly-x) - 25px), calc(var(--fly-y) - 28px), 0) rotate(-40deg);
+          }
+          100% {
+            transform: translate3d(calc(var(--fly-x) - 60px), calc(var(--fly-y) + 520px), 0) rotate(-280deg);
+            opacity: 0;
+          }
+        }
+
+        /* 5. Padlock Detaching & Falling Off Screen */
+        .padlock-falling {
+          animation: padlockDetachFall 0.85s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
+          pointer-events: none;
+          z-index: 70 !important;
+        }
+
+        @keyframes padlockDetachFall {
+          0% {
+            transform: perspective(700px) translateY(0) rotate(0deg) scale(1);
+            opacity: 1;
+          }
+          18% {
+            transform: perspective(700px) translateY(-16px) rotate(-8deg) scale(1.05);
+          }
+          100% {
+            transform: perspective(700px) translateY(580px) rotate(32deg) scale(0.9);
+            opacity: 0;
+          }
+        }
+
+        /* 6. Vault Door Ascending into Ceiling */
+        .vault-door-ascend {
+          animation: doorSlideUpCeiling 1s cubic-bezier(0.7, 0, 0.3, 1) forwards !important;
+          pointer-events: none;
+        }
+
+        @keyframes doorSlideUpCeiling {
+          0% {
+            transform: translateY(0);
+            opacity: 1;
+            filter: drop-shadow(0 25px 50px rgba(0,0,0,0.5));
+          }
+          15% {
+            transform: translateY(12px);
+          }
+          100% {
+            transform: translateY(-140vh);
+            opacity: 0.95;
+          }
+        }
       `}</style>
 
       {/* 3D Vertical Silky Waves Background */}
@@ -825,7 +1049,9 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       </div>
 
       {/* Main Single-Screen Card Container */}
-      <div className="relative z-10 w-full max-w-4xl mx-auto my-auto py-2 sm:py-3 shrink-0 px-1 sm:px-4">
+      <div className={`relative z-10 w-full max-w-4xl mx-auto my-auto py-2 sm:py-3 shrink-0 px-1 sm:px-4 transition-transform duration-700 ease-out ${
+        isDoorAscending ? 'vault-door-ascend' : ''
+      }`}>
         <div className="rounded-3xl border border-slate-700/80 bg-white text-slate-900 shadow-2xl overflow-hidden">
           {/* Header Banner */}
           <div className={`px-6 py-4 text-white flex items-center justify-between ${theme.bannerGrad}`}>
@@ -1120,6 +1346,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                       return (
                         <div
                           key={cfg.id}
+                          id={`padlock-keyhole-${cfg.id}`}
                           className="relative flex flex-col items-center justify-center my-1"
                           style={{ '--glow': cfg.glowRgba } as any}
                         >
@@ -1507,7 +1734,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                           </button>
                         </div>
                         {/* 3D Key Socket on the Right */}
-                        <div className="relative w-14 sm:w-16 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 border border-slate-200 shadow-inner">
+                        <div id="key-socket-password" className="relative w-14 sm:w-16 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 border border-slate-200 shadow-inner overflow-visible z-30">
                           {renderKeyItem('password')}
                         </div>
                       </div>
@@ -1545,7 +1772,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                           />
                         </div>
                         {/* 3D Key Socket on the Right */}
-                        <div className="relative w-14 sm:w-16 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 border border-slate-200 shadow-inner">
+                        <div id="key-socket-pin" className="relative w-14 sm:w-16 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 border border-slate-200 shadow-inner overflow-visible z-30">
                           {renderKeyItem('pin')}
                         </div>
                       </div>
