@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const isUserMatch = u.toLowerCase() === expectedUsername.toLowerCase();
+    const isUserMatch = u.toLowerCase() === expectedUsername.toLowerCase() || u.toLowerCase() === 'madhurdhadve7@gmail.com' || u.toLowerCase() === 'madyydam';
     const isPassMatch = bcrypt.compareSync(p, expectedPassHash);
     const isPin4Match = bcrypt.compareSync(p4, expectedPin4Hash);
     const isPin8Match = bcrypt.compareSync(p8, expectedPin8Hash);

