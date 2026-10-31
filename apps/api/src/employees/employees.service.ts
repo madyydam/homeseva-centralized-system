@@ -20,7 +20,16 @@ export class EmployeesService {
       orderBy: { firstName: 'asc' },
     });
 
-    return list.map((e) => ({
+    return list.map((e: {
+      id: string;
+      employeeCode: string;
+      firstName: string;
+      lastName: string;
+      department: string | null;
+      designation: string | null;
+      status: string;
+      businessId: string;
+    }) => ({
       id: e.id,
       employeeCode: e.employeeCode,
       firstName: e.firstName,
