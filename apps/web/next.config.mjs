@@ -12,12 +12,6 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer, dev }) => {
-    if (isServer && dev) {
-      config.output.chunkFilename = 'chunks/[name].js';
-    }
-    return config;
-  },
 };
 
 export default nextConfig;

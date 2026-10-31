@@ -39,6 +39,8 @@ packages/db/generated/
 *.secret
 *.bak
 *.backup
+cookie.txt
+*.cookie
 .DS_Store
 .vscode/
 
