@@ -47,6 +47,12 @@ interface LockState {
   unlocked: boolean;
   bursting: boolean;
   checking: boolean;
+  falling: boolean;
+  fallen: boolean;
+}
+
+interface KeyState {
+  status: 'idle' | 'flying' | 'struggling' | 'broken' | 'unlocked';
 }
 
 // Icon helper mapped dynamically by role keyword
@@ -171,9 +177,20 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     password: LockState;
     pin: LockState;
   }>({
-    password: { unlocked: false, bursting: false, checking: false },
-    pin: { unlocked: false, bursting: false, checking: false },
+    password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+    pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
   });
+
+  // Flying 3D Keys State: idle | flying | struggling | broken | unlocked
+  const [keyStates, setKeyStates] = useState<{
+    password: KeyState;
+    pin: KeyState;
+  }>({
+    password: { status: 'idle' },
+    pin: { status: 'idle' },
+  });
+
+  const [isDoorAscending, setIsDoorAscending] = useState(false);
 
   const timerRefs = useRef<{ [key: string]: NodeJS.Timeout | null }>({
     password: null,
@@ -187,10 +204,20 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       if (!val.trim() || !activeRole) {
         setLocks((prev) => ({
           ...prev,
-          [field]: { unlocked: false, bursting: false, checking: false },
+          [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+        }));
+        setKeyStates((prev) => ({
+          ...prev,
+          [field]: { status: 'idle' },
         }));
         return;
       }
+
+      // 1. Key lifts off from the right socket and flies horizontally across to the padlock!
+      setKeyStates((prev) => ({
+        ...prev,
+        [field]: { status: 'flying' },
+      }));
 
       setLocks((prev) => ({
         ...prev,
@@ -218,29 +245,64 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           setErrorMsg('');
         }
 
-        if (data.success && data.matched) {
-          // Trigger Bomb Detonation Animation
-          setLocks((prev) => ({
-            ...prev,
-            [field]: { unlocked: true, bursting: true, checking: false },
-          }));
+        // Wait for key flight to arrive at the lock's keyhole (550ms)
+        setTimeout(() => {
+          if (data.success && data.matched) {
+            // Key smoothly turns inside keyhole!
+            setKeyStates((prev) => ({
+              ...prev,
+              [field]: { status: 'unlocked' },
+            }));
 
-          setTimeout(() => {
+            // Shackle clicks and detonates open
             setLocks((prev) => ({
               ...prev,
-              [field]: { unlocked: true, bursting: false, checking: false },
+              [field]: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
             }));
-          }, 1300);
-        } else {
-          setLocks((prev) => ({
-            ...prev,
-            [field]: { unlocked: false, bursting: false, checking: false },
-          }));
-        }
+
+            // After shockwave, padlock detaches from door mounting and drops/falls off the bottom!
+            setTimeout(() => {
+              setLocks((prev) => ({
+                ...prev,
+                [field]: { ...prev[field], bursting: false, falling: true },
+              }));
+
+              // Padlock has fallen off, leaving clean holographic unlatched seal
+              setTimeout(() => {
+                setLocks((prev) => ({
+                  ...prev,
+                  [field]: { ...prev[field], falling: false, fallen: true },
+                }));
+              }, 750);
+            }, 650);
+          } else {
+            // Key enters keyhole, wiggles/shudders under friction strain with red sparks...
+            setKeyStates((prev) => ({
+              ...prev,
+              [field]: { status: 'struggling' },
+            }));
+
+            // SNAP! Key breaks in two pieces and both tumble down!
+            setTimeout(() => {
+              setKeyStates((prev) => ({
+                ...prev,
+                [field]: { status: 'broken' },
+              }));
+              setLocks((prev) => ({
+                ...prev,
+                [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+              }));
+            }, 380);
+          }
+        }, 550);
       } catch {
+        setKeyStates((prev) => ({
+          ...prev,
+          [field]: { status: 'broken' },
+        }));
         setLocks((prev) => ({
           ...prev,
-          [field]: { unlocked: false, bursting: false, checking: false },
+          [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
         }));
       }
     },
@@ -250,6 +312,18 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const handleInputChange = (field: 'password' | 'pin', val: string) => {
     if (field === 'password') setPassword(val);
     if (field === 'pin') setPin(val.replace(/\D/g, '').slice(0, 4));
+
+    // When user types or modifies, reset key from broken to idle
+    setKeyStates((prev) => ({
+      ...prev,
+      [field]: { status: 'idle' },
+    }));
+
+    // If lock was already marked fallen/unlocked but value changed, reset it
+    setLocks((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], unlocked: false, bursting: false, falling: false, fallen: false },
+    }));
 
     if (timerRefs.current[field]) {
       clearTimeout(timerRefs.current[field]!);
@@ -263,14 +337,50 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const handleRoleSelect = (newRole: string) => {
     setSelectedRole(newRole);
     setIsRoleDropdownOpen(false);
-    // Reset locks for new role
+    // Reset locks and keys for new role
     setLocks({
-      password: { unlocked: false, bursting: false, checking: false },
-      pin: { unlocked: false, bursting: false, checking: false },
+      password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+      pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
     });
+    setKeyStates({
+      password: { status: 'idle' },
+      pin: { status: 'idle' },
+    });
+    setIsDoorAscending(false);
     if (password) verifyRoleField('password', password, newRole);
     if (pin) verifyRoleField('pin', pin, newRole);
   };
+
+  // Grand Door Ascend: When both locks have fallen off, the entire screen lifts upward like an armored blast door
+  useEffect(() => {
+    if (locks.password.fallen && locks.pin.fallen && !isDoorAscending) {
+      const doorTimer = setTimeout(() => {
+        setIsDoorAscending(true);
+        // After door clears screen (950ms), redirect to authorized workspace
+        setTimeout(() => {
+          if (isGentleHairWigs && selectedBranch) {
+            router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
+          } else if (isHorecaEssentials && selectedDivision) {
+            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
+          } else {
+            router.push(`/app/${businessSlug}/dashboard`);
+          }
+        }, 950);
+      }, 450);
+      return () => clearTimeout(doorTimer);
+    }
+  }, [
+    locks.password.fallen,
+    locks.pin.fallen,
+    isDoorAscending,
+    businessSlug,
+    isGentleHairWigs,
+    isHorecaEssentials,
+    selectedBranch,
+    selectedDivision,
+    selectedRole,
+    router,
+  ]);
 
   // Fetch dynamic roles from Supabase on mount
   useEffect(() => {
@@ -371,18 +481,49 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       const data = await res.json();
       if (!data.success) {
         setErrorMsg(data.error || 'Authentication failed. Please check your credentials.');
+        setKeyStates({
+          password: { status: 'broken' },
+          pin: { status: 'broken' },
+        });
         setIsLoading(false);
         return;
       }
 
-      setIsLoading(false);
-      if (isGentleHairWigs && selectedBranch) {
-        router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
-      } else if (isHorecaEssentials && selectedDivision) {
-        router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
-      } else {
-        router.push(`/app/${businessSlug}/dashboard`);
-      }
+      // Successful verification: unlock both, drop padlocks, and ascend door!
+      setKeyStates({
+        password: { status: 'unlocked' },
+        pin: { status: 'unlocked' },
+      });
+      setLocks({
+        password: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
+        pin: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
+      });
+
+      setTimeout(() => {
+        setLocks({
+          password: { unlocked: true, bursting: false, checking: false, falling: true, fallen: false },
+          pin: { unlocked: true, bursting: false, checking: false, falling: true, fallen: false },
+        });
+
+        setTimeout(() => {
+          setLocks({
+            password: { unlocked: true, bursting: false, checking: false, falling: false, fallen: true },
+            pin: { unlocked: true, bursting: false, checking: false, falling: false, fallen: true },
+          });
+          setIsDoorAscending(true);
+
+          setTimeout(() => {
+            setIsLoading(false);
+            if (isGentleHairWigs && selectedBranch) {
+              router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
+            } else if (isHorecaEssentials && selectedDivision) {
+              router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
+            } else {
+              router.push(`/app/${businessSlug}/dashboard`);
+            }
+          }, 950);
+        }, 750);
+      }, 550);
     } catch {
       setErrorMsg('Unable to verify credentials. Please try again.');
       setIsLoading(false);
@@ -430,6 +571,129 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       glowRgba: isGentleHairWigs ? 'rgba(6, 182, 212, 0.95)' : 'rgba(16, 185, 129, 0.95)',
     },
   ];
+
+  const renderKeyItem = (field: 'password' | 'pin') => {
+    const kState = keyStates[field].status;
+    const isFlying = kState === 'flying';
+    const isStruggling = kState === 'struggling';
+    const isBroken = kState === 'broken';
+    const isUnlocked = kState === 'unlocked';
+
+    const animClass = isFlying
+      ? field === 'password'
+        ? 'key-flying-password'
+        : 'key-flying-pin'
+      : isStruggling
+      ? 'key-struggling'
+      : isUnlocked
+      ? 'key-unlocked-turn'
+      : '';
+
+    if (isBroken) {
+      return (
+        <div className="relative w-full h-full flex items-center justify-center">
+          {/* Red friction strain sparks */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute h-1 w-1 rounded-full bg-rose-500"
+                style={{
+                  boxShadow: '0 0 6px #ef4444',
+                  animation: 'sparkBlastRole 0.5s ease-out forwards',
+                  '--tx': `${(i % 2 === 0 ? 1 : -1) * (14 + i * 6)}px`,
+                  '--ty': `${(i % 3 === 0 ? -1 : 1) * (10 + i * 4)}px`,
+                } as any}
+              />
+            ))}
+          </div>
+
+          {/* Broken Key Head Piece tumbling down */}
+          <div className="broken-head-falling absolute">
+            <svg viewBox="0 0 32 28" className="w-6 h-6 select-none drop-shadow-md">
+              <defs>
+                <linearGradient id={`keyHeadGrad_${field}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#fef08a" />
+                  <stop offset="35%" stopColor="#eab308" />
+                  <stop offset="70%" stopColor="#ca8a04" />
+                  <stop offset="100%" stopColor="#854d0e" />
+                </linearGradient>
+              </defs>
+              <circle cx="14" cy="14" r="11" fill={`url(#keyHeadGrad_${field})`} stroke="#78350f" strokeWidth="1.2" />
+              <circle cx="14" cy="14" r="5" fill="#1e293b" />
+              <circle cx="14" cy="14" r="7" fill="none" stroke="#fef08a" strokeWidth="0.8" opacity="0.7" />
+              <rect x="25" y="10.5" width="4" height="7" rx="1.5" fill={`url(#keyHeadGrad_${field})`} stroke="#78350f" strokeWidth="0.8" />
+              <path d="M 28 10 L 31 14 L 28 18" stroke="#ef4444" strokeWidth="1.5" fill="none" />
+            </svg>
+          </div>
+
+          {/* Broken Key Blade Piece falling down */}
+          <div className="broken-blade-falling absolute">
+            <svg viewBox="0 0 46 28" className="w-8 h-6 select-none drop-shadow-md">
+              <defs>
+                <linearGradient id={`keyBladeGrad_${field}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#ca8a04" />
+                  <stop offset="50%" stopColor="#fef08a" />
+                  <stop offset="100%" stopColor="#a16207" />
+                </linearGradient>
+              </defs>
+              <path d="M 0 12 L 3 14 L 0 16 L 36 16 L 36 12 Z" fill={`url(#keyBladeGrad_${field})`} stroke="#78350f" strokeWidth="0.8" />
+              <path d="M 18 16 L 18 22 L 22 22 L 22 16 Z M 26 16 L 26 24 L 30 24 L 30 19 L 33 19 L 33 16 Z" fill={`url(#keyBladeGrad_${field})`} stroke="#78350f" strokeWidth="0.8" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`relative flex items-center justify-center ${animClass}`}>
+        <svg
+          viewBox="0 0 74 28"
+          className="w-12 sm:w-14 h-6 select-none drop-shadow-md transition-transform"
+          style={{
+            filter: isUnlocked
+              ? 'drop-shadow(0 0 10px #f59e0b)'
+              : isStruggling
+              ? 'drop-shadow(0 0 8px #ef4444)'
+              : 'drop-shadow(0 2px 4px rgba(0,0,0,0.18))',
+          }}
+        >
+          <defs>
+            <linearGradient id={`goldKeyGrad_${field}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#fef08a" />
+              <stop offset="35%" stopColor="#eab308" />
+              <stop offset="70%" stopColor="#ca8a04" />
+              <stop offset="100%" stopColor="#854d0e" />
+            </linearGradient>
+            <linearGradient id={`goldKeyShaft_${field}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#ca8a04" />
+              <stop offset="50%" stopColor="#fef08a" />
+              <stop offset="100%" stopColor="#a16207" />
+            </linearGradient>
+          </defs>
+
+          {/* Bow / Head */}
+          <circle cx="14" cy="14" r="11" fill={`url(#goldKeyGrad_${field})`} stroke="#78350f" strokeWidth="1.2" />
+          <circle cx="14" cy="14" r="5" fill="#1e293b" />
+          <circle cx="14" cy="14" r="7" fill="none" stroke="#fef08a" strokeWidth="0.8" opacity="0.7" />
+
+          {/* Collar */}
+          <rect x="25" y="10.5" width="4" height="7" rx="1.5" fill={`url(#goldKeyGrad_${field})`} stroke="#78350f" strokeWidth="0.8" />
+
+          {/* Shaft */}
+          <rect x="29" y="12" width="36" height="4" rx="1" fill={`url(#goldKeyShaft_${field})`} stroke="#78350f" strokeWidth="0.8" />
+
+          {/* Teeth / Bits */}
+          <path
+            d="M 48 16 L 48 22 L 52 22 L 52 16 Z M 56 16 L 56 24 L 60 24 L 60 19 L 63 19 L 63 16 Z"
+            fill={`url(#goldKeyGrad_${field})`}
+            stroke="#78350f"
+            strokeWidth="0.8"
+          />
+        </svg>
+      </div>
+    );
+  };
 
   return (
     <main className="relative min-h-screen bg-[#06080e] text-white flex flex-col justify-between p-3 sm:p-6 overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
@@ -898,11 +1162,25 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                           )}
 
                           {/* 3D LIGHT MODE VAULT PADLOCK SVG */}
-                          <div
-                            className={`relative flex flex-col items-center justify-center cursor-default ${
-                              isBursting ? 'padlock-light-bursting' : 'padlock-light-body'
-                            }`}
-                          >
+                          {cfg.state.fallen ? (
+                            <div className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-emerald-50 border-2 border-emerald-300 shadow-sm w-20 h-24 my-2 animate-fadeIn">
+                              <div className="h-9 w-9 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md mb-1.5">
+                                <Check className="h-5 w-5 stroke-[3]" />
+                              </div>
+                              <span className="text-[10px] font-mono font-black uppercase tracking-wider text-emerald-800 text-center leading-tight">
+                                {cfg.label}<br />Detached
+                              </span>
+                            </div>
+                          ) : (
+                            <div
+                              className={`relative flex flex-col items-center justify-center cursor-default ${
+                                cfg.state.falling
+                                  ? 'padlock-falling'
+                                  : isBursting
+                                  ? 'padlock-light-bursting'
+                                  : 'padlock-light-body'
+                              }`}
+                            >
                             <svg
                               viewBox="0 0 100 115"
                               className="w-14 h-16 sm:w-16 sm:h-20 drop-shadow-[0_10px_14px_rgba(0,0,0,0.18)]"
@@ -1072,6 +1350,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                               </span>
                             </div>
                           </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1202,29 +1481,35 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                           </span>
                         )}
                       </div>
-                      <div className="relative">
-                        <LockIcon className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${
-                          locks.password.unlocked ? 'text-emerald-600' : 'text-slate-400'
-                        }`} />
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => handleInputChange('password', e.target.value)}
-                          placeholder="Enter assigned password"
-                          required
-                          className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-9 text-xs sm:text-sm text-slate-900 focus:outline-none transition ${
-                            locks.password.unlocked
-                              ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                              : 'border-slate-300 ' + theme.ring
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
+                      <div className="flex items-center space-x-2">
+                        <div className="relative flex-1">
+                          <LockIcon className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${
+                            locks.password.unlocked ? 'text-emerald-600' : 'text-slate-400'
+                          }`} />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => handleInputChange('password', e.target.value)}
+                            placeholder="Enter assigned password"
+                            required
+                            className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-9 text-xs sm:text-sm text-slate-900 focus:outline-none transition ${
+                              locks.password.unlocked
+                                ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                                : 'border-slate-300 ' + theme.ring
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {/* 3D Key Socket on the Right */}
+                        <div className="relative w-14 sm:w-16 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 border border-slate-200 shadow-inner">
+                          {renderKeyItem('password')}
+                        </div>
                       </div>
                     </div>
 
@@ -1239,24 +1524,30 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                           </span>
                         )}
                       </div>
-                      <div className="relative">
-                        <KeyRound className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${
-                          locks.pin.unlocked ? 'text-emerald-600' : 'text-slate-400'
-                        }`} />
-                        <input
-                          type="password"
-                          maxLength={4}
-                          inputMode="numeric"
-                          value={pin}
-                          onChange={(e) => handleInputChange('pin', e.target.value)}
-                          placeholder="••••"
-                          required
-                          className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-3 text-xs sm:text-sm font-mono tracking-widest text-slate-900 focus:outline-none transition ${
-                            locks.pin.unlocked
-                              ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                              : 'border-slate-300 ' + theme.ring
-                          }`}
-                        />
+                      <div className="flex items-center space-x-2">
+                        <div className="relative flex-1">
+                          <KeyRound className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${
+                            locks.pin.unlocked ? 'text-emerald-600' : 'text-slate-400'
+                          }`} />
+                          <input
+                            type="password"
+                            maxLength={4}
+                            inputMode="numeric"
+                            value={pin}
+                            onChange={(e) => handleInputChange('pin', e.target.value)}
+                            placeholder="••••"
+                            required
+                            className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-3 text-xs sm:text-sm font-mono tracking-widest text-slate-900 focus:outline-none transition ${
+                              locks.pin.unlocked
+                                ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                                : 'border-slate-300 ' + theme.ring
+                            }`}
+                          />
+                        </div>
+                        {/* 3D Key Socket on the Right */}
+                        <div className="relative w-14 sm:w-16 h-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 border border-slate-200 shadow-inner">
+                          {renderKeyItem('pin')}
+                        </div>
                       </div>
                     </div>
 
