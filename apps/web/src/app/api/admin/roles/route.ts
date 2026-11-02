@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '../../../../lib/supabase/admin';
-import { getCurrentSuperAdminSession } from '../../../../lib/auth/session';
+import { getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
