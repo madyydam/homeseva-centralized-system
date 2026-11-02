@@ -37,6 +37,81 @@ export interface TelecallerDailyRecord {
   updatedAt?: string;
 }
 
+export function parse12HourParts(
+  str: string | null | undefined,
+  defaultAmPm: 'AM' | 'PM' = 'AM'
+): {
+  hour: string;
+  minute: string;
+  ampm: 'AM' | 'PM';
+  isSet: boolean;
+} {
+  if (!str || !str.trim()) {
+    return {
+      hour: defaultAmPm === 'AM' ? '09' : '06',
+      minute: '30',
+      ampm: defaultAmPm,
+      isSet: false,
+    };
+  }
+  const clean = str.trim();
+  const m12 = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (m12 && m12[1] && m12[2] && m12[3]) {
+    const h = parseInt(m12[1], 10);
+    const m = m12[2];
+    const ampm = m12[3].toUpperCase() === 'PM' ? 'PM' : 'AM';
+    return {
+      hour: h.toString().padStart(2, '0'),
+      minute: m,
+      ampm,
+      isSet: true,
+    };
+  }
+  const m24 = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m24 && m24[1] && m24[2]) {
+    let h = parseInt(m24[1], 10);
+    const m = m24[2];
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return {
+      hour: h.toString().padStart(2, '0'),
+      minute: m,
+      ampm,
+      isSet: true,
+    };
+  }
+  return {
+    hour: defaultAmPm === 'AM' ? '09' : '06',
+    minute: '30',
+    ampm: defaultAmPm,
+    isSet: false,
+  };
+}
+
+export function calculateMinutesFromParts(hour: string, minute: string, ampm: 'AM' | 'PM'): number {
+  let h = parseInt(hour, 10);
+  const m = parseInt(minute, 10);
+  if (ampm === 'PM' && h < 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+export function computeWorkedHours(inStr: string, outStr: string): number | null {
+  const inParts = parse12HourParts(inStr, 'AM');
+  const outParts = parse12HourParts(outStr, 'PM');
+  if (!inParts.isSet || !outParts.isSet) return null;
+
+  let minIn = calculateMinutesFromParts(inParts.hour, inParts.minute, inParts.ampm);
+  let minOut = calculateMinutesFromParts(outParts.hour, outParts.minute, outParts.ampm);
+
+  if (minOut < minIn) {
+    minOut += 24 * 60; // Overnight shift
+  }
+
+  const diffHours = Math.round(((minOut - minIn) / 60) * 10) / 10;
+  return diffHours;
+}
+
 export function to24HourTime(str: string | null | undefined): string {
   if (!str) return '';
   const clean = str.trim();
@@ -78,6 +153,212 @@ export function to12HourDisplay(str: string | null | undefined): string {
     return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
   }
   return clean;
+}
+
+interface ClockNumberPickerProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  onClear: () => void;
+  quickPresets: string[];
+  theme: 'emerald' | 'amber';
+}
+
+function ClockNumberPicker({
+  label,
+  value,
+  onChange,
+  onClear,
+  quickPresets,
+  theme,
+}: ClockNumberPickerProps) {
+  const defaultAmPm = label.toLowerCase().includes('in') ? 'AM' : 'PM';
+  const parsed = parse12HourParts(value, defaultAmPm);
+
+  const hoursList = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+  const minutesList = [
+    '00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'
+  ];
+
+  const handleHourSelect = (newH: string) => {
+    const formatted = `${newH}:${parsed.minute} ${parsed.ampm}`;
+    onChange(formatted);
+  };
+
+  const handleMinuteSelect = (newM: string) => {
+    const formatted = `${parsed.hour}:${newM} ${parsed.ampm}`;
+    onChange(formatted);
+  };
+
+  const handleAmPmToggle = (newAmPm: 'AM' | 'PM') => {
+    const formatted = `${parsed.hour}:${parsed.minute} ${newAmPm}`;
+    onChange(formatted);
+  };
+
+  const handleNowClick = () => {
+    const now = new Date();
+    let h = now.getHours();
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const formatted = `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+    onChange(formatted);
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-3.5 space-y-2.5 transition shadow-2xs ${
+        parsed.isSet
+          ? theme === 'emerald'
+            ? 'border-emerald-300 bg-emerald-50/40'
+            : 'border-amber-300 bg-amber-50/40'
+          : 'border-slate-200 bg-slate-50/70 hover:border-slate-300'
+      }`}
+    >
+      {/* Top Header: Label + Status Badge + Clear */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-1.5">
+          <Clock
+            className={`h-3.5 w-3.5 ${
+              parsed.isSet
+                ? theme === 'emerald'
+                  ? 'text-emerald-600'
+                  : 'text-amber-600'
+                : 'text-slate-400'
+            }`}
+          />
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+            {label}
+          </span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          {parsed.isSet ? (
+            <>
+              <span
+                className={`text-[10.5px] font-mono font-black px-2 py-0.5 rounded-full border ${
+                  theme === 'emerald'
+                    ? 'text-emerald-800 bg-emerald-100/80 border-emerald-300'
+                    : 'text-amber-900 bg-amber-100/80 border-amber-300'
+                }`}
+              >
+                ● {parsed.hour}:{parsed.minute} {parsed.ampm}
+              </span>
+              <button
+                type="button"
+                onClick={onClear}
+                className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition cursor-pointer px-1"
+                title="Clear time"
+              >
+                ✕ Clear
+              </button>
+            </>
+          ) : (
+            <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+              Not Set
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Clock & Number Chooser (ZERO typing needed) */}
+      <div className="flex items-center justify-between gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
+        {/* Hour Dropdown */}
+        <div className="flex-1 min-w-0">
+          <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-0.5 text-center">
+            Hour
+          </label>
+          <select
+            value={parsed.hour}
+            onChange={(e) => handleHourSelect(e.target.value)}
+            className="w-full text-center font-mono font-black text-xs text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg py-1.5 px-1 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+          >
+            {hoursList.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <span className="font-mono font-black text-slate-400 text-sm pt-3">:</span>
+
+        {/* Minute Dropdown */}
+        <div className="flex-1 min-w-0">
+          <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-0.5 text-center">
+            Minute
+          </label>
+          <select
+            value={parsed.minute}
+            onChange={(e) => handleMinuteSelect(e.target.value)}
+            className="w-full text-center font-mono font-black text-xs text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg py-1.5 px-1 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+          >
+            {minutesList.map((m) => (
+              <option key={m} value={m}>
+                :{m}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* AM / PM Segmented Toggle */}
+        <div className="flex flex-col items-center">
+          <label className="block text-[8.5px] font-black uppercase tracking-wider text-slate-400 mb-0.5">
+            AM/PM
+          </label>
+          <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px] font-black">
+            <button
+              type="button"
+              onClick={() => handleAmPmToggle('AM')}
+              className={`px-2 py-1 rounded-md transition cursor-pointer ${
+                parsed.ampm === 'AM'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              AM
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAmPmToggle('PM')}
+              className={`px-2 py-1 rounded-md transition cursor-pointer ${
+                parsed.ampm === 'PM'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              PM
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick 1-Tap Presets */}
+      <div className="flex items-center flex-wrap gap-1 text-[9.5px]">
+        <span className="text-slate-400 font-semibold mr-0.5">Quick:</span>
+        {quickPresets.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => onChange(preset)}
+            className={`px-1.5 py-0.5 rounded border transition font-bold cursor-pointer ${
+              value === preset
+                ? 'bg-amber-600 border-amber-600 text-white shadow-2xs'
+                : 'bg-white border-slate-200 hover:bg-amber-50 text-slate-700'
+            }`}
+          >
+            {preset}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={handleNowClick}
+          className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-bold cursor-pointer"
+        >
+          Now
+        </button>
+      </div>
+    </div>
+  );
 }
 
 interface DailyReportingViewProps {
@@ -143,28 +424,31 @@ export function DailyReportingView({
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate worked hours automatically when user enters or selects both times (optional helper, user can still override)
-  const autoCalculateHours = (inStr: string, outStr: string) => {
-    if (!inStr || !outStr) return;
-    try {
-      const in24 = to24HourTime(inStr);
-      const out24 = to24HourTime(outStr);
-      if (!in24 || !out24) return;
-      const partsIn = in24.split(':').map(Number);
-      const partsOut = out24.split(':').map(Number);
-      const hIn = partsIn[0];
-      const mIn = partsIn[1];
-      const hOut = partsOut[0];
-      const mOut = partsOut[1];
-      if (hIn !== undefined && mIn !== undefined && hOut !== undefined && mOut !== undefined) {
-        const minIn = hIn * 60 + mIn;
-        const minOut = hOut * 60 + mOut;
-        if (minOut > minIn) {
-          const diffHrs = Math.round(((minOut - minIn) / 60) * 10) / 10;
-          setTotalHours(String(diffHrs));
-        }
+  // Calculate worked hours & auto-classify status:
+  // - >= 5.0 hours -> PRESENT ("Present (Full Day)")
+  // - < 5.0 hours (and > 0) -> HALF_DAY ("Half Day")
+  const calculateHoursAndClassifyStatus = (inStr: string, outStr: string) => {
+    const diff = computeWorkedHours(inStr, outStr);
+    if (diff !== null && diff >= 0) {
+      setTotalHours(String(diff));
+      if (diff >= 5.0) {
+        setStatus('PRESENT');
+      } else if (diff > 0) {
+        setStatus('HALF_DAY');
       }
-    } catch {}
+    }
+  };
+
+  const handleWorkedHoursChange = (val: string) => {
+    setTotalHours(val);
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      if (num >= 5.0) {
+        setStatus('PRESENT');
+      } else if (num > 0) {
+        setStatus('HALF_DAY');
+      }
+    }
   };
 
   // Fetch report for selectedDate
@@ -184,8 +468,8 @@ export function DailyReportingView({
         if (myReport && (myReport.punchInTime || myReport.callsMade > 0 || myReport.workSummary)) {
           setSavedRecord(myReport);
           setStatus(myReport.status === 'HOLIDAY' ? 'HOLIDAY' : myReport.status === 'HALF_DAY' ? 'HALF_DAY' : myReport.status === 'LEAVE' ? 'LEAVE' : 'PRESENT');
-          setPunchInTime(to24HourTime(myReport.punchInTime));
-          setPunchOutTime(to24HourTime(myReport.punchOutTime));
+          setPunchInTime(to12HourDisplay(myReport.punchInTime));
+          setPunchOutTime(to12HourDisplay(myReport.punchOutTime));
           setTotalHours(myReport.totalHours ? String(myReport.totalHours) : '');
           setCallsMade(myReport.callsMade ? String(myReport.callsMade) : '');
           setCallsConnected(myReport.callsConnected ? String(myReport.callsConnected) : '');
@@ -519,181 +803,90 @@ export function DailyReportingView({
                     min="0"
                     max="24"
                     value={totalHours}
-                    onChange={(e) => setTotalHours(e.target.value)}
+                    onChange={(e) => handleWorkedHoursChange(e.target.value)}
                     className="w-14 rounded-md border border-slate-300 px-1.5 py-0.5 text-xs font-mono font-black text-slate-900 text-center bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
                   <span className="text-[11px] font-bold text-slate-600">hrs</span>
                 </div>
               </div>
 
-              {/* 2 Cards in a Row (Small & Compact) */}
+              {/* 2 Cards in a Row: Clock & Number Chooser (ZERO typing needed) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* CARD 1: PUNCH IN */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2 hover:border-amber-300 transition shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      Punch In
-                    </span>
-                    {punchInTime ? (
-                      <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        Recorded: {to12HourDisplay(punchInTime)}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                        Not Set
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Selectable & Enterable Time Input */}
-                  <div className="relative flex items-center">
-                    <input
-                      type="time"
-                      value={punchInTime}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setPunchInTime(val);
-                        autoCalculateHours(val, punchOutTime);
-                      }}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer shadow-2xs"
-                    />
-                    {punchInTime && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPunchInTime('');
-                          autoCalculateHours('', punchOutTime);
-                        }}
-                        className="absolute right-7 px-1 text-[10px] text-slate-400 hover:text-slate-700 font-bold"
-                        title="Clear"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Quick Preset Buttons */}
-                  <div className="flex items-center space-x-1 text-[9.5px]">
-                    <span className="text-slate-400 font-medium">Quick:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPunchInTime('09:30');
-                        autoCalculateHours('09:30', punchOutTime);
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
-                    >
-                      09:30 AM
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPunchInTime('10:00');
-                        autoCalculateHours('10:00', punchOutTime);
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
-                    >
-                      10:00 AM
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const hh = String(now.getHours()).padStart(2, '0');
-                        const mm = String(now.getMinutes()).padStart(2, '0');
-                        const t = `${hh}:${mm}`;
-                        setPunchInTime(t);
-                        autoCalculateHours(t, punchOutTime);
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
-                    >
-                      Now
-                    </button>
-                  </div>
-                </div>
+                <ClockNumberPicker
+                  label="Punch In"
+                  value={punchInTime}
+                  onChange={(val) => {
+                    setPunchInTime(val);
+                    calculateHoursAndClassifyStatus(val, punchOutTime);
+                  }}
+                  onClear={() => {
+                    setPunchInTime('');
+                    calculateHoursAndClassifyStatus('', punchOutTime);
+                  }}
+                  quickPresets={['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM']}
+                  theme="emerald"
+                />
 
                 {/* CARD 2: PUNCH OUT */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2 hover:border-amber-300 transition shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      Punch Out
+                <ClockNumberPicker
+                  label="Punch Out"
+                  value={punchOutTime}
+                  onChange={(val) => {
+                    setPunchOutTime(val);
+                    calculateHoursAndClassifyStatus(punchInTime, val);
+                  }}
+                  onClear={() => {
+                    setPunchOutTime('');
+                    calculateHoursAndClassifyStatus(punchInTime, '');
+                  }}
+                  quickPresets={['05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM']}
+                  theme="amber"
+                />
+              </div>
+
+              {/* Auto-Classification Feedback & Rules Banner */}
+              <div className="space-y-1.5 pt-1">
+                {totalHours && Number(totalHours) > 0 ? (
+                  <div
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-2 shadow-2xs ${
+                      Number(totalHours) >= 5.0
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                        : 'bg-amber-50 border-amber-300 text-amber-950'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle2
+                        className={`h-4 w-4 shrink-0 ${
+                          Number(totalHours) >= 5.0 ? 'text-emerald-600' : 'text-amber-600'
+                        }`}
+                      />
+                      <span>
+                        {Number(totalHours) >= 5.0
+                          ? `Total Worked: ${totalHours} hrs (≥ 5 hrs) · Marked as Present (Full Day)`
+                          : `Total Worked: ${totalHours} hrs (< 5 hrs) · Marked as Half Day`}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                        Number(totalHours) >= 5.0
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-amber-600 text-white shadow-2xs'
+                      }`}
+                    >
+                      {status === 'HALF_DAY' ? 'Half Day' : status === 'PRESENT' ? 'Present' : status}
                     </span>
-                    {punchOutTime ? (
-                      <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        Recorded: {to12HourDisplay(punchOutTime)}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                        Not Set
-                      </span>
-                    )}
                   </div>
+                ) : null}
 
-                  {/* Selectable & Enterable Time Input */}
-                  <div className="relative flex items-center">
-                    <input
-                      type="time"
-                      value={punchOutTime}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setPunchOutTime(val);
-                        autoCalculateHours(punchInTime, val);
-                      }}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer shadow-2xs"
-                    />
-                    {punchOutTime && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPunchOutTime('');
-                          autoCalculateHours(punchInTime, '');
-                        }}
-                        className="absolute right-7 px-1 text-[10px] text-slate-400 hover:text-slate-700 font-bold"
-                        title="Clear"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Quick Preset Buttons */}
-                  <div className="flex items-center space-x-1 text-[9.5px]">
-                    <span className="text-slate-400 font-medium">Quick:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPunchOutTime('18:30');
-                        autoCalculateHours(punchInTime, '18:30');
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
-                    >
-                      06:30 PM
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPunchOutTime('19:00');
-                        autoCalculateHours(punchInTime, '19:00');
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
-                    >
-                      07:00 PM
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const hh = String(now.getHours()).padStart(2, '0');
-                        const mm = String(now.getMinutes()).padStart(2, '0');
-                        const t = `${hh}:${mm}`;
-                        setPunchOutTime(t);
-                        autoCalculateHours(punchInTime, t);
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
-                    >
-                      Now
-                    </button>
-                  </div>
+                {/* Studio Attendance Rule Guidance */}
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium px-1">
+                  <span>
+                    Rule: <span className="font-bold text-slate-700">≥ 5 hrs = Present (Full Day)</span> ·{' '}
+                    <span className="font-bold text-slate-700">&lt; 5 hrs = Half Day</span> ·{' '}
+                    <span className="font-bold text-slate-700">No report = Leave</span>
+                  </span>
+                  <span className="text-slate-400">Click dropdown or numbers to set time</span>
                 </div>
               </div>
             </div>
@@ -858,7 +1051,13 @@ export function DailyReportingView({
                             : 'bg-rose-50 text-rose-800 border-rose-200'
                         }`}
                       >
-                        {hist.status}
+                        {hist.status === 'HALF_DAY'
+                          ? 'Half Day'
+                          : hist.status === 'PRESENT'
+                          ? 'Present'
+                          : hist.status === 'HOLIDAY'
+                          ? 'Holiday'
+                          : 'Leave'}
                       </span>
                     </td>
                     <td className="py-3 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap">

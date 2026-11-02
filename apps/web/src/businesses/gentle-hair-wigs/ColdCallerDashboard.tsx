@@ -69,7 +69,7 @@ export function ColdCallerDashboard({
 
   // Active navigation tab for the Cold Caller
   const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted' | 'daily-reporting'>('sheet');
-  const [todayStatus, setTodayStatus] = useState<'PENDING' | 'IN_PROGRESS' | 'PRESENT' | 'HOLIDAY'>('PENDING');
+  const [todayStatus, setTodayStatus] = useState<'PENDING' | 'IN_PROGRESS' | 'PRESENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY'>('PENDING');
 
   const checkStatus = useCallback(async () => {
     try {

@@ -37,7 +37,7 @@ interface TelecallerReportItem {
   convertedClients: number;
   followUpsDue: number;
   workSummary: string;
-  status: 'PRESENT' | 'IN_PROGRESS' | 'HOLIDAY' | 'PENDING' | 'LEAVE';
+  status: 'PRESENT' | 'HALF_DAY' | 'IN_PROGRESS' | 'HOLIDAY' | 'PENDING' | 'LEAVE';
   isHoliday: boolean;
   updatedAt: string;
 }
@@ -56,7 +56,7 @@ export function TeamAttendanceView({
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedBranch, setSelectedBranch] = useState<string>(currentBranch || 'all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'PRESENT' | 'IN_PROGRESS' | 'HOLIDAY'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'PRESENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY'>('all');
 
   const [reports, setReports] = useState<TelecallerReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +95,8 @@ export function TeamAttendanceView({
           ? true
           : statusFilter === 'HOLIDAY'
           ? r.status === 'HOLIDAY' || r.isHoliday
+          : statusFilter === 'LEAVE'
+          ? r.status === 'LEAVE' || (!r.punchInTime && r.callsMade === 0 && !r.workSummary)
           : r.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -104,17 +106,23 @@ export function TeamAttendanceView({
   const summary = useMemo(() => {
     const totalTeam = reports.length;
     const present = reports.filter((r) => r.status === 'PRESENT').length;
-    const active = reports.filter((r) => r.status === 'IN_PROGRESS').length;
+    const halfDay = reports.filter((r) => r.status === 'HALF_DAY').length;
+    const leave = reports.filter(
+      (r) => r.status === 'LEAVE' || (!r.punchInTime && r.callsMade === 0 && !r.workSummary)
+    ).length;
     const holiday = reports.filter((r) => r.status === 'HOLIDAY' || r.isHoliday).length;
     const totalCalls = reports.reduce((acc, curr) => acc + (curr.callsMade || 0), 0);
     const totalAppointments = reports.reduce((acc, curr) => acc + (curr.appointmentsBooked || 0), 0);
     const totalConverted = reports.reduce((acc, curr) => acc + (curr.convertedClients || 0), 0);
 
-    return { totalTeam, present, active, holiday, totalCalls, totalAppointments, totalConverted };
+    return { totalTeam, present, halfDay, leave, holiday, totalCalls, totalAppointments, totalConverted };
   }, [reports]);
 
-  // Quick Manager/Owner override: mark leave or mark present
-  const handleOverrideStatus = async (staffId: string, newStatus: 'PRESENT' | 'HOLIDAY') => {
+  // Quick Manager/Owner override: mark leave, half day, holiday, or present
+  const handleOverrideStatus = async (
+    staffId: string,
+    newStatus: 'PRESENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY'
+  ) => {
     const target = reports.find((r) => r.staffId === staffId);
     if (!target) return;
 
@@ -122,13 +130,31 @@ export function TeamAttendanceView({
       ...target,
       status: newStatus,
       isHoliday: newStatus === 'HOLIDAY',
-      punchInTime: newStatus === 'PRESENT' && !target.punchInTime ? '09:30 AM' : target.punchInTime,
-      punchOutTime: newStatus === 'PRESENT' && !target.punchOutTime ? '06:30 PM' : target.punchOutTime,
-      totalHours: newStatus === 'PRESENT' ? 8.0 : 0,
+      punchInTime:
+        newStatus === 'PRESENT' && !target.punchInTime
+          ? '09:30 AM'
+          : newStatus === 'HALF_DAY' && !target.punchInTime
+          ? '09:30 AM'
+          : newStatus === 'LEAVE' || newStatus === 'HOLIDAY'
+          ? null
+          : target.punchInTime,
+      punchOutTime:
+        newStatus === 'PRESENT' && !target.punchOutTime
+          ? '06:30 PM'
+          : newStatus === 'HALF_DAY' && !target.punchOutTime
+          ? '01:30 PM'
+          : newStatus === 'LEAVE' || newStatus === 'HOLIDAY'
+          ? null
+          : target.punchOutTime,
+      totalHours: newStatus === 'PRESENT' ? 8.0 : newStatus === 'HALF_DAY' ? 4.0 : 0,
       workSummary:
         newStatus === 'HOLIDAY'
-          ? 'Marked as Leave / Holiday by Studio Manager'
-          : target.workSummary || 'Manually approved by Studio Manager',
+          ? 'Marked as Holiday / Off by Studio Manager'
+          : newStatus === 'LEAVE'
+          ? 'Marked as Leave by Studio Manager'
+          : newStatus === 'HALF_DAY'
+          ? target.workSummary || 'Marked as Half Day by Studio Manager'
+          : target.workSummary || 'Approved as Present by Studio Manager',
     };
 
     try {
@@ -227,7 +253,7 @@ export function TeamAttendanceView({
       </div>
 
       {/* 2. Top Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {/* Total Roster */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between text-slate-400">
@@ -238,38 +264,38 @@ export function TeamAttendanceView({
           <div className="text-[11px] font-bold text-slate-500 mt-0.5">Assigned callers</div>
         </div>
 
-        {/* Present & Reported */}
+        {/* Present (≥ 5 hrs) */}
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-xs">
           <div className="flex items-center justify-between text-emerald-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Present &amp; Reported</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Present (≥ 5 hrs)</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-950">{summary.present}</div>
-          <div className="text-[11px] font-bold text-emerald-700 mt-0.5">Report submitted</div>
+          <div className="text-[11px] font-bold text-emerald-700 mt-0.5">Full day shift</div>
         </div>
 
-        {/* Shift Active */}
+        {/* Half Day (< 5 hrs) */}
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-xs">
           <div className="flex items-center justify-between text-amber-800">
-            <span className="text-xs font-bold uppercase tracking-wider">Active Shifts</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Half Day (&lt; 5 hrs)</span>
             <Clock className="h-4 w-4 text-amber-600" />
           </div>
-          <div className="mt-2 text-2xl font-black text-amber-950">{summary.active}</div>
-          <div className="text-[11px] font-bold text-amber-800 mt-0.5">Currently on shift</div>
+          <div className="mt-2 text-2xl font-black text-amber-950">{summary.halfDay}</div>
+          <div className="text-[11px] font-bold text-amber-800 mt-0.5">&lt; 5 worked hours</div>
         </div>
 
-        {/* Holiday / Unreported */}
+        {/* Leave / Unreported */}
         <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 shadow-xs">
           <div className="flex items-center justify-between text-rose-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Holiday / Absent</span>
-            <Palmtree className="h-4 w-4 text-rose-600" />
+            <span className="text-xs font-bold uppercase tracking-wider">Leave (Absent)</span>
+            <AlertTriangle className="h-4 w-4 text-rose-600" />
           </div>
-          <div className="mt-2 text-2xl font-black text-rose-950">{summary.holiday}</div>
-          <div className="text-[11px] font-bold text-rose-700 mt-0.5">Unreported / Off</div>
+          <div className="mt-2 text-2xl font-black text-rose-950">{summary.leave}</div>
+          <div className="text-[11px] font-bold text-rose-700 mt-0.5">No report / Leave</div>
         </div>
 
         {/* Total Calls Made */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs col-span-2 sm:col-span-4 lg:col-span-1">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-bold uppercase tracking-wider">Total Calls Logged</span>
             <PhoneCall className="h-4 w-4 text-amber-600" />
@@ -298,9 +324,10 @@ export function TeamAttendanceView({
         <div className="flex items-center space-x-1.5 self-start sm:self-auto overflow-x-auto w-full sm:w-auto">
           {[
             { id: 'all', label: 'All Staff' },
-            { id: 'PRESENT', label: 'Present' },
-            { id: 'IN_PROGRESS', label: 'In-Progress' },
-            { id: 'HOLIDAY', label: 'Holiday / Unreported' },
+            { id: 'PRESENT', label: 'Present (≥ 5 hrs)' },
+            { id: 'HALF_DAY', label: 'Half Day (< 5 hrs)' },
+            { id: 'LEAVE', label: 'Leave / Unsubmitted' },
+            { id: 'HOLIDAY', label: 'Holiday / Off' },
           ].map((f) => (
             <button
               key={f.id}
@@ -354,8 +381,9 @@ export function TeamAttendanceView({
               ) : (
                 filteredReports.map((r) => {
                   const isPresent = r.status === 'PRESENT';
-                  const isInProgress = r.status === 'IN_PROGRESS';
+                  const isHalfDay = r.status === 'HALF_DAY';
                   const isHoliday = r.status === 'HOLIDAY' || r.isHoliday;
+                  const isLeave = r.status === 'LEAVE' || (!r.punchInTime && r.callsMade === 0 && !r.workSummary);
 
                   return (
                     <tr key={r.id || r.staffId} className="hover:bg-slate-50/80 transition">
@@ -425,36 +453,31 @@ export function TeamAttendanceView({
 
                       {/* Status */}
                       <td className="px-4 py-3.5">
-                        <span
-                          className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                            isPresent
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                              : isInProgress
-                              ? 'bg-amber-50 border-amber-200 text-amber-900 animate-pulse'
-                              : isHoliday
-                              ? 'bg-rose-50 border-rose-200 text-rose-700'
-                              : 'bg-slate-100 border-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {isPresent ? (
-                            <>
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                              <span>Present (Reported)</span>
-                            </>
-                          ) : isInProgress ? (
-                            <>
-                              <Clock className="h-3 w-3 text-amber-600" />
-                              <span>Shift In-Progress</span>
-                            </>
-                          ) : isHoliday ? (
-                            <>
-                              <Palmtree className="h-3 w-3 text-rose-600" />
-                              <span>Holiday / Absent</span>
-                            </>
-                          ) : (
+                        {isPresent ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-emerald-50 border-emerald-200 text-emerald-800">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            <span>Present (Full Day)</span>
+                          </span>
+                        ) : isHalfDay ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-amber-50 border-amber-200 text-amber-900">
+                            <Clock className="h-3 w-3 text-amber-600" />
+                            <span>Half Day (&lt; 5 hrs)</span>
+                          </span>
+                        ) : isLeave ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-rose-50 border-rose-200 text-rose-800">
+                            <AlertTriangle className="h-3 w-3 text-rose-600" />
+                            <span>Leave (No report)</span>
+                          </span>
+                        ) : isHoliday ? (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-purple-50 border-purple-200 text-purple-800">
+                            <Palmtree className="h-3 w-3 text-purple-600" />
+                            <span>Holiday / Off</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-slate-100 border-slate-200 text-slate-600">
                             <span>Pending</span>
-                          )}
-                        </span>
+                          </span>
+                        )}
                       </td>
 
                       {/* Actions */}
@@ -565,22 +588,36 @@ export function TeamAttendanceView({
               </div>
 
               {/* Manager Status Override */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold text-slate-500">Manager Override:</span>
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => handleOverrideStatus(selectedReportForView.staffId, 'HOLIDAY')}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 transition cursor-pointer"
-                  >
-                    Mark Holiday / Absent
-                  </button>
+                <div className="flex items-center flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => handleOverrideStatus(selectedReportForView.staffId, 'PRESENT')}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition cursor-pointer"
+                    className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition cursor-pointer"
                   >
-                    Approve as Present
+                    Present (Full Day)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOverrideStatus(selectedReportForView.staffId, 'HALF_DAY')}
+                    className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100 transition cursor-pointer"
+                  >
+                    Half Day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOverrideStatus(selectedReportForView.staffId, 'LEAVE')}
+                    className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-800 bg-rose-50 hover:bg-rose-100 transition cursor-pointer"
+                  >
+                    Mark Leave
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOverrideStatus(selectedReportForView.staffId, 'HOLIDAY')}
+                    className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-purple-200 text-purple-800 bg-purple-50 hover:bg-purple-100 transition cursor-pointer"
+                  >
+                    Holiday / Off
                   </button>
                 </div>
               </div>
