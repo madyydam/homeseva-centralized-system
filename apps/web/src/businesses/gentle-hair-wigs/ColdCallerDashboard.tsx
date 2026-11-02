@@ -158,12 +158,24 @@ export function ColdCallerDashboard({
                         className={`text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase ${
                           todayStatus === 'PRESENT'
                             ? isActive ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                            : todayStatus === 'HALF_DAY'
+                            ? isActive ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
                             : todayStatus === 'IN_PROGRESS'
                             ? isActive ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
                             : isActive ? 'bg-white text-rose-800' : 'bg-rose-100 text-rose-800'
                         }`}
                       >
-                        {todayStatus === 'PRESENT' ? 'Reported' : todayStatus === 'IN_PROGRESS' ? 'Active' : 'Pending'}
+                        {todayStatus === 'PRESENT'
+                          ? 'Reported'
+                          : todayStatus === 'HALF_DAY'
+                          ? 'Half Day'
+                          : todayStatus === 'LEAVE'
+                          ? 'Leave'
+                          : todayStatus === 'HOLIDAY'
+                          ? 'Holiday'
+                          : todayStatus === 'IN_PROGRESS'
+                          ? 'Active'
+                          : 'Pending'}
                       </span>
                     )}
                   </button>
@@ -334,12 +346,14 @@ export function ColdCallerDashboard({
                           className={`ml-auto shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
                             todayStatus === 'PRESENT'
                               ? isActive ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                              : todayStatus === 'HALF_DAY'
+                              ? isActive ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
                               : todayStatus === 'IN_PROGRESS'
                               ? isActive ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
                               : isActive ? 'bg-white text-rose-800' : 'bg-rose-100 text-rose-800'
                           }`}
                         >
-                          {todayStatus === 'PRESENT' ? '✓' : todayStatus === 'IN_PROGRESS' ? '●' : '!'}
+                          {todayStatus === 'PRESENT' ? '✓' : todayStatus === 'HALF_DAY' ? '½' : todayStatus === 'IN_PROGRESS' ? '●' : '!'}
                         </span>
                       )}
                     </div>
@@ -450,6 +464,8 @@ export function ColdCallerDashboard({
                   ? 'bg-amber-600 border-amber-600 text-white shadow-amber-600/30'
                   : todayStatus === 'PRESENT'
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                  : todayStatus === 'HALF_DAY'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
                   : todayStatus === 'IN_PROGRESS'
                   ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
                   : 'bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100'
@@ -459,7 +475,13 @@ export function ColdCallerDashboard({
               <span className="hidden sm:inline">Daily Reporting:</span>
               <span>
                 {todayStatus === 'PRESENT'
-                  ? 'Reported'
+                  ? 'Reported (Present)'
+                  : todayStatus === 'HALF_DAY'
+                  ? 'Half Day'
+                  : todayStatus === 'LEAVE'
+                  ? 'Leave'
+                  : todayStatus === 'HOLIDAY'
+                  ? 'Holiday'
                   : todayStatus === 'IN_PROGRESS'
                   ? 'Shift Active'
                   : 'Not Submitted'}

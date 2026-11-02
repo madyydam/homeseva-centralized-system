@@ -34,16 +34,27 @@
 1. **Tab Only — No Floating Buttons**:
    - Daily Reporting must always live inside a dedicated, first-class tab (e.g., "Daily Reporting" tab in the dashboard).
    - Never use floating action buttons (FAB) for daily reporting.
-2. **Selectable & Enterable Time (No Punch Buttons)**:
-   - Punch-In and Punch-Out must be **enterable and selectable time inputs** (`type="time"`).
-   - Users can select time via native clock/picker dropdown or type/edit the time directly via keyboard.
-   - Users can clear time or pick quick presets if convenient.
-   - **NO automatic timestamping buttons** (no buttons that auto-stamp current time or submit unexpectedly).
-3. **User-Controlled Submission**:
+2. **Clock & Easy Number Chooser (ZERO Keyboard Typing)**:
+   - Punch-In and Punch-Out must be selectable via an intuitive **Clock & Number Chooser**:
+     - Hour dropdown (`01` to `12`)
+     - Minute dropdown (`:00`, `:05`, `:10`, ..., `:55`)
+     - Period toggle buttons (`[ AM ]` and `[ PM ]`)
+     - 1-tap quick timing preset chips (`09:00 AM`, `09:30 AM`, `06:30 PM`, `Now`, etc.)
+     - Quick `✕ Clear` button.
+   - **DO NOT require keyboard typing** for punch in and punch out.
+   - **NO automatic timestamping buttons** that auto-stamp or force submit unexpectedly.
+3. **Auto-Calculation of Worked Hours**:
+   - As soon as Punch-In and Punch-Out are selected, worked hours auto-calculate dynamically (`(out - in) / 60`).
+   - Worked hours remain editable by the user.
+4. **Attendance Status Rules (Strict)**:
+   - **≥ 5.0 hours worked**: Automatically marked as **Present (Full Day)** (`PRESENT`).
+   - **< 5.0 hours worked (and > 0)**: Automatically marked as **Half Day** (`HALF_DAY`).
+   - **No report submitted on the day**: Counts as **Leave** (`LEAVE`).
+   - Manual override options available in status dropdown: `Present (Full Day)`, `Half Day`, `Leave`, `Holiday / Off`.
+5. **User-Controlled Submission**:
    - The user can fill out and submit their daily work report at **any time** of day.
-   - Worked hours auto-calculate from in/out times but remain **100% editable** by the user.
    - Dials, connected calls, appointments booked, converted sales, follow-ups, and notes are all manually entered by the user.
-4. **All Data Must Persist Durably**:
+6. **All Data Must Persist Durably**:
    - Every submitted report must save directly to Supabase (`telecaller_daily_reports` and `audit_logs`).
    - Studio Manager and Studio Owner can view reports in the "Team" / "Attendance" tab in real time.
 
