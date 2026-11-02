@@ -47,8 +47,8 @@ export function TelecallerReportModal({
   isOpen,
   onClose,
   branch,
-  currentTelecallerName = 'Priya Sharma (Lead Telecaller)',
-  currentTelecallerId = 'tc-vn-1',
+  currentTelecallerName = '',
+  currentTelecallerId = '',
   onReportUpdated,
 }: TelecallerReportModalProps) {
   const today = new Date().toISOString().slice(0, 10);

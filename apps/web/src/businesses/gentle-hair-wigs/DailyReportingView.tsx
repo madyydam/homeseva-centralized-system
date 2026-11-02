@@ -89,11 +89,19 @@ interface DailyReportingViewProps {
 
 export function DailyReportingView({
   branch,
-  currentTelecallerName = 'Priya Sharma (Lead Telecaller)',
-  currentTelecallerId = 'tc-vn-1',
+  currentTelecallerName = '',
+  currentTelecallerId = '',
   onReportUpdated,
 }: DailyReportingViewProps) {
   const todayYMD = new Date().toISOString().slice(0, 10);
+
+  // Staff member name - enterable by telecaller, ZERO fake defaults
+  const [staffName, setStaffName] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(`telecaller_name_${branch}`) || currentTelecallerName || '';
+    }
+    return currentTelecallerName || '';
+  });
 
   // Form State - ZERO fake/dummy prefill values
   const [selectedDate, setSelectedDate] = useState<string>(todayYMD);
@@ -147,7 +155,11 @@ export function DailyReportingView({
       const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}&date=${targetDate}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.reports)) {
-        const myReport = data.reports.find((r: any) => r.staffId === currentTelecallerId);
+        const myReport = data.reports.find((r: any) =>
+          (currentTelecallerId && r.staffId === currentTelecallerId) ||
+          (staffName && r.staffName && r.staffName.toLowerCase() === staffName.toLowerCase()) ||
+          (!currentTelecallerId && r.branch === branch)
+        );
         // Only populate if report actually exists and was submitted by user (not just auto holiday placeholder)
         if (myReport && (myReport.punchInTime || myReport.callsMade > 0 || myReport.workSummary)) {
           setSavedRecord(myReport);
@@ -161,6 +173,9 @@ export function DailyReportingView({
           setConvertedClients(myReport.convertedClients ? String(myReport.convertedClients) : '');
           setFollowUpsDue(myReport.followUpsDue ? String(myReport.followUpsDue) : '');
           setWorkSummary(myReport.workSummary || '');
+          if (myReport.staffName && myReport.staffName !== 'Telecaller' && !staffName) {
+            setStaffName(myReport.staffName);
+          }
           setIsSaved(true);
         } else {
           // Reset fields to blank for this date
@@ -184,7 +199,7 @@ export function DailyReportingView({
       const histData = await histRes.json();
       if (histData.success && Array.isArray(histData.reports)) {
         const myReports = histData.reports
-          .filter((r: any) => r.staffId === currentTelecallerId && (r.punchInTime || r.callsMade > 0 || r.workSummary))
+          .filter((r: any) => (!branch || r.branch === branch) && (r.punchInTime || r.callsMade > 0 || r.workSummary))
           .sort((a: any, b: any) => (b.reportDate || '').localeCompare(a.reportDate || ''));
         setHistoryList(myReports);
       }
@@ -193,7 +208,7 @@ export function DailyReportingView({
     } finally {
       setIsLoading(false);
     }
-  }, [branch, currentTelecallerId]);
+  }, [branch, currentTelecallerId, staffName]);
 
   useEffect(() => {
     fetchReport(selectedDate);
@@ -209,10 +224,12 @@ export function DailyReportingView({
     const isHolidayOrLeave = status === 'HOLIDAY' || status === 'LEAVE';
     const formattedIn = punchInTime ? to12HourDisplay(punchInTime) : null;
     const formattedOut = punchOutTime ? to12HourDisplay(punchOutTime) : null;
+    const effectiveStaffName = staffName.trim() || 'Telecaller';
+    const effectiveStaffId = currentTelecallerId || `tc_${branch}_${effectiveStaffName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
     const payload = {
-      staffId: currentTelecallerId,
-      staffName: currentTelecallerName,
+      staffId: effectiveStaffId,
+      staffName: effectiveStaffName,
       branch,
       reportDate: selectedDate,
       punchInTime: isHolidayOrLeave ? null : formattedIn,
@@ -263,15 +280,18 @@ export function DailyReportingView({
               <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full border border-white/25">
                 Telecaller Tab
               </span>
-              <span className="text-xs text-amber-100 font-bold">
-                {currentTelecallerName}
+              <span className="text-xs text-amber-100 font-bold uppercase">
+                {branch.replace('-', ' ')} Studio
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
               Daily Work Reporting
             </h1>
             <p className="text-xs text-amber-100 font-medium">
-              Studio: <span className="capitalize font-bold text-white">{branch.replace('-', ' ')}</span> · Enter your daily worked hours, calls, appointments, and report anytime.
+              Studio: <span className="capitalize font-bold text-white">{branch.replace('-', ' ')}</span>
+              {staffName && (
+                <> · Staff: <span className="font-bold text-white">{staffName}</span></>
+              )}
             </p>
           </div>
 
@@ -410,6 +430,25 @@ export function DailyReportingView({
               <option value="HOLIDAY">Holiday / Off</option>
             </select>
           </div>
+        </div>
+
+        {/* Staff Member Name (No fake defaults, enterable by staff) */}
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1">
+            Staff Member Name
+          </label>
+          <input
+            type="text"
+            value={staffName}
+            onChange={(e) => {
+              const val = e.target.value;
+              setStaffName(val);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(`telecaller_name_${branch}`, val);
+              }
+            }}
+            className="w-full sm:max-w-xs rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+          />
         </div>
 
         {status !== 'HOLIDAY' && status !== 'LEAVE' ? (

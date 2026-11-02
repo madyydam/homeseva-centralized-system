@@ -6,14 +6,6 @@ export const dynamic = 'force-dynamic';
 const BUSINESS_ID = '3';
 const BUSINESS_SLUG = 'gentle-hair-wigs';
 
-// Default Telecaller Staff Roster per branch
-const GENTLE_TELECALLER_ROSTER = [
-  { staffId: 'tc-vn-1', staffName: 'Priya Sharma (Lead Telecaller)', branch: 'viman-nagar', role: 'Cold Caller' },
-  { staffId: 'tc-vn-2', staffName: 'Anjali Patil (Cold Caller)', branch: 'viman-nagar', role: 'Cold Caller' },
-  { staffId: 'tc-rv-1', staffName: 'Snehal Deshmukh (Telecaller)', branch: 'ravet', role: 'Cold Caller' },
-  { staffId: 'tc-kl-1', staffName: 'Pooja Kadam (Telecaller)', branch: 'kolhapur', role: 'Cold Caller' },
-];
-
 // Persistent in-process cache to ensure instant availability and durability
 const inMemoryReportsCache = new Map<string, any>();
 
@@ -23,14 +15,8 @@ export async function GET(req: NextRequest) {
     const branch = searchParams.get('branch') || 'viman-nagar';
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
     const allDates = searchParams.get('allDates') === 'true';
-    const today = new Date().toISOString().slice(0, 10);
 
     const admin = getAdminClient();
-
-    // Query active roster for the requested branch
-    const branchRoster = branch === 'all'
-      ? GENTLE_TELECALLER_ROSTER
-      : GENTLE_TELECALLER_ROSTER.filter((r) => r.branch === branch);
 
     // 1. Try fetching from telecaller_daily_reports table
     let dbReports: any[] = [];
@@ -163,48 +149,17 @@ export async function GET(req: NextRequest) {
         success: true,
         branch,
         reports: allFormatted,
-        roster: branchRoster,
       });
     }
 
-    // Populate missing roster entries
-    const isPastDate = date < today;
-    const finalReports = branchRoster.map((member) => {
-      const key = `${member.staffId}_${member.branch}`;
-      if (reportsMap.has(key)) {
-        return reportsMap.get(key);
-      }
-
-      // If not entered:
-      // Past date -> automatic HOLIDAY
-      // Today -> PENDING (awaiting punch-in or report)
-      return {
-        id: `auto_${member.staffId}_${date}`,
-        staffId: member.staffId,
-        staffName: member.staffName,
-        branch: member.branch,
-        reportDate: date,
-        punchInTime: null,
-        punchOutTime: null,
-        totalHours: 0,
-        callsMade: 0,
-        callsConnected: 0,
-        appointmentsBooked: 0,
-        convertedClients: 0,
-        followUpsDue: 0,
-        workSummary: isPastDate ? 'No daily report submitted (Marked Holiday / Absent)' : 'Awaiting punch-in / daily submission',
-        status: isPastDate ? 'HOLIDAY' : 'PENDING',
-        isHoliday: isPastDate,
-        updatedAt: new Date().toISOString(),
-      };
-    });
+    // Return genuine submitted reports only (ZERO fake/mock roster entries)
+    const genuineReports = Array.from(reportsMap.values());
 
     return NextResponse.json({
       success: true,
       date,
       branch,
-      reports: finalReports,
-      roster: branchRoster,
+      reports: genuineReports,
     });
   } catch (err: any) {
     console.error('Error in daily reports GET:', err);
@@ -217,8 +172,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       branch = 'viman-nagar',
-      staffId = 'tc-vn-1',
-      staffName = 'Priya Sharma (Lead Telecaller)',
+      staffId = `tc_${branch}`,
+      staffName = 'Telecaller',
       reportDate = new Date().toISOString().slice(0, 10),
       punchInTime,
       punchOutTime,
