@@ -137,10 +137,10 @@ export function SopView({ branch, data, onDataChange, userRole }: SopViewProps) 
 
   const handleCreateCallLog = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!callClient.trim() || !callPhone.trim()) return;
+    if (!callPhone.trim()) return;
     const callLog: ClientCallLogItem = {
       id: `CAL-${Date.now().toString().slice(-4)}`,
-      clientName: callClient.trim(),
+      clientName: callClient.trim() || "Don't know",
       phone: callPhone.trim(),
       callType: callType,
       status: callStatus,
@@ -863,7 +863,7 @@ export function SopView({ branch, data, onDataChange, userRole }: SopViewProps) 
                     {data.callLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-slate-50/70 transition">
                         <td className="py-2.5 px-3 font-mono font-bold text-amber-700">{log.id}</td>
-                        <td className="py-2.5 px-3 font-bold text-slate-900">{log.clientName}</td>
+                        <td className="py-2.5 px-3 font-bold text-slate-900">{log.clientName?.trim() || "Don't know"}</td>
                         <td className="py-2.5 px-3 font-mono text-slate-600">{log.phone}</td>
                         <td className="py-2.5 px-3">{log.callType}</td>
                         <td className="py-2.5 px-3">
@@ -1226,13 +1226,12 @@ export function SopView({ branch, data, onDataChange, userRole }: SopViewProps) 
             <form onSubmit={handleCreateCallLog} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Client Name *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Client Name (Optional)</label>
                   <input
                     type="text"
                     value={callClient}
                     onChange={(e) => setCallClient(e.target.value)}
-                    placeholder="e.g. Ramesh Kale"
-                    required
+                    placeholder="e.g. Ramesh Kale (or leave blank for &quot;Don't know&quot;)"
                     className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                   />
                 </div>

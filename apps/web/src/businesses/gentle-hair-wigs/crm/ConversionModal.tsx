@@ -35,7 +35,7 @@ export const ConversionModal = memo(function ConversionModal({
                 Mark Converted &amp; Select Studio Branch
               </h3>
               <p className="text-[11px] text-slate-500 font-medium">
-                Attributing conversion for <span className="text-slate-900 font-bold">{conversionModalLead.clientName}</span> ({conversionModalLead.phone})
+                Attributing conversion for <span className="text-slate-900 font-bold">{conversionModalLead.clientName?.trim() || "Don't know"}</span> ({conversionModalLead.phone})
               </p>
             </div>
           </div>

@@ -142,7 +142,7 @@ export const ImportExcelModal = memo(function ImportExcelModal({
                 <div key={idx} className="p-2 flex items-center justify-between">
                   <div className="min-w-0">
                     <span className="font-bold text-slate-900 block truncate">
-                      {idx + 1}. {item.clientName}
+                      {idx + 1}. {item.clientName?.trim() || "Don't know"}
                     </span>
                     <span className="text-[10px] font-mono text-slate-500 flex flex-wrap items-center gap-1 mt-0.5">
                       <span>{item.phone}</span>

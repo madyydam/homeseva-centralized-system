@@ -47,7 +47,7 @@ export const LeadNotesModal = memo(function LeadNotesModal({
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
-              Client: <span className="text-slate-900 font-bold">{activeNotesLead.clientName}</span> ({activeNotesLead.phone})
+              Client: <span className="text-slate-900 font-bold">{activeNotesLead.clientName?.trim() || "Don't know"}</span> ({activeNotesLead.phone})
             </p>
             <div className="flex items-center space-x-2 mt-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Status:</span>

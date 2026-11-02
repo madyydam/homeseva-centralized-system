@@ -89,12 +89,11 @@ export const AddLeadModal = memo(function AddLeadModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                Client Name *
+                Client Name (Optional)
               </label>
               <input
                 type="text"
-                required
-                placeholder="e.g. Ramesh Kulkarni"
+                placeholder="e.g. Ramesh Kulkarni (or leave blank for &quot;Don't know&quot;)"
                 value={newClientName}
                 onChange={(e) => setNewClientName(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 p-2 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"

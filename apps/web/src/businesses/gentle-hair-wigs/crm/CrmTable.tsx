@@ -309,7 +309,7 @@ export const CrmTable = memo(function CrmTable({
                         <td className="py-2.5 px-3">
                           <div className="flex items-center space-x-1.5">
                             <span className="font-black text-slate-900 text-xs">
-                              {lead.clientName}
+                              {lead.clientName?.trim() || "Don't know"}
                             </span>
                             <button
                               type="button"
@@ -448,7 +448,7 @@ export const CrmTable = memo(function CrmTable({
                         <td className="py-2.5 px-3 text-center">
                           <button
                             type="button"
-                            onClick={() => handleDeleteLead(lead.id, lead.clientName)}
+                            onClick={() => handleDeleteLead(lead.id, lead.clientName?.trim() || "Don't know")}
                             className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                             title="Delete Lead"
                           >

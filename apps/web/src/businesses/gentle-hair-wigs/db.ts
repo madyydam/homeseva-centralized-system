@@ -345,6 +345,7 @@ export class GentleHairWigsDatabase {
   // --- Orders (Persisted in PostgreSQL) ---
   addOrder(branch: string, order: OrderItem) {
     if (!this.inMemoryCache[branch]) this.inMemoryCache[branch] = createDefaultBranchData();
+    order.clientName = order.clientName?.trim() || "Don't know";
     this.inMemoryCache[branch].orders.unshift(order);
     this.persist(branch);
     this.notifySubscribers();
@@ -397,6 +398,7 @@ export class GentleHairWigsDatabase {
   // --- Measurements (Persisted in PostgreSQL) ---
   addMeasurement(branch: string, measurement: MeasurementItem) {
     if (!this.inMemoryCache[branch]) this.inMemoryCache[branch] = createDefaultBranchData();
+    measurement.clientName = measurement.clientName?.trim() || "Don't know";
     this.inMemoryCache[branch].measurements.unshift(measurement);
     this.persist(branch);
     this.notifySubscribers();
@@ -413,6 +415,7 @@ export class GentleHairWigsDatabase {
   // --- Appointments (Persisted in PostgreSQL) ---
   addAppointment(branch: string, appointment: AppointmentItem) {
     if (!this.inMemoryCache[branch]) this.inMemoryCache[branch] = createDefaultBranchData();
+    appointment.clientName = appointment.clientName?.trim() || "Don't know";
     this.inMemoryCache[branch].appointments.unshift(appointment);
     this.persist(branch);
     this.notifySubscribers();
@@ -490,6 +493,7 @@ export class GentleHairWigsDatabase {
   // --- Invoices (Persisted in PostgreSQL) ---
   addInvoice(branch: string, invoice: InvoiceItem) {
     if (!this.inMemoryCache[branch]) this.inMemoryCache[branch] = createDefaultBranchData();
+    invoice.clientName = invoice.clientName?.trim() || "Don't know";
     this.inMemoryCache[branch].invoices.unshift(invoice);
     this.persist(branch);
     this.notifySubscribers();
@@ -589,6 +593,7 @@ export class GentleHairWigsDatabase {
   // --- Call Logs (Persisted in PostgreSQL) ---
   addCallLog(branch: string, callLog: ClientCallLogItem) {
     if (!this.inMemoryCache[branch]) this.inMemoryCache[branch] = createDefaultBranchData();
+    callLog.clientName = callLog.clientName?.trim() || "Don't know";
     this.inMemoryCache[branch].callLogs.unshift(callLog);
     this.persist(branch);
     this.notifySubscribers();
@@ -706,7 +711,7 @@ export class GentleHairWigsDatabase {
     return newStudio;
   }
 
-  addCentralCrmLead(lead: Partial<CrmLeadItem> & { clientName: string; phone: string }): CrmLeadItem {
+  addCentralCrmLead(lead: Partial<CrmLeadItem> & { clientName?: string; phone: string }): CrmLeadItem {
     if (!this.isHydrated && typeof window !== 'undefined') {
       this.hydrateFromStorage();
     }
@@ -721,7 +726,7 @@ export class GentleHairWigsDatabase {
       srNo: this.centralCrmLeads.length + 1,
       studioSlug: targetStudio.slug,
       studioName: targetStudio.name,
-      clientName: lead.clientName.trim(),
+      clientName: lead.clientName?.trim() || "Don't know",
       phone: lead.phone.trim(),
       status: lead.status || 'Not Selected',
       customStatusText: lead.customStatusText || '',
@@ -770,7 +775,7 @@ export class GentleHairWigsDatabase {
     return newLead;
   }
 
-  addCentralCrmLeadsBatch(leadsToAdd: Array<Partial<CrmLeadItem> & { clientName: string; phone: string }>): CrmLeadItem[] {
+  addCentralCrmLeadsBatch(leadsToAdd: Array<Partial<CrmLeadItem> & { clientName?: string; phone: string }>): CrmLeadItem[] {
     if (!this.isHydrated && typeof window !== 'undefined') {
       this.hydrateFromStorage();
     }
@@ -787,7 +792,7 @@ export class GentleHairWigsDatabase {
         srNo: 0,
         studioSlug: targetStudio.slug,
         studioName: targetStudio.name,
-        clientName: lead.clientName.trim(),
+        clientName: lead.clientName?.trim() || "Don't know",
         phone: lead.phone.trim(),
         status: lead.status || 'Not Selected',
         customStatusText: lead.customStatusText || '',

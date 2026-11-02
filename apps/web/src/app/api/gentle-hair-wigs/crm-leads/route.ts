@@ -12,7 +12,7 @@ function formatLead(lead: any) {
     srNo: lead.srNo ?? undefined,
     studioSlug: lead.studioSlug,
     studioName: lead.studioName,
-    clientName: lead.clientName,
+    clientName: lead.clientName?.trim() || "Don't know",
     phone: lead.phone,
     status: lead.status,
     customStatusText: lead.customStatusText ?? undefined,
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
             srNo: item.srNo ?? null,
             studioSlug: item.studioSlug || 'viman-nagar',
             studioName: item.studioName || 'Studio of Viman Nagar',
-            clientName: item.clientName || 'Unnamed Client',
+            clientName: item.clientName?.trim() || "Don't know",
             phone: item.phone || '',
             status: item.status || 'Interested',
             customStatusText: item.customStatusText ?? null,
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         srNo: body.srNo ?? null,
         studioSlug: body.studioSlug || 'viman-nagar',
         studioName: body.studioName || 'Studio of Viman Nagar',
-        clientName: body.clientName || 'Unnamed Client',
+        clientName: body.clientName?.trim() || "Don't know",
         phone: body.phone || '',
         status: body.status || 'Interested',
         customStatusText: body.customStatusText ?? null,
@@ -191,7 +191,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const data: any = {};
-    if (updates.clientName !== undefined) data.clientName = updates.clientName;
+    if (updates.clientName !== undefined) data.clientName = updates.clientName?.trim() || "Don't know";
     if (updates.phone !== undefined) data.phone = updates.phone;
     if (updates.status !== undefined) data.status = updates.status;
     if (updates.customStatusText !== undefined) data.customStatusText = updates.customStatusText;
@@ -229,7 +229,7 @@ export async function PATCH(req: NextRequest) {
           businessId: BUSINESS_ID,
           studioSlug: updates.studioSlug || 'viman-nagar',
           studioName: updates.studioName || 'Studio of Viman Nagar',
-          clientName: updates.clientName || 'Unnamed Client',
+          clientName: updates.clientName?.trim() || "Don't know",
           phone: updates.phone || '',
           status: updates.status || 'Interested',
           ...data,

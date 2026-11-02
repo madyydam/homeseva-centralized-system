@@ -339,7 +339,7 @@ export function CrmView({
       }
 
       if (q) {
-        const inName = item.clientName.toLowerCase().includes(q);
+        const inName = (item.clientName || "Don't know").toLowerCase().includes(q);
         const inPhone = item.phone.includes(q);
         const inNotes = (item.notesList || []).some((n) => n.toLowerCase().includes(q));
         if (!inName && !inPhone && !inNotes) {
@@ -376,7 +376,7 @@ export function CrmView({
         return timeA > timeB ? 1 : timeA < timeB ? -1 : 0;
       }
       if (sortBy === 'name') {
-        return a.clientName.localeCompare(b.clientName);
+        return (a.clientName || "Don't know").localeCompare(b.clientName || "Don't know");
       }
       return 0;
     });
@@ -490,7 +490,7 @@ export function CrmView({
 
   const handleCreateLead = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName.trim() || !newPhone.trim()) return;
+    if (!newPhone.trim()) return;
 
     const notesArr = newNotesList.map((n) => n.trim()).filter((n) => n.length > 0);
     const targetStudio =
@@ -501,7 +501,7 @@ export function CrmView({
     const leadDate = newLeadDate || todayYMD;
 
     gentleHairWigsDb.addCentralCrmLead({
-      clientName: newClientName.trim(),
+      clientName: newClientName.trim() || "Don't know",
       phone: newPhone.trim(),
       studioSlug: targetStudio.slug,
       studioName: targetStudio.name,
@@ -547,7 +547,7 @@ export function CrmView({
 
     const formatRow = (l: CrmLeadItem, index: number) => [
       index + 1,
-      l.clientName,
+      l.clientName?.trim() || "Don't know",
       l.phone,
       l.status,
       formatDateToDMY(l.createdAt) || '',
@@ -738,10 +738,10 @@ export function CrmView({
       for (const cells of rowsToParse) {
         if (!Array.isArray(cells) || cells.length < 2) continue;
 
-        const clientName = String(cells[nameIdx] ?? '').trim();
+        const clientName = String(cells[nameIdx] ?? '').trim() || "Don't know";
         const phone = String(cells[phoneIdx] ?? '').replace(/[^0-9+]/g, '').trim();
 
-        if (!clientName || !phone) continue;
+        if (!phone) continue;
 
         const rawStatus = String(cells[statusIdx] ?? '').trim().toLowerCase();
         let status: CrmLeadStatusType = 'Not Selected';
@@ -851,7 +851,7 @@ export function CrmView({
       const finalUpdatedAt = lead.updatedAt || lead.createdAt || monthDate;
 
       return {
-        clientName: lead.clientName,
+        clientName: lead.clientName?.trim() || "Don't know",
         phone: lead.phone,
         studioSlug: assignedStudio.slug,
         studioName: assignedStudio.name,

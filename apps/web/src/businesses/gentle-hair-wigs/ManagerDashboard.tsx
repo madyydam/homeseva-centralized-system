@@ -327,11 +327,11 @@ export function ManagerDashboard({
 
   const handleCreateOrder = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientNameInput.trim() || !amountInput.trim()) return;
+    if (!amountInput.trim()) return;
 
     const newOrder: OrderItem = {
       id: `GHW-${currentBranch.substring(0, 3).toUpperCase()}-${String(data.orders.length + 1).padStart(3, '0')}`,
-      clientName: clientNameInput.trim(),
+      clientName: clientNameInput.trim() || "Don't know",
       phone: phoneInput.trim(),
       wigType: wigTypeInput,
       density: densityInput,
@@ -361,11 +361,10 @@ export function ManagerDashboard({
 
   const handleCreateMeasurement = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!mClientName.trim()) return;
 
     const newMeasurement: MeasurementItem = {
       id: `SCAL-${currentBranch.substring(0, 3).toUpperCase()}-${String(data.measurements.length + 1).padStart(3, '0')}`,
-      clientName: mClientName.trim(),
+      clientName: mClientName.trim() || "Don't know",
       phone: mPhone.trim(),
       hairLossType: mHairLoss,
       circumference: mCircumference,
@@ -389,11 +388,10 @@ export function ManagerDashboard({
 
   const handleCreateAppointment = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!appClientName.trim()) return;
 
     const newApp: AppointmentItem = {
       id: `APT-${currentBranch.substring(0, 3).toUpperCase()}-${String(data.appointments.length + 1).padStart(3, '0')}`,
-      clientName: appClientName.trim(),
+      clientName: appClientName.trim() || "Don't know",
       phone: appPhone.trim(),
       serviceType: appService,
       suite: appSuite,
@@ -444,7 +442,7 @@ export function ManagerDashboard({
 
   const handleCreateInvoice = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!invcClient.trim() || !invcSubtotal.trim()) return;
+    if (!invcSubtotal.trim()) return;
 
     const sub = Number(invcSubtotal) || 0;
     const gst = Math.round(sub * 0.18);
@@ -453,7 +451,7 @@ export function ManagerDashboard({
     const newInvoice: InvoiceItem = {
       id: `INV-REC-${String(data.invoices.length + 1).padStart(4, '0')}`,
       invoiceNumber: `GHW/${currentBranch.substring(0, 3).toUpperCase()}/2026/${String(data.invoices.length + 101)}`,
-      clientName: invcClient.trim(),
+      clientName: invcClient.trim() || "Don't know",
       phone: invcPhone.trim(),
       itemsSummary: invcSummary.trim(),
       subtotal: sub,
@@ -1099,7 +1097,7 @@ export function ManagerDashboard({
                         <tr key={o.id} className="hover:bg-slate-50/70 transition">
                           <td className="py-3 px-3 font-mono font-bold text-amber-700">{o.id}</td>
                           <td className="py-3 px-3">
-                            <span className="font-bold text-slate-900 block">{o.clientName}</span>
+                            <span className="font-bold text-slate-900 block">{o.clientName?.trim() || "Don't know"}</span>
                             <span className="text-[10px] text-slate-400 font-mono">{o.phone || 'No phone'}</span>
                           </td>
                           <td className="py-3 px-3">
@@ -1204,7 +1202,7 @@ export function ManagerDashboard({
                       </div>
 
                       <div>
-                        <h4 className="text-sm font-extrabold text-slate-900">{m.clientName}</h4>
+                        <h4 className="text-sm font-extrabold text-slate-900">{m.clientName?.trim() || "Don't know"}</h4>
                         <p className="text-[11px] text-slate-500 font-mono">{m.phone || 'No contact provided'}</p>
                       </div>
 
@@ -1303,7 +1301,7 @@ export function ManagerDashboard({
                         <tr key={a.id} className="hover:bg-slate-50/70 transition">
                           <td className="py-3 px-3 font-mono font-bold text-amber-700">{a.id}</td>
                           <td className="py-3 px-3">
-                            <span className="font-bold text-slate-900 block">{a.clientName}</span>
+                            <span className="font-bold text-slate-900 block">{a.clientName?.trim() || "Don't know"}</span>
                             <span className="text-[10px] text-slate-400 font-mono">{a.phone || 'No phone'}</span>
                           </td>
                           <td className="py-3 px-3 text-slate-900 font-bold">{a.serviceType}</td>
@@ -1373,7 +1371,7 @@ export function ManagerDashboard({
               callLogs={data.callLogs || []}
               onRefresh={refreshData}
               onConvertToOrder={(clientName, phone) => {
-                setClientNameInput(clientName);
+                setClientNameInput(clientName?.trim() || "Don't know");
                 setPhoneInput(phone);
                 setShowOrderModal(true);
               }}
@@ -1553,7 +1551,7 @@ export function ManagerDashboard({
                         <tr key={inv.id} className="hover:bg-slate-50/70 transition">
                           <td className="py-3 px-3 font-mono font-bold text-amber-700">{inv.invoiceNumber}</td>
                           <td className="py-3 px-3">
-                            <span className="font-bold text-slate-900 block">{inv.clientName}</span>
+                            <span className="font-bold text-slate-900 block">{inv.clientName?.trim() || "Don't know"}</span>
                             <span className="text-[10px] text-slate-400 font-mono">{inv.phone || 'No phone'}</span>
                           </td>
                           <td className="py-3 px-3 text-slate-700 max-w-[200px] truncate">{inv.itemsSummary}</td>
@@ -1650,13 +1648,12 @@ export function ManagerDashboard({
 
             <form onSubmit={handleCreateOrder} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Client Full Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Client Full Name (Optional)</label>
                 <input
                   type="text"
                   value={clientNameInput}
                   onChange={(e) => setClientNameInput(e.target.value)}
-                  placeholder="e.g. Vikram Malhotra"
-                  required
+                  placeholder="e.g. Vikram Malhotra (or leave blank for &quot;Don't know&quot;)"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -1820,13 +1817,12 @@ export function ManagerDashboard({
             <form onSubmit={handleCreateMeasurement} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Client Name *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Client Name (Optional)</label>
                   <input
                     type="text"
                     value={mClientName}
                     onChange={(e) => setMClientName(e.target.value)}
-                    placeholder="Enter client name"
-                    required
+                    placeholder="Enter client name (or leave blank for &quot;Don't know&quot;)"
                     className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -1995,13 +1991,12 @@ export function ManagerDashboard({
 
             <form onSubmit={handleCreateAppointment} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Client Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Client Name (Optional)</label>
                 <input
                   type="text"
                   value={appClientName}
                   onChange={(e) => setAppClientName(e.target.value)}
-                  placeholder="Enter client name"
-                  required
+                  placeholder="Enter client name (or leave blank for &quot;Don't know&quot;)"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -2273,13 +2268,12 @@ export function ManagerDashboard({
 
             <form onSubmit={handleCreateInvoice} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Client Name *</label>
+                <label className="block font-bold text-slate-700 mb-1">Client Name (Optional)</label>
                 <input
                   type="text"
                   value={invcClient}
                   onChange={(e) => setInvcClient(e.target.value)}
-                  placeholder="Enter client name"
-                  required
+                  placeholder="Enter client name (or leave blank for &quot;Don't know&quot;)"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -2417,7 +2411,7 @@ export function ManagerDashboard({
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Billed Client:
                 </span>
-                <p className="font-bold text-slate-900 text-sm">{activeInvoiceReceipt.clientName}</p>
+                <p className="font-bold text-slate-900 text-sm">{activeInvoiceReceipt.clientName?.trim() || "Don't know"}</p>
                 <p className="text-slate-500 font-mono">{activeInvoiceReceipt.phone || 'Walk-in Client'}</p>
               </div>
 
@@ -2517,7 +2511,7 @@ export function ManagerDashboard({
             <div className="py-4 space-y-3 text-xs">
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Client Profile</span>
-                <p className="text-sm font-extrabold text-slate-900">{activeMeasurementSpec.clientName}</p>
+                <p className="text-sm font-extrabold text-slate-900">{activeMeasurementSpec.clientName?.trim() || "Don't know"}</p>
                 <p className="text-slate-500 font-mono text-[11px]">{activeMeasurementSpec.phone || 'No phone recorded'}</p>
                 <p className="text-amber-800 font-semibold text-[11px] mt-1">
                   Classification: {activeMeasurementSpec.hairLossType}
