@@ -641,6 +641,36 @@ INSERT INTO public.items (name, category, total_quantity, pack_size, rent_per_da
   ('Spoon', 'Cutlery', 1000, 12, 1.00, 15.00)
 ON CONFLICT DO NOTHING;
 
+-- -----------------------------------------------------------------------------
+-- 15. TELECALLER DAILY REPORTING & ATTENDANCE
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.telecaller_daily_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL DEFAULT '3',
+  business_slug TEXT NOT NULL DEFAULT 'gentle-hair-wigs',
+  branch TEXT NOT NULL,
+  staff_id TEXT NOT NULL,
+  staff_name TEXT NOT NULL,
+  report_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  punch_in_time TEXT,
+  punch_out_time TEXT,
+  total_hours NUMERIC(4,2) DEFAULT 0.0,
+  calls_made INTEGER DEFAULT 0,
+  calls_connected INTEGER DEFAULT 0,
+  appointments_booked INTEGER DEFAULT 0,
+  converted_clients INTEGER DEFAULT 0,
+  follow_ups_due INTEGER DEFAULT 0,
+  work_summary TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'PRESENT',
+  is_holiday BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(staff_id, report_date, branch)
+);
+
+CREATE INDEX IF NOT EXISTS idx_telecaller_reports_date ON public.telecaller_daily_reports(report_date);
+CREATE INDEX IF NOT EXISTS idx_telecaller_reports_branch ON public.telecaller_daily_reports(branch);
+
 -- Grant permissions
 GRANT USAGE ON SEQUENCE public.invoice_number_seq TO authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;

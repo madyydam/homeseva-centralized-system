@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   FileSpreadsheet,
@@ -12,10 +12,12 @@ import {
   PanelLeftOpen,
   Menu,
   X,
+  ClipboardCheck,
 } from 'lucide-react';
 import { BusinessDashboardProps } from '../types';
 import { gentleHairWigsConfig } from './config';
 import { CrmView } from './CrmView';
+import { TelecallerReportModal } from './crm/TelecallerReportModal';
 
 const COLD_CALLER_NAV_ITEMS = [
   {
@@ -61,6 +63,24 @@ export function ColdCallerDashboard({
 
   // Active navigation tab for the Cold Caller
   const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted'>('sheet');
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [todayStatus, setTodayStatus] = useState<'PENDING' | 'IN_PROGRESS' | 'PRESENT' | 'HOLIDAY'>('PENDING');
+
+  const checkStatus = useCallback(async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${currentBranch}&date=${today}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.reports) && data.reports.length > 0) {
+        const myReport = data.reports[0];
+        setTodayStatus(myReport.status || 'PENDING');
+      }
+    } catch {}
+  }, [currentBranch]);
+
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
 
   const navItems = COLD_CALLER_NAV_ITEMS;
 
@@ -381,8 +401,30 @@ export function ColdCallerDashboard({
             </div>
           </div>
 
-          {/* Right spacer to balance the layout perfectly */}
-          <div className="w-8 hidden sm:block" />
+          {/* Right Header Action: Quick Daily Reporting status */}
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer ${
+                todayStatus === 'PRESENT'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                  : todayStatus === 'IN_PROGRESS'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
+                  : 'bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100'
+              }`}
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Daily Reporting:</span>
+              <span>
+                {todayStatus === 'PRESENT'
+                  ? 'Reported'
+                  : todayStatus === 'IN_PROGRESS'
+                  ? 'Shift Active'
+                  : 'Punch In'}
+              </span>
+            </button>
+          </div>
         </header>
 
         {/* CRM Leads Workspace */}
@@ -399,6 +441,44 @@ export function ColdCallerDashboard({
             }
           />
         </div>
+
+        {/* Floating Action Button (Bottom Right) */}
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            type="button"
+            onClick={() => setIsReportModalOpen(true)}
+            className="group flex items-center space-x-2.5 rounded-full bg-gradient-to-r from-amber-600 via-amber-700 to-yellow-600 text-white pl-4 pr-5 py-3 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border-2 border-white/40"
+            title="Open Daily Work Report & Attendance"
+          >
+            <div className="relative flex items-center justify-center">
+              <ClipboardCheck className="h-5 w-5" />
+              {todayStatus === 'PENDING' && (
+                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+                </span>
+              )}
+            </div>
+            <div className="text-left">
+              <div className="text-xs font-black tracking-tight leading-none">Daily Reporting</div>
+              <div className="text-[10px] text-amber-200 font-semibold leading-tight mt-0.5">
+                {todayStatus === 'PRESENT'
+                  ? '✓ Report Submitted'
+                  : todayStatus === 'IN_PROGRESS'
+                  ? '● Shift Active'
+                  : 'Punch In Required'}
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Telecaller Daily Report Modal */}
+        <TelecallerReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          branch={currentBranch}
+          onReportUpdated={checkStatus}
+        />
       </main>
     </div>
   );

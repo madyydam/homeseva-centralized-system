@@ -27,6 +27,7 @@ import {
   FileSpreadsheet,
   Users,
   UserPlus,
+  UserCheck,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronLeft,
@@ -83,6 +84,16 @@ const GoogleSheetsView = dynamic(() => import('./GoogleSheetsView').then((m) => 
   ssr: false,
 });
 
+const TeamAttendanceView = dynamic(() => import('./TeamAttendanceView').then((m) => m.TeamAttendanceView), {
+  loading: () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] space-y-2 bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
+      <div className="w-8 h-8 rounded-full border-2 border-amber-600 border-t-transparent animate-spin" />
+      <span className="text-xs font-bold text-slate-500">Loading Team Attendance &amp; Reporting...</span>
+    </div>
+  ),
+  ssr: false,
+});
+
 const ALL_MANAGER_NAV_ITEMS = [
   {
     id: 'overview',
@@ -108,6 +119,11 @@ const ALL_MANAGER_NAV_ITEMS = [
     id: 'crm',
     label: 'Client CRM & Leads',
     icon: Users,
+  },
+  {
+    id: 'team',
+    label: 'Team & Attendance',
+    icon: UserCheck,
   },
   {
     id: 'inventory',
@@ -177,6 +193,7 @@ export function ManagerDashboard({
     | 'measurements'
     | 'appointments'
     | 'crm'
+    | 'team'
     | 'inventory'
     | 'billing'
     | 'sop'
@@ -699,6 +716,7 @@ export function ManagerDashboard({
               {activeTab === 'measurements' && 'Head Measurements'}
               {activeTab === 'appointments' && 'Appointments & Suites'}
               {activeTab === 'crm' && 'Client CRM & Monthly Sheets'}
+              {activeTab === 'team' && 'Team Attendance & Daily Reporting'}
               {activeTab === 'inventory' && 'Hair & Patch Stock'}
               {activeTab === 'billing' && 'Billing & POS Invoices'}
               {activeTab === 'sop' && 'Studio SOP & Operations'}
@@ -1360,6 +1378,11 @@ export function ManagerDashboard({
                 setShowOrderModal(true);
               }}
             />
+          )}
+
+          {/* TAB: TEAM ATTENDANCE & DAILY REPORTING */}
+          {activeTab === 'team' && (
+            <TeamAttendanceView currentBranch={currentBranch} role={userRole} />
           )}
 
           {/* TAB 5: HAIR INVENTORY */}
