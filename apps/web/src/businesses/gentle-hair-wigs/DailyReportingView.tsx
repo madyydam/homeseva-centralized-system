@@ -37,6 +37,49 @@ export interface TelecallerDailyRecord {
   updatedAt?: string;
 }
 
+export function to24HourTime(str: string | null | undefined): string {
+  if (!str) return '';
+  const clean = str.trim();
+  const match12 = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (match12 && match12[1] && match12[2] && match12[3]) {
+    let h = parseInt(match12[1], 10);
+    const m = match12[2];
+    const isPM = match12[3].toUpperCase() === 'PM';
+    const isAM = match12[3].toUpperCase() === 'AM';
+    if (isPM && h < 12) h += 12;
+    if (isAM && h === 12) h = 0;
+    return `${h.toString().padStart(2, '0')}:${m}`;
+  }
+  const match24 = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24 && match24[1] && match24[2]) {
+    const h = match24[1].padStart(2, '0');
+    const m = match24[2];
+    return `${h}:${m}`;
+  }
+  return '';
+}
+
+export function to12HourDisplay(str: string | null | undefined): string {
+  if (!str) return '';
+  const clean = str.trim();
+  const matchWithAmPm = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (matchWithAmPm && matchWithAmPm[1] && matchWithAmPm[2] && matchWithAmPm[3]) {
+    const h = matchWithAmPm[1].padStart(2, '0');
+    const m = matchWithAmPm[2];
+    const mod = matchWithAmPm[3].toUpperCase();
+    return `${h}:${m} ${mod}`;
+  }
+  const match = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match && match[1] && match[2]) {
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
+  }
+  return clean;
+}
+
 interface DailyReportingViewProps {
   branch: string;
   currentTelecallerName?: string;
@@ -72,27 +115,26 @@ export function DailyReportingView({
   const [savedRecord, setSavedRecord] = useState<TelecallerDailyRecord | null>(null);
   const [historyList, setHistoryList] = useState<TelecallerDailyRecord[]>([]);
 
-  // Calculate worked hours automatically when user enters both times (optional helper, user can still override)
+  // Calculate worked hours automatically when user enters or selects both times (optional helper, user can still override)
   const autoCalculateHours = (inStr: string, outStr: string) => {
     if (!inStr || !outStr) return;
     try {
-      // Handles 24-hr (HH:mm) or 12-hr with AM/PM
-      const parseMinutes = (t: string) => {
-        const clean = t.trim().toUpperCase();
-        const isPM = clean.includes('PM');
-        const isAM = clean.includes('AM');
-        const nums = clean.replace(/[^0-9:]/g, '').split(':');
-        let h = parseInt(nums[0] || '0', 10);
-        const m = parseInt(nums[1] || '0', 10);
-        if (isPM && h < 12) h += 12;
-        if (isAM && h === 12) h = 0;
-        return h * 60 + m;
-      };
-      const minIn = parseMinutes(inStr);
-      const minOut = parseMinutes(outStr);
-      if (minOut > minIn) {
-        const diffHrs = Math.round(((minOut - minIn) / 60) * 10) / 10;
-        setTotalHours(String(diffHrs));
+      const in24 = to24HourTime(inStr);
+      const out24 = to24HourTime(outStr);
+      if (!in24 || !out24) return;
+      const partsIn = in24.split(':').map(Number);
+      const partsOut = out24.split(':').map(Number);
+      const hIn = partsIn[0];
+      const mIn = partsIn[1];
+      const hOut = partsOut[0];
+      const mOut = partsOut[1];
+      if (hIn !== undefined && mIn !== undefined && hOut !== undefined && mOut !== undefined) {
+        const minIn = hIn * 60 + mIn;
+        const minOut = hOut * 60 + mOut;
+        if (minOut > minIn) {
+          const diffHrs = Math.round(((minOut - minIn) / 60) * 10) / 10;
+          setTotalHours(String(diffHrs));
+        }
       }
     } catch {}
   };
@@ -110,8 +152,8 @@ export function DailyReportingView({
         if (myReport && (myReport.punchInTime || myReport.callsMade > 0 || myReport.workSummary)) {
           setSavedRecord(myReport);
           setStatus(myReport.status === 'HOLIDAY' ? 'HOLIDAY' : myReport.status === 'HALF_DAY' ? 'HALF_DAY' : myReport.status === 'LEAVE' ? 'LEAVE' : 'PRESENT');
-          setPunchInTime(myReport.punchInTime || '');
-          setPunchOutTime(myReport.punchOutTime || '');
+          setPunchInTime(to24HourTime(myReport.punchInTime));
+          setPunchOutTime(to24HourTime(myReport.punchOutTime));
           setTotalHours(myReport.totalHours ? String(myReport.totalHours) : '');
           setCallsMade(myReport.callsMade ? String(myReport.callsMade) : '');
           setCallsConnected(myReport.callsConnected ? String(myReport.callsConnected) : '');
@@ -165,14 +207,16 @@ export function DailyReportingView({
     setSuccessMsg('');
 
     const isHolidayOrLeave = status === 'HOLIDAY' || status === 'LEAVE';
+    const formattedIn = punchInTime ? to12HourDisplay(punchInTime) : null;
+    const formattedOut = punchOutTime ? to12HourDisplay(punchOutTime) : null;
 
     const payload = {
       staffId: currentTelecallerId,
       staffName: currentTelecallerName,
       branch,
       reportDate: selectedDate,
-      punchInTime: isHolidayOrLeave ? null : (punchInTime.trim() || null),
-      punchOutTime: isHolidayOrLeave ? null : (punchOutTime.trim() || null),
+      punchInTime: isHolidayOrLeave ? null : formattedIn,
+      punchOutTime: isHolidayOrLeave ? null : formattedOut,
       totalHours: isHolidayOrLeave ? 0 : (Number(totalHours) || 0),
       callsMade: isHolidayOrLeave ? 0 : (Number(callsMade) || 0),
       callsConnected: isHolidayOrLeave ? 0 : (Number(callsConnected) || 0),
@@ -296,7 +340,7 @@ export function DailyReportingView({
                 {savedRecord.totalHours || 0} hrs
               </span>
               <span className="text-[10px] text-slate-500 block mt-0.5 font-mono">
-                {savedRecord.punchInTime || '--'} → {savedRecord.punchOutTime || '--'}
+                {savedRecord.punchInTime ? to12HourDisplay(savedRecord.punchInTime) : '--'} → {savedRecord.punchOutTime ? to12HourDisplay(savedRecord.punchOutTime) : '--'}
               </span>
             </div>
 
@@ -370,54 +414,192 @@ export function DailyReportingView({
 
         {status !== 'HOLIDAY' && status !== 'LEAVE' ? (
           <>
-            {/* ROW 1: Timing & Worked Hours (Manual Inputs) */}
+            {/* ROW 1: Timing & Worked Hours (Enterable & Selectable Time) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
-                  Punch-In Time (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 09:30 AM or 09:30"
-                  value={punchInTime}
-                  onChange={(e) => {
-                    setPunchInTime(e.target.value);
-                    autoCalculateHours(e.target.value, punchOutTime);
-                  }}
-                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
-                />
+              {/* Punch-In Time */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                    Punch-In Time
+                  </label>
+                  {punchInTime && (
+                    <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      {to12HourDisplay(punchInTime)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative flex items-center">
+                  <input
+                    type="time"
+                    value={punchInTime}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPunchInTime(val);
+                      autoCalculateHours(val, punchOutTime);
+                    }}
+                    className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 cursor-pointer shadow-2xs"
+                  />
+                  {punchInTime && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPunchInTime('');
+                        autoCalculateHours('', punchOutTime);
+                      }}
+                      className="absolute right-9 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition cursor-pointer"
+                      title="Clear time"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick select presets */}
+                <div className="flex items-center flex-wrap gap-1.5 pt-1 text-[10px] font-semibold text-slate-500">
+                  <span className="text-[10px] text-slate-400 font-bold">Select:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPunchInTime('09:30');
+                      autoCalculateHours('09:30', punchOutTime);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
+                  >
+                    09:30 AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPunchInTime('10:00');
+                      autoCalculateHours('10:00', punchOutTime);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
+                  >
+                    10:00 AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const now = new Date();
+                      const hh = String(now.getHours()).padStart(2, '0');
+                      const mm = String(now.getMinutes()).padStart(2, '0');
+                      const t = `${hh}:${mm}`;
+                      setPunchInTime(t);
+                      autoCalculateHours(t, punchOutTime);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
+                  >
+                    Current Time
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
-                  Punch-Out Time (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 06:30 PM or 18:30"
-                  value={punchOutTime}
-                  onChange={(e) => {
-                    setPunchOutTime(e.target.value);
-                    autoCalculateHours(punchInTime, e.target.value);
-                  }}
-                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
-                />
+              {/* Punch-Out Time */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                    Punch-Out Time
+                  </label>
+                  {punchOutTime && (
+                    <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      {to12HourDisplay(punchOutTime)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative flex items-center">
+                  <input
+                    type="time"
+                    value={punchOutTime}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPunchOutTime(val);
+                      autoCalculateHours(punchInTime, val);
+                    }}
+                    className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 cursor-pointer shadow-2xs"
+                  />
+                  {punchOutTime && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPunchOutTime('');
+                        autoCalculateHours(punchInTime, '');
+                      }}
+                      className="absolute right-9 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition cursor-pointer"
+                      title="Clear time"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick select presets */}
+                <div className="flex items-center flex-wrap gap-1.5 pt-1 text-[10px] font-semibold text-slate-500">
+                  <span className="text-[10px] text-slate-400 font-bold">Select:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPunchOutTime('18:30');
+                      autoCalculateHours(punchInTime, '18:30');
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
+                  >
+                    06:30 PM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPunchOutTime('19:00');
+                      autoCalculateHours(punchInTime, '19:00');
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
+                  >
+                    07:00 PM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const now = new Date();
+                      const hh = String(now.getHours()).padStart(2, '0');
+                      const mm = String(now.getMinutes()).padStart(2, '0');
+                      const t = `${hh}:${mm}`;
+                      setPunchOutTime(t);
+                      autoCalculateHours(punchInTime, t);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
+                  >
+                    Current Time
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
-                  Total Worked Hours (Optional)
-                </label>
+              {/* Total Worked Hours */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                    Total Worked Hours
+                  </label>
+                  {totalHours && Number(totalHours) > 0 && (
+                    <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      {totalHours} hrs
+                    </span>
+                  )}
+                </div>
+
                 <input
                   type="number"
                   step="0.5"
                   min="0"
                   max="24"
-                  placeholder="e.g. 8.5"
                   value={totalHours}
                   onChange={(e) => setTotalHours(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                  className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 shadow-2xs"
                 />
+
+                <div className="pt-1 text-[10px] text-slate-400 font-medium">
+                  Auto-calculated from times, or manually enter/override anytime.
+                </div>
               </div>
             </div>
 
@@ -585,7 +767,7 @@ export function DailyReportingView({
                       </span>
                     </td>
                     <td className="py-3 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                      {hist.punchInTime || '--'} - {hist.punchOutTime || '--'}
+                      {hist.punchInTime ? to12HourDisplay(hist.punchInTime) : '--'} - {hist.punchOutTime ? to12HourDisplay(hist.punchOutTime) : '--'}
                     </td>
                     <td className="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
                       {hist.totalHours || 0} hrs

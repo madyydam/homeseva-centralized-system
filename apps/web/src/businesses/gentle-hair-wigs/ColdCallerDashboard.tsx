@@ -462,7 +462,7 @@ export function ColdCallerDashboard({
                   ? 'Reported'
                   : todayStatus === 'IN_PROGRESS'
                   ? 'Shift Active'
-                  : 'Punch In'}
+                  : 'Not Submitted'}
               </span>
             </button>
           </div>

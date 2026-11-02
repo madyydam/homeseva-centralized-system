@@ -20,6 +20,7 @@ import {
   MapPin,
   ClipboardList,
 } from 'lucide-react';
+import { to12HourDisplay } from './DailyReportingView';
 
 interface TelecallerReportItem {
   id: string;
@@ -382,7 +383,7 @@ export function TeamAttendanceView({
                       <td className="px-4 py-3.5 font-mono font-bold">
                         {r.punchInTime ? (
                           <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                            {r.punchInTime}
+                            {to12HourDisplay(r.punchInTime)}
                           </span>
                         ) : (
                           <span className="text-slate-400">--:--</span>
@@ -393,7 +394,7 @@ export function TeamAttendanceView({
                       <td className="px-4 py-3.5 font-mono font-bold">
                         {r.punchOutTime ? (
                           <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
-                            {r.punchOutTime}
+                            {to12HourDisplay(r.punchOutTime)}
                           </span>
                         ) : (
                           <span className="text-slate-400">--:--</span>
@@ -504,7 +505,7 @@ export function TeamAttendanceView({
                     Punch In
                   </span>
                   <span className="text-xs font-extrabold text-slate-800 font-mono">
-                    {selectedReportForView.punchInTime || '--'}
+                    {to12HourDisplay(selectedReportForView.punchInTime) || '--'}
                   </span>
                 </div>
                 <div>
@@ -512,7 +513,7 @@ export function TeamAttendanceView({
                     Punch Out
                   </span>
                   <span className="text-xs font-extrabold text-slate-800 font-mono">
-                    {selectedReportForView.punchOutTime || '--'}
+                    {to12HourDisplay(selectedReportForView.punchOutTime) || '--'}
                   </span>
                 </div>
                 <div>

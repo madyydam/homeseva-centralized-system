@@ -1653,7 +1653,6 @@ export function ManagerDashboard({
                   type="text"
                   value={clientNameInput}
                   onChange={(e) => setClientNameInput(e.target.value)}
-                  placeholder="e.g. Vikram Malhotra (or leave blank for &quot;Don't know&quot;)"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -1664,7 +1663,6 @@ export function ManagerDashboard({
                   type="tel"
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
-                  placeholder="e.g. +91 98220 12345"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none font-mono"
                 />
               </div>
@@ -1822,7 +1820,6 @@ export function ManagerDashboard({
                     type="text"
                     value={mClientName}
                     onChange={(e) => setMClientName(e.target.value)}
-                    placeholder="Enter client name (or leave blank for &quot;Don't know&quot;)"
                     className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -1832,7 +1829,6 @@ export function ManagerDashboard({
                     type="tel"
                     value={mPhone}
                     onChange={(e) => setMPhone(e.target.value)}
-                    placeholder="+91..."
                     className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none font-mono"
                   />
                 </div>
@@ -1996,7 +1992,6 @@ export function ManagerDashboard({
                   type="text"
                   value={appClientName}
                   onChange={(e) => setAppClientName(e.target.value)}
-                  placeholder="Enter client name (or leave blank for &quot;Don't know&quot;)"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -2007,7 +2002,6 @@ export function ManagerDashboard({
                   type="tel"
                   value={appPhone}
                   onChange={(e) => setAppPhone(e.target.value)}
-                  placeholder="+91..."
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none font-mono"
                 />
               </div>
@@ -2273,7 +2267,6 @@ export function ManagerDashboard({
                   type="text"
                   value={invcClient}
                   onChange={(e) => setInvcClient(e.target.value)}
-                  placeholder="Enter client name (or leave blank for &quot;Don't know&quot;)"
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                 />
               </div>
@@ -2284,7 +2277,6 @@ export function ManagerDashboard({
                   type="tel"
                   value={invcPhone}
                   onChange={(e) => setInvcPhone(e.target.value)}
-                  placeholder="+91..."
                   className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none font-mono"
                 />
               </div>

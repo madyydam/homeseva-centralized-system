@@ -93,7 +93,6 @@ export const AddLeadModal = memo(function AddLeadModal({
               </label>
               <input
                 type="text"
-                placeholder="e.g. Ramesh Kulkarni (or leave blank for &quot;Don't know&quot;)"
                 value={newClientName}
                 onChange={(e) => setNewClientName(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 p-2 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
@@ -107,7 +106,6 @@ export const AddLeadModal = memo(function AddLeadModal({
               <input
                 type="tel"
                 required
-                placeholder="e.g. 9822114455"
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 p-2 text-xs font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"

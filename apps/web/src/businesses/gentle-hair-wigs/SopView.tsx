@@ -1231,7 +1231,6 @@ export function SopView({ branch, data, onDataChange, userRole }: SopViewProps) 
                     type="text"
                     value={callClient}
                     onChange={(e) => setCallClient(e.target.value)}
-                    placeholder="e.g. Ramesh Kale (or leave blank for &quot;Don't know&quot;)"
                     className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none"
                   />
                 </div>
@@ -1241,7 +1240,6 @@ export function SopView({ branch, data, onDataChange, userRole }: SopViewProps) 
                     type="tel"
                     value={callPhone}
                     onChange={(e) => setCallPhone(e.target.value)}
-                    placeholder="98XXXXXXXX"
                     required
                     className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-amber-500 focus:outline-none font-mono"
                   />
