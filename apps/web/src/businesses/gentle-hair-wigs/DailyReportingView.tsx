@@ -123,6 +123,26 @@ export function DailyReportingView({
   const [savedRecord, setSavedRecord] = useState<TelecallerDailyRecord | null>(null);
   const [historyList, setHistoryList] = useState<TelecallerDailyRecord[]>([]);
 
+  // Live real-time clock
+  const [currentTimeStr, setCurrentTimeStr] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTimeStr(
+        now.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+        })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Calculate worked hours automatically when user enters or selects both times (optional helper, user can still override)
   const autoCalculateHours = (inStr: string, outStr: string) => {
     if (!inStr || !outStr) return;
@@ -295,15 +315,39 @@ export function DailyReportingView({
             </p>
           </div>
 
-          {/* Date Selector */}
-          <div className="flex items-center space-x-2 bg-black/20 backdrop-blur-xs p-2 rounded-2xl border border-white/20">
-            <Calendar className="h-4 w-4 text-amber-200 ml-1.5" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-white font-mono text-xs font-bold focus:outline-none cursor-pointer pr-1"
-            />
+          {/* Right Header Widget: Live Clock, Shift Status, Date Selector */}
+          <div className="flex items-center flex-wrap gap-2.5">
+            {/* Live Clock */}
+            <div className="bg-black/25 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-center">
+              <span className="text-[9px] font-black uppercase tracking-wider text-amber-200 block">
+                Live Clock
+              </span>
+              <span className="text-xs font-mono font-extrabold text-white">
+                {currentTimeStr || '--:--:--'}
+              </span>
+            </div>
+
+            {/* Shift Status */}
+            <div className="bg-white px-3 py-1.5 rounded-xl text-center shadow-xs">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                Shift Status
+              </span>
+              <span className="text-xs font-bold text-amber-800 flex items-center justify-center space-x-1">
+                <span className={`h-1.5 w-1.5 rounded-full ${punchOutTime ? 'bg-emerald-500' : punchInTime ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`} />
+                <span>{punchOutTime ? 'Shift Completed' : punchInTime ? 'Shift Active' : 'Not Started'}</span>
+              </span>
+            </div>
+
+            {/* Date Selector */}
+            <div className="flex items-center space-x-1.5 bg-black/25 backdrop-blur-xs px-2.5 py-1.5 rounded-xl border border-white/20">
+              <Calendar className="h-3.5 w-3.5 text-amber-200" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-white font-mono text-xs font-bold focus:outline-none cursor-pointer"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -453,191 +497,203 @@ export function DailyReportingView({
 
         {status !== 'HOLIDAY' && status !== 'LEAVE' ? (
           <>
-            {/* ROW 1: Timing & Worked Hours (Enterable & Selectable Time) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Punch-In Time */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                    Punch-In Time
-                  </label>
-                  {punchInTime && (
-                    <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                      {to12HourDisplay(punchInTime)}
-                    </span>
-                  )}
+            {/* Shift Punch In & Punch Out Section (Small & 2 in a row) */}
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <div className="h-6 w-6 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200/60">
+                    <Clock className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900">Shift Punch In &amp; Punch Out</h3>
+                    <p className="text-[10px] text-slate-500 font-medium">Record your working hours for studio attendance</p>
+                  </div>
                 </div>
 
-                <div className="relative flex items-center">
+                {/* Worked Hours Pill (Editable) */}
+                <div className="flex items-center space-x-1.5 self-start sm:self-auto bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-500">Worked Hours:</span>
                   <input
-                    type="time"
-                    value={punchInTime}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPunchInTime(val);
-                      autoCalculateHours(val, punchOutTime);
-                    }}
-                    className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 cursor-pointer shadow-2xs"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="24"
+                    value={totalHours}
+                    onChange={(e) => setTotalHours(e.target.value)}
+                    className="w-14 rounded-md border border-slate-300 px-1.5 py-0.5 text-xs font-mono font-black text-slate-900 text-center bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
-                  {punchInTime && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPunchInTime('');
-                        autoCalculateHours('', punchOutTime);
-                      }}
-                      className="absolute right-9 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition cursor-pointer"
-                      title="Clear time"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                {/* Quick select presets */}
-                <div className="flex items-center flex-wrap gap-1.5 pt-1 text-[10px] font-semibold text-slate-500">
-                  <span className="text-[10px] text-slate-400 font-bold">Select:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPunchInTime('09:30');
-                      autoCalculateHours('09:30', punchOutTime);
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
-                  >
-                    09:30 AM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPunchInTime('10:00');
-                      autoCalculateHours('10:00', punchOutTime);
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
-                  >
-                    10:00 AM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const now = new Date();
-                      const hh = String(now.getHours()).padStart(2, '0');
-                      const mm = String(now.getMinutes()).padStart(2, '0');
-                      const t = `${hh}:${mm}`;
-                      setPunchInTime(t);
-                      autoCalculateHours(t, punchOutTime);
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
-                  >
-                    Current Time
-                  </button>
+                  <span className="text-[11px] font-bold text-slate-600">hrs</span>
                 </div>
               </div>
 
-              {/* Punch-Out Time */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                    Punch-Out Time
-                  </label>
-                  {punchOutTime && (
-                    <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                      {to12HourDisplay(punchOutTime)}
+              {/* 2 Cards in a Row (Small & Compact) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* CARD 1: PUNCH IN */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2 hover:border-amber-300 transition shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Punch In
                     </span>
-                  )}
-                </div>
+                    {punchInTime ? (
+                      <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Recorded: {to12HourDisplay(punchInTime)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                        Not Set
+                      </span>
+                    )}
+                  </div>
 
-                <div className="relative flex items-center">
-                  <input
-                    type="time"
-                    value={punchOutTime}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPunchOutTime(val);
-                      autoCalculateHours(punchInTime, val);
-                    }}
-                    className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 cursor-pointer shadow-2xs"
-                  />
-                  {punchOutTime && (
+                  {/* Selectable & Enterable Time Input */}
+                  <div className="relative flex items-center">
+                    <input
+                      type="time"
+                      value={punchInTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPunchInTime(val);
+                        autoCalculateHours(val, punchOutTime);
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer shadow-2xs"
+                    />
+                    {punchInTime && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPunchInTime('');
+                          autoCalculateHours('', punchOutTime);
+                        }}
+                        className="absolute right-7 px-1 text-[10px] text-slate-400 hover:text-slate-700 font-bold"
+                        title="Clear"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div className="flex items-center space-x-1 text-[9.5px]">
+                    <span className="text-slate-400 font-medium">Quick:</span>
                     <button
                       type="button"
                       onClick={() => {
-                        setPunchOutTime('');
-                        autoCalculateHours(punchInTime, '');
+                        setPunchInTime('09:30');
+                        autoCalculateHours('09:30', punchOutTime);
                       }}
-                      className="absolute right-9 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition cursor-pointer"
-                      title="Clear time"
+                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
                     >
-                      Clear
+                      09:30 AM
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPunchInTime('10:00');
+                        autoCalculateHours('10:00', punchOutTime);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
+                    >
+                      10:00 AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const hh = String(now.getHours()).padStart(2, '0');
+                        const mm = String(now.getMinutes()).padStart(2, '0');
+                        const t = `${hh}:${mm}`;
+                        setPunchInTime(t);
+                        autoCalculateHours(t, punchOutTime);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
+                    >
+                      Now
+                    </button>
+                  </div>
                 </div>
 
-                {/* Quick select presets */}
-                <div className="flex items-center flex-wrap gap-1.5 pt-1 text-[10px] font-semibold text-slate-500">
-                  <span className="text-[10px] text-slate-400 font-bold">Select:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPunchOutTime('18:30');
-                      autoCalculateHours(punchInTime, '18:30');
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
-                  >
-                    06:30 PM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPunchOutTime('19:00');
-                      autoCalculateHours(punchInTime, '19:00');
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
-                  >
-                    07:00 PM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const now = new Date();
-                      const hh = String(now.getHours()).padStart(2, '0');
-                      const mm = String(now.getMinutes()).padStart(2, '0');
-                      const t = `${hh}:${mm}`;
-                      setPunchOutTime(t);
-                      autoCalculateHours(punchInTime, t);
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 transition cursor-pointer border border-slate-200"
-                  >
-                    Current Time
-                  </button>
-                </div>
-              </div>
-
-              {/* Total Worked Hours */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                    Total Worked Hours
-                  </label>
-                  {totalHours && Number(totalHours) > 0 && (
-                    <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      {totalHours} hrs
+                {/* CARD 2: PUNCH OUT */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2 hover:border-amber-300 transition shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Punch Out
                     </span>
-                  )}
-                </div>
+                    {punchOutTime ? (
+                      <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        Recorded: {to12HourDisplay(punchOutTime)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                        Not Set
+                      </span>
+                    )}
+                  </div>
 
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="24"
-                  value={totalHours}
-                  onChange={(e) => setTotalHours(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 shadow-2xs"
-                />
+                  {/* Selectable & Enterable Time Input */}
+                  <div className="relative flex items-center">
+                    <input
+                      type="time"
+                      value={punchOutTime}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPunchOutTime(val);
+                        autoCalculateHours(punchInTime, val);
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer shadow-2xs"
+                    />
+                    {punchOutTime && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPunchOutTime('');
+                          autoCalculateHours(punchInTime, '');
+                        }}
+                        className="absolute right-7 px-1 text-[10px] text-slate-400 hover:text-slate-700 font-bold"
+                        title="Clear"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
 
-                <div className="pt-1 text-[10px] text-slate-400 font-medium">
-                  Auto-calculated from times, or manually enter/override anytime.
+                  {/* Quick Preset Buttons */}
+                  <div className="flex items-center space-x-1 text-[9.5px]">
+                    <span className="text-slate-400 font-medium">Quick:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPunchOutTime('18:30');
+                        autoCalculateHours(punchInTime, '18:30');
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
+                    >
+                      06:30 PM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPunchOutTime('19:00');
+                        autoCalculateHours(punchInTime, '19:00');
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
+                    >
+                      07:00 PM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const hh = String(now.getHours()).padStart(2, '0');
+                        const mm = String(now.getMinutes()).padStart(2, '0');
+                        const t = `${hh}:${mm}`;
+                        setPunchOutTime(t);
+                        autoCalculateHours(punchInTime, t);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-white border border-slate-200 hover:bg-amber-50 text-slate-700 font-semibold cursor-pointer"
+                    >
+                      Now
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
