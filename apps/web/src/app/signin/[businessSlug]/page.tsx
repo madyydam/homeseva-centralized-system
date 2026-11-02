@@ -202,6 +202,17 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const [isDoorAscending, setIsDoorAscending] = useState(false);
   const typingTimerRef = useRef<{ password?: NodeJS.Timeout; pin?: NodeJS.Timeout }>({});
 
+  // Real-time synchronization refs to completely eliminate closure latency & stale data bugs
+  const latestPasswordRef = useRef(password);
+  latestPasswordRef.current = password;
+  const latestPinRef = useRef(pin);
+  latestPinRef.current = pin;
+  const latestLocksRef = useRef(locks);
+  latestLocksRef.current = locks;
+  const latestRoleRef = useRef(selectedRole);
+  latestRoleRef.current = selectedRole;
+  const isSubmittingSessionRef = useRef(false);
+
   // Calculate dynamic pixel delta between right socket and left padlock keyhole
   const computeKeyFlightOffset = useCallback((field: 'password' | 'pin') => {
     const socketEl = document.getElementById(`key-socket-${field}`);
@@ -231,12 +242,66 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     return { x: -380, y: 0 };
   }, []);
 
+  // Securely establish session cookie, then trigger vault elevation without race conditions
+  const executeLoginSession = useCallback(
+    async (roleToLogin?: string, passToLogin?: string, pinToLogin?: string) => {
+      if (isSubmittingSessionRef.current) return true;
+      const rRole = roleToLogin || latestRoleRef.current;
+      const rPass = (passToLogin !== undefined ? passToLogin : latestPasswordRef.current).trim();
+      const rPin = (pinToLogin !== undefined ? pinToLogin : latestPinRef.current).trim();
+
+      if (!rRole || !rPass) return false;
+
+      isSubmittingSessionRef.current = true;
+      try {
+        const res = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessSlug,
+            role: rRole,
+            password: rPass,
+            pin: rPin,
+          }),
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+          setErrorMsg(data.error || 'Authentication failed. Please check your credentials.');
+          isSubmittingSessionRef.current = false;
+          return false;
+        }
+
+        // ✅ Security handshake complete: cookie is confirmed saved in the browser!
+        // Smoothly elevate the vault door into the ceiling
+        setIsDoorAscending(true);
+        setTimeout(() => {
+          if (isGentleHairWigs && selectedBranch) {
+            router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(rRole)}`);
+          } else if (isHorecaEssentials && selectedDivision) {
+            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
+          } else {
+            router.push(`/app/${businessSlug}/dashboard`);
+          }
+        }, 460);
+        return true;
+      } catch (err: any) {
+        console.error('Login session error:', err);
+        setErrorMsg('Network error while establishing session. Please try again.');
+        isSubmittingSessionRef.current = false;
+        return false;
+      }
+    },
+    [businessSlug, isGentleHairWigs, isHorecaEssentials, router, selectedBranch, selectedDivision]
+  );
+
   // Single field flight & verification ceremony (Used for both Auto-Trigger & Form Submit)
   const verifySingleField = useCallback(
     async (field: 'password' | 'pin', overrideVal?: string) => {
-      const valToVerify = overrideVal !== undefined ? overrideVal : (field === 'password' ? password.trim() : pin.trim());
+      const valToVerify = overrideVal !== undefined ? overrideVal : (field === 'password' ? latestPasswordRef.current.trim() : latestPinRef.current.trim());
       if (!valToVerify) return false;
-      if (!selectedRole) return false;
+      const curRole = latestRoleRef.current;
+      if (!curRole) return false;
 
       // Ensure coordinate variables are applied directly on DOM
       computeKeyFlightOffset(field);
@@ -247,19 +312,19 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       const checkPromise = fetch('/api/auth/role/verify-field', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessSlug, roleId: selectedRole, field, value: valToVerify }),
+        body: JSON.stringify({ businessSlug, roleId: curRole, field, value: valToVerify }),
       })
         .then((r) => r.json())
         .catch(() => ({ matched: false, error: 'Network error verifying credentials' }));
 
-      // Key glides across cleanly into Lock Keyhole (340ms)
-      await new Promise((r) => setTimeout(r, 340));
+      // Key glides across cleanly into Lock Keyhole (320ms)
+      await new Promise((r) => setTimeout(r, 320));
       const resData = await checkPromise;
 
       if (!resData.matched) {
-        // Wrong credential: key struggles inside keyhole with red sparks (220ms)
+        // Wrong credential: key struggles inside keyhole with friction sparks (200ms)
         setKeyStates((prev) => ({ ...prev, [field]: { status: 'struggling' } }));
-        await new Promise((r) => setTimeout(r, 220));
+        await new Promise((r) => setTimeout(r, 200));
 
         // SNAP! Fractures into two pieces at the keyhole and drops
         setKeyStates((prev) => ({ ...prev, [field]: { status: 'broken' } }));
@@ -267,6 +332,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           ...prev,
           [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
         }));
+        latestLocksRef.current = {
+          ...latestLocksRef.current,
+          [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+        };
         setErrorMsg(
           resData.error ||
             (field === 'password'
@@ -276,64 +345,64 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         return false;
       }
 
-      // Correct credential: Key turns 90deg inside keyhole (200ms)
+      // Correct credential: Key turns 90deg inside keyhole (180ms)
       setKeyStates((prev) => ({ ...prev, [field]: { status: 'unlocked' } }));
       setLocks((prev) => ({
         ...prev,
         [field]: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
       }));
+      latestLocksRef.current = {
+        ...latestLocksRef.current,
+        [field]: { unlocked: true, bursting: true, checking: false, falling: false, fallen: false },
+      };
 
-      // Shackle pops open with blast sparks (200ms)
-      await new Promise((r) => setTimeout(r, 200));
-      setLocks((prev) => ({
-        ...prev,
-        [field]: { ...prev[field], bursting: false, falling: true },
-      }));
+      // Shackle pops open with blast sparks
+      setTimeout(() => {
+        setLocks((prev) => ({
+          ...prev,
+          [field]: { ...prev[field], bursting: false, falling: true },
+        }));
+      }, 180);
 
-      // Lock plunges down off the door card (340ms)
-      await new Promise((r) => setTimeout(r, 340));
-      setLocks((prev) => ({
-        ...prev,
-        [field]: { ...prev[field], falling: false, fallen: true },
-      }));
+      // Lock plunges down off the door card
+      setTimeout(() => {
+        setLocks((prev) => ({
+          ...prev,
+          [field]: { ...prev[field], falling: false, fallen: true },
+        }));
+        latestLocksRef.current = {
+          ...latestLocksRef.current,
+          [field]: { ...latestLocksRef.current[field], falling: false, fallen: true },
+        };
+      }, 340);
 
-      // Check if both locks are now unlocked/fallen
+      // Check if both locks are now unlocked
       const otherField = field === 'password' ? 'pin' : 'password';
-      const otherUnlocked = locks[otherField].unlocked || locks[otherField].fallen;
+      const otherUnlocked = latestLocksRef.current[otherField].unlocked || latestLocksRef.current[otherField].fallen;
+      const otherVal = otherField === 'password' ? latestPasswordRef.current.trim() : latestPinRef.current.trim();
 
       if (otherUnlocked) {
-        // BOTH LOCKS DETACHED! GRAND VAULT DOOR ASCEND INTO CEILING
-        fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            businessSlug,
-            role: selectedRole,
-            password: password.trim() || valToVerify,
-            pin: pin.trim() || valToVerify,
-          }),
-        });
-
-        setIsDoorAscending(true);
-        setTimeout(() => {
-          if (isGentleHairWigs && selectedBranch) {
-            router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(selectedRole)}`);
-          } else if (isHorecaEssentials && selectedDivision) {
-            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
-          } else {
-            router.push(`/app/${businessSlug}/dashboard`);
-          }
-        }, 460);
+        // BOTH LOCKS UNLOCKED! Establish session cleanly
+        const passToUse = field === 'password' ? valToVerify : otherVal;
+        const pinToUse = field === 'pin' ? valToVerify : otherVal;
+        await executeLoginSession(curRole, passToUse, pinToUse);
       }
 
       return true;
     },
-    [businessSlug, computeKeyFlightOffset, isGentleHairWigs, isHorecaEssentials, locks, password, pin, router, selectedBranch, selectedDivision, selectedRole]
+    [businessSlug, computeKeyFlightOffset, executeLoginSession]
   );
 
   const handleInputChange = (field: 'password' | 'pin', val: string) => {
-    if (field === 'password') setPassword(val);
-    if (field === 'pin') setPin(val.replace(/\D/g, '').slice(0, 4));
+    if (field === 'password') {
+      setPassword(val);
+      latestPasswordRef.current = val;
+    }
+    if (field === 'pin') {
+      const cleanPin = val.replace(/\D/g, '').slice(0, 4);
+      setPin(cleanPin);
+      latestPinRef.current = cleanPin;
+    }
 
     // Clear any previous error
     setErrorMsg('');
@@ -353,6 +422,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       }
       return prev;
     });
+    latestLocksRef.current = {
+      ...latestLocksRef.current,
+      [field]: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+    };
 
     // Clear any pending debounce timer
     if (typingTimerRef.current[field]) {
@@ -366,31 +439,35 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       if (clean.length >= 3) {
         typingTimerRef.current.password = setTimeout(() => {
           verifySingleField('password', clean);
-        }, 850);
+        }, 800);
       }
     } else if (field === 'pin') {
       if (clean.length === 4) {
         typingTimerRef.current.pin = setTimeout(() => {
           verifySingleField('pin', clean);
-        }, 350);
+        }, 320);
       } else if (clean.length > 0) {
         typingTimerRef.current.pin = setTimeout(() => {
-          if (clean.length === 4) {
-            verifySingleField('pin', clean);
+          if (latestPinRef.current.length === 4) {
+            verifySingleField('pin', latestPinRef.current);
           }
-        }, 900);
+        }, 800);
       }
     }
   };
 
   const handleRoleSelect = (newRole: string) => {
     setSelectedRole(newRole);
+    latestRoleRef.current = newRole;
+    isSubmittingSessionRef.current = false;
     setIsRoleDropdownOpen(false);
     // Reset locks and keys for new role
-    setLocks({
+    const emptyLocks = {
       password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
       pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
-    });
+    };
+    setLocks(emptyLocks);
+    latestLocksRef.current = emptyLocks;
     setKeyStates({
       password: { status: 'idle' },
       pin: { status: 'idle' },
@@ -409,6 +486,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           setRoles(data.business.roles);
           if (data.business.roles.length > 0) {
             setSelectedRole(data.business.roles[0].role_id);
+            latestRoleRef.current = data.business.roles[0].role_id;
           }
         }
       } catch (err) {
@@ -454,16 +532,20 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     e.preventDefault();
     if (isLoading) return;
 
+    const curPass = latestPasswordRef.current.trim();
+    const curPin = latestPinRef.current.trim();
+    const curRole = latestRoleRef.current;
+
     if (isGentleHairWigs) {
       if (!selectedBranch) {
         setErrorMsg('Please select a studio branch');
         return;
       }
-      if (!password.trim()) {
+      if (!curPass) {
         setErrorMsg('Please enter your password');
         return;
       }
-      if (!pin.trim()) {
+      if (!curPin) {
         setErrorMsg('Please enter your 4-digit security PIN');
         return;
       }
@@ -472,11 +554,11 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         setErrorMsg('Please select a practice: Essentials Sales or Crockery Rental');
         return;
       }
-      if (!selectedRole || !password.trim()) {
+      if (!curRole || !curPass) {
         setErrorMsg('Please select your role and enter password');
         return;
       }
-    } else if (!selectedRole || !password.trim()) {
+    } else if (!curRole || !curPass) {
       setErrorMsg('Please select a role and enter password');
       return;
     }
@@ -489,21 +571,33 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     if (typingTimerRef.current.pin) clearTimeout(typingTimerRef.current.pin);
 
     try {
-      if (!locks.password.fallen) {
-        const pSuccess = await verifySingleField('password', password.trim());
+      // 1. If both fields are already verified/unlocked (like in the user's screenshot), directly create session and enter!
+      if (latestLocksRef.current.password.unlocked && (!curPin || latestLocksRef.current.pin.unlocked)) {
+        const ok = await executeLoginSession(curRole, curPass, curPin);
+        if (!ok) setIsLoading(false);
+        return;
+      }
+
+      // 2. Otherwise verify password if not yet unlocked
+      if (!latestLocksRef.current.password.unlocked) {
+        const pSuccess = await verifySingleField('password', curPass);
         if (!pSuccess) {
           setIsLoading(false);
           return;
         }
       }
 
-      if (!locks.pin.fallen) {
-        const pinSuccess = await verifySingleField('pin', pin.trim());
+      // 3. Verify PIN if provided and not yet unlocked
+      if (curPin && !latestLocksRef.current.pin.unlocked) {
+        const pinSuccess = await verifySingleField('pin', curPin);
         if (!pinSuccess) {
           setIsLoading(false);
           return;
         }
       }
+
+      // 4. Ensure session is created and door ascends
+      await executeLoginSession(curRole, curPass, curPin);
     } catch {
       setErrorMsg('Unable to verify credentials. Please try again.');
     } finally {

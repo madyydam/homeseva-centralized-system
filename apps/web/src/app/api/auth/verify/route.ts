@@ -76,14 +76,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 2. Validate password & pin
-      const isPassCorrect =
-        enteredPass === targetRole.password.trim() ||
-        (targetRole.role_id === 'Cold Caller' && (enteredPass === 'Telecaller@123' || enteredPass === 'Msd@7821'));
-      const isPinCorrect =
-        !targetRole.pin ||
-        enteredPin === targetRole.pin.trim() ||
-        (targetRole.role_id === 'Cold Caller' && (enteredPin === '1100' || enteredPin === '7821'));
+      // 2. Validate password & pin (Strict 1:1 security verification against Supabase database)
+      const isPassCorrect = enteredPass === targetRole.password.trim();
+      const isPinCorrect = !targetRole.pin || enteredPin === targetRole.pin.trim();
 
       if (!isPassCorrect || !isPinCorrect) {
         const newAttempts = (targetRole.failed_attempts || 0) + 1;
