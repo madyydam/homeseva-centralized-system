@@ -17,7 +17,7 @@ import {
 import { BusinessDashboardProps } from '../types';
 import { gentleHairWigsConfig } from './config';
 import { CrmView } from './CrmView';
-import { TelecallerReportModal } from './crm/TelecallerReportModal';
+import { DailyReportingView } from './DailyReportingView';
 
 const COLD_CALLER_NAV_ITEMS = [
   {
@@ -44,6 +44,12 @@ const COLD_CALLER_NAV_ITEMS = [
     sub: 'Studio order handoffs',
     icon: CheckCircle2,
   },
+  {
+    id: 'daily-reporting',
+    label: 'Daily Reporting',
+    sub: 'Punch in/out & attendance',
+    icon: ClipboardCheck,
+  },
 ] as const;
 
 export function ColdCallerDashboard({
@@ -62,8 +68,7 @@ export function ColdCallerDashboard({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Active navigation tab for the Cold Caller
-  const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted'>('sheet');
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted' | 'daily-reporting'>('sheet');
   const [todayStatus, setTodayStatus] = useState<'PENDING' | 'IN_PROGRESS' | 'PRESENT' | 'HOLIDAY'>('PENDING');
 
   const checkStatus = useCallback(async () => {
@@ -148,6 +153,19 @@ export function ColdCallerDashboard({
                       <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
                     </div>
+                    {item.id === 'daily-reporting' && (
+                      <span
+                        className={`text-[9.5px] font-black px-2 py-0.5 rounded-full uppercase ${
+                          todayStatus === 'PRESENT'
+                            ? isActive ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                            : todayStatus === 'IN_PROGRESS'
+                            ? isActive ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
+                            : isActive ? 'bg-white text-rose-800' : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {todayStatus === 'PRESENT' ? 'Reported' : todayStatus === 'IN_PROGRESS' ? 'Active' : 'Pending'}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -277,20 +295,28 @@ export function ColdCallerDashboard({
 
                     <div
                       className={`flex items-center min-w-0 ${
-                        isSidebarCollapsed ? 'justify-center' : 'gap-3 pr-0.5 pl-1'
+                        isSidebarCollapsed ? 'justify-center' : 'gap-3 pr-0.5 pl-1 flex-1'
                       }`}
                     >
-                      <Icon
-                        className={`shrink-0 transition-transform duration-150 ${
-                          isSidebarCollapsed ? 'h-5 w-5' : 'h-4.5 w-4.5'
-                        } ${
-                          isActive
-                            ? 'text-white'
-                            : 'text-amber-700/80 group-hover:text-amber-600 group-hover:scale-105'
-                        }`}
-                      />
+                      <div className="relative flex items-center justify-center shrink-0">
+                        <Icon
+                          className={`shrink-0 transition-transform duration-150 ${
+                            isSidebarCollapsed ? 'h-5 w-5' : 'h-4.5 w-4.5'
+                          } ${
+                            isActive
+                              ? 'text-white'
+                              : 'text-amber-700/80 group-hover:text-amber-600 group-hover:scale-105'
+                          }`}
+                        />
+                        {isSidebarCollapsed && item.id === 'daily-reporting' && todayStatus === 'PENDING' && (
+                          <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                          </span>
+                        )}
+                      </div>
                       {!isSidebarCollapsed && (
-                        <div className="flex flex-col text-left min-w-0">
+                        <div className="flex flex-col text-left min-w-0 flex-1">
                           <span className="truncate whitespace-nowrap tracking-tight text-[12px] font-black">
                             {item.label}
                           </span>
@@ -302,6 +328,19 @@ export function ColdCallerDashboard({
                             {item.sub}
                           </span>
                         </div>
+                      )}
+                      {!isSidebarCollapsed && item.id === 'daily-reporting' && (
+                        <span
+                          className={`ml-auto shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                            todayStatus === 'PRESENT'
+                              ? isActive ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                              : todayStatus === 'IN_PROGRESS'
+                              ? isActive ? 'bg-white text-amber-900' : 'bg-amber-100 text-amber-900'
+                              : isActive ? 'bg-white text-rose-800' : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {todayStatus === 'PRESENT' ? '✓' : todayStatus === 'IN_PROGRESS' ? '●' : '!'}
+                        </span>
                       )}
                     </div>
                   </button>
@@ -405,9 +444,11 @@ export function ColdCallerDashboard({
           <div className="flex items-center space-x-2">
             <button
               type="button"
-              onClick={() => setIsReportModalOpen(true)}
+              onClick={() => setActiveTab('daily-reporting')}
               className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition shadow-2xs cursor-pointer ${
-                todayStatus === 'PRESENT'
+                activeTab === 'daily-reporting'
+                  ? 'bg-amber-600 border-amber-600 text-white shadow-amber-600/30'
+                  : todayStatus === 'PRESENT'
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
                   : todayStatus === 'IN_PROGRESS'
                   ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
@@ -427,58 +468,27 @@ export function ColdCallerDashboard({
           </div>
         </header>
 
-        {/* CRM Leads Workspace */}
+        {/* Workspace Content */}
         <div className="p-3.5 sm:p-5 max-w-[1720px] w-full">
-          <CrmView
-            branch={currentBranch}
-            initialViewMode={activeTab === 'annual' ? 'month-selector' : 'month-sheet'}
-            initialStatusFilter={
-              activeTab === 'follow-up'
-                ? 'Follow-up'
-                : activeTab === 'converted'
-                ? 'Converted'
-                : 'all'
-            }
-          />
+          {activeTab === 'daily-reporting' ? (
+            <DailyReportingView
+              branch={currentBranch}
+              onReportUpdated={checkStatus}
+            />
+          ) : (
+            <CrmView
+              branch={currentBranch}
+              initialViewMode={activeTab === 'annual' ? 'month-selector' : 'month-sheet'}
+              initialStatusFilter={
+                activeTab === 'follow-up'
+                  ? 'Follow-up'
+                  : activeTab === 'converted'
+                  ? 'Converted'
+                  : 'all'
+              }
+            />
+          )}
         </div>
-
-        {/* Floating Action Button (Bottom Right) */}
-        <div className="fixed bottom-6 right-6 z-40">
-          <button
-            type="button"
-            onClick={() => setIsReportModalOpen(true)}
-            className="group flex items-center space-x-2.5 rounded-full bg-gradient-to-r from-amber-600 via-amber-700 to-yellow-600 text-white pl-4 pr-5 py-3 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border-2 border-white/40"
-            title="Open Daily Work Report & Attendance"
-          >
-            <div className="relative flex items-center justify-center">
-              <ClipboardCheck className="h-5 w-5" />
-              {todayStatus === 'PENDING' && (
-                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
-                </span>
-              )}
-            </div>
-            <div className="text-left">
-              <div className="text-xs font-black tracking-tight leading-none">Daily Reporting</div>
-              <div className="text-[10px] text-amber-200 font-semibold leading-tight mt-0.5">
-                {todayStatus === 'PRESENT'
-                  ? '✓ Report Submitted'
-                  : todayStatus === 'IN_PROGRESS'
-                  ? '● Shift Active'
-                  : 'Punch In Required'}
-              </div>
-            </div>
-          </button>
-        </div>
-
-        {/* Telecaller Daily Report Modal */}
-        <TelecallerReportModal
-          isOpen={isReportModalOpen}
-          onClose={() => setIsReportModalOpen(false)}
-          branch={currentBranch}
-          onReportUpdated={checkStatus}
-        />
       </main>
     </div>
   );
