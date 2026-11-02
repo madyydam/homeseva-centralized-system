@@ -29,7 +29,45 @@
 
 ---
 
-## 3. DAILY REPORTING & ATTENDANCE SYSTEM
+## 3. MULTI-COMPANY & SUB-COMPANY (MULTI-TENANT) ISOLATION (CRITICAL)
+
+HomeSeva is a centralized platform running multiple independent **Companies** (business verticals) and **Sub-Companies** (branches, studios, divisions, and franchise units).
+
+### 1. Distinct Rules per Company & Sub-Company (No Shared Assumptions)
+- **RULES ARE DIFFERENT FOR EACH COMPANY & SUB-COMPANY**:
+  - What is configured for one company (e.g., Gentle Hair Wigs) **DOES NOT AUTOMATICALLY APPLY** to any other company (e.g., Prefab Construction, HoReCa, Ecolab, etc.).
+  - Even within the same company, different sub-companies/branches may have localized shifts, opening hours, or operational rules.
+  - **Every company and sub-company may have completely different**:
+    - **Shift Timings & Attendance Cutoffs**: (e.g., Gentle Hair Wigs uses $\ge 5.0$ hrs for Full Day and $< 5.0$ hrs for Half Day; while another company might use 8.0 hrs, 9.0 hrs, or flexible site-based attendance).
+    - **Roles & Permissions**: (e.g., Telecaller/Stylist vs Site Engineer vs Warehouse Manager vs Printing Operator).
+    - **CRM & Reporting Fields**: (e.g., Call numbers & wig fittings vs BoQ estimates vs Chemical dispatches vs Crockery rentals).
+    - **Workflow Actions**: (e.g., Studio fittings vs Dispatch orders vs Site inspections).
+- **IF YOU DO NOT KNOW THE RULES FOR A COMPANY OR SUB-COMPANY, ASK**:
+  - Never guess or copy-paste business logic, shift hours, or form fields from another company.
+  - Always verify with the user what specific shift hours, attendance thresholds, and metrics apply to that particular company and sub-company.
+
+### 2. Registered Companies & Sub-Companies Catalog
+| # | Company Name | Business Slug | ID | Sub-Companies / Branches / Divisions | Current Specific Rules & Notes |
+|---|--------------|---------------|----|---------------------------------------|---------------------------------|
+| 1 | **Gentle Hair Wigs Studio** | `gentle-hair-wigs` | `3` | • `viman-nagar` (Studio of Viman Nagar - Flagship)<br>• `ravet` (Studio of Ravet - PCMC Lounge)<br>• `kolhapur` (Studio of Kolhapur - Regional) | • Attendance: $\ge 5$ hrs = Present (Full Day), $< 5$ hrs = Half Day, Unsubmitted = Leave.<br>• Punch-In/Out via Clock & Number Chooser (no typing).<br>• CRM: Client name optional (defaults to "Don't know"), empty placeholders.<br>• Studio-isolated tabs and single-password authentication. |
+| 2 | **Prefab Construction Solutions** | `prefab-construction` | `1` | • Factory/Plant<br>• Project Sites<br>• Estimation & BoQ<br>• Quality Control | • Industrial modular construction workflows.<br>• Verify site shift hours and engineer reporting fields with user before modifying. |
+| 3 | **HoReCa Essentials & Crockery Rental** | `horeca-essentials` | `2` | • Central Warehouse<br>• Event Dispatch<br>• Inventory & Losses<br>• Washing & Sanitization | • Hospitality rental and inventory dispatch workflows.<br>• Verify warehouse shift and driver/dispatch metrics with user. |
+| 4 | **Ecolab Institutional Distribution** | `ecolab-distribution` | `4` | • Industrial Supply<br>• Healthcare Hygiene<br>• Food & Beverage | • B2B chemical distribution and account manager visits.<br>• Verify sales rep visit reporting rules with user. |
+| 5 | **HS Co-working Spaces** | `hs-coworking` | `25cdeb20...` | • Location Hubs<br>• Private Suites<br>• Desk Management | • Coworking desk bookings, passes, and facility front-desk.<br>• Verify center manager shift rules with user. |
+| 6 | **First Mover Advantage** | `first-mover-advantage` | `1de2e728...` | • Digital Growth<br>• Performance Marketing<br>• Client Campaigns | • Agency delivery, campaign tracking, and client retainer ops. |
+| 7 | **Printbooth Digital Printing** | `printbooth` | `0d900d63...` | • Offset Division<br>• Signage & Large Format<br>• Digital Counter | • Print jobs, material wastage, machine hours, and counter billing. |
+| 8 | **DVR Enterprise / DVE Enterprises** | `dvr-enterprise` | `f9d7e763...` | • Logistics<br>• Industrial Supply<br>• Commodity Trading | • Freight tracking, dispatch registers, and trading accounts. |
+| 9 | **NDA Security & Facility Care** | `nda-services` | `0178c937...` | • Guarding Deployments<br>• Facility Maintenance<br>• Site Audits | • Security roster, night patrol shifts, and client premise guards. |
+| 10 | **HS Real Estate & Assets** | `hs-real-estate` | `4474711a...` | • Commercial Leasing<br>• Residential Sales<br>• Asset Management | • Brokerage pipeline, site visits, and high-value buyer deals. |
+
+### 3. Strict Database & Route Scoping
+- Every query, table access, and API route **MUST ALWAYS filter by `business_id` or `business_slug`**.
+- Sub-company/branch data **MUST ALWAYS filter by `branch` or `division`**.
+- Cross-company data leaks, shared state, or accidental global mutations are strictly prohibited.
+
+---
+
+## 4. DAILY REPORTING & ATTENDANCE SYSTEM (GENTLE HAIR WIGS SPECIFICATION)
 
 1. **Tab Only — No Floating Buttons**:
    - Daily Reporting must always live inside a dedicated, first-class tab (e.g., "Daily Reporting" tab in the dashboard).
@@ -60,7 +98,7 @@
 
 ---
 
-## 4. AUTHENTICATION & CREDENTIAL RULES
+## 5. AUTHENTICATION & CREDENTIAL RULES
 
 1. **Single Password Authentication**:
    - Strict single password matching verified against Supabase.
@@ -71,7 +109,7 @@
 
 ---
 
-## 5. QUALITY ASSURANCE & VERIFICATION PROTOCOL
+## 6. QUALITY ASSURANCE & VERIFICATION PROTOCOL
 
 Before completing any task or replying to the user:
 1. **TypeScript Typecheck**: Run `pnpm --filter @homeseva/web exec tsc --noEmit` — Must be **0 errors**.
