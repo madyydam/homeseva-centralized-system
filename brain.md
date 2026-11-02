@@ -33,6 +33,16 @@
      - The submission button is disabled (`"Duplicate Exists"`) to prevent duplicate records.
      - The backend API (`POST /api/gentle-hair-wigs/crm-leads`) and local database layer (`gentleHairWigsDb`) reject duplicate phone numbers (HTTP 409 Conflict).
      - Excel/CSV bulk import detects existing phone numbers and safely skips duplicate rows.
+4. **CRM & All CRM-Related Tabs Are 100% Centralized Across All 3 Studios (Strict Rule)**:
+   - For Gentle Hair Wigs, **CRM and all tabs related to CRM are completely centralized across all 3 Studios (`viman-nagar`, `ravet`, `kolhapur`)**:
+     - **Monthly Leads Sheet (`sheet`)**: Shows all inquiries and leads across all 3 studios.
+     - **Annual 12-Month Sheets (`annual`)**: Aggregates all 12 months across all 3 studios.
+     - **Scheduled Follow-ups (`follow-up`)**: Unified callback pipeline across all studios.
+     - **Converted Clients (`converted`)**: Converted client handoffs across all studios.
+     - **Telecaller Daily Reporting (`daily-reporting`)**: Shift punch-in/out, hours worked, and reporting are unified across all 3 studios.
+     - **Team Attendance & Daily Reporting (`team`)**: Defaults to "All Studio Branches" so managers see reports from all 3 studios together.
+   - All CRM-related tabs **MUST SHOW THE SAME THINGS, DATA, LEADS, METRICS, AND REPORTING FOR ALL 3 STUDIOS**.
+   - Switching between studios must NEVER partition, hide, or empty CRM data or daily reporting.
 
 ---
 
@@ -56,7 +66,7 @@ HomeSeva is a centralized platform running multiple independent **Companies** (b
 ### 2. Registered Companies & Sub-Companies Catalog
 | # | Company Name | Business Slug | ID | Sub-Companies / Branches / Divisions | Current Specific Rules & Notes |
 |---|--------------|---------------|----|---------------------------------------|---------------------------------|
-| 1 | **Gentle Hair Wigs Studio** | `gentle-hair-wigs` | `3` | • `viman-nagar` (Studio of Viman Nagar - Flagship)<br>• `ravet` (Studio of Ravet - PCMC Lounge)<br>• `kolhapur` (Studio of Kolhapur - Regional) | • Attendance: $\ge 5$ hrs = Present (Full Day), $< 5$ hrs = Half Day, Unsubmitted = Leave.<br>• Punch-In/Out via Clock & Number Chooser (no typing).<br>• CRM: Client name optional (defaults to "Don't know"), empty placeholders.<br>• Studio-isolated tabs and single-password authentication. |
+| 1 | **Gentle Hair Wigs Studio** | `gentle-hair-wigs` | `3` | • `viman-nagar` (Studio of Viman Nagar - Flagship)<br>• `ravet` (Studio of Ravet - PCMC Lounge)<br>• `kolhapur` (Studio of Kolhapur - Regional) | • Attendance: $\ge 5$ hrs = Present (Full Day), $< 5$ hrs = Half Day, Unsubmitted = Leave.<br>• Punch-In/Out via Clock & Number Chooser (no typing).<br>• CRM: Client name optional (defaults to "Don't know"), empty placeholders.<br>• **CRM & all CRM-related tabs (Monthly Sheets, Annual, Follow-ups, Converted, Daily Reporting) are 100% CENTRALIZED across all 3 studios**.<br>• Operational tabs (inventory, appointments, custom orders) support studio-level tracking. |
 | 2 | **Prefab Construction Solutions** | `prefab-construction` | `1` | • Factory/Plant<br>• Project Sites<br>• Estimation & BoQ<br>• Quality Control | • Industrial modular construction workflows.<br>• Verify site shift hours and engineer reporting fields with user before modifying. |
 | 3 | **HoReCa Essentials & Crockery Rental** | `horeca-essentials` | `2` | • Central Warehouse<br>• Event Dispatch<br>• Inventory & Losses<br>• Washing & Sanitization | • Hospitality rental and inventory dispatch workflows.<br>• Verify warehouse shift and driver/dispatch metrics with user. |
 | 4 | **Ecolab Institutional Distribution** | `ecolab-distribution` | `4` | • Industrial Supply<br>• Healthcare Hygiene<br>• Food & Beverage | • B2B chemical distribution and account manager visits.<br>• Verify sales rep visit reporting rules with user. |

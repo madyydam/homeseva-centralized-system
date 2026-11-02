@@ -166,47 +166,45 @@ export const AddLeadModal = memo(function AddLeadModal({
               </select>
             </div>
 
-            {newStatus === 'Converted' ? (
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-purple-700 mb-1 flex items-center space-x-1">
-                  <Building2 className="h-3 w-3 text-purple-600" />
-                  <span>Converted Studio Branch *</span>
-                </label>
-                <select
-                  value={newStudioSlug}
-                  onChange={(e) => setNewStudioSlug(e.target.value)}
-                  className="w-full rounded-lg border border-purple-300 p-2 text-xs font-black text-purple-900 bg-purple-50/50 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  {studios.map((st) => (
-                    <option key={st.slug} value={st.slug}>
-                      {st.name} ({st.shortName})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                  Calls (0 to 5)
-                </label>
-                <select
-                  value={newCallCount}
-                  onChange={(e) => setNewCallCount(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 p-2 text-xs font-black text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value={0}>0 Calls</option>
-                  <option value={1}>1 Call</option>
-                  <option value={2}>2 Calls</option>
-                  <option value={3}>3 Calls</option>
-                  <option value={4}>4 Calls</option>
-                  <option value={5}>5 Calls</option>
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                Calls (0 to 5)
+              </label>
+              <select
+                value={newCallCount}
+                onChange={(e) => setNewCallCount(Number(e.target.value))}
+                className="w-full rounded-lg border border-slate-200 p-2 text-xs font-black text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+              >
+                <option value={0}>0 Calls</option>
+                <option value={1}>1 Call</option>
+                <option value={2}>2 Calls</option>
+                <option value={3}>3 Calls</option>
+                <option value={4}>4 Calls</option>
+                <option value={5}>5 Calls</option>
+              </select>
+            </div>
           </div>
 
-          {/* Row 3: Date & Follow-up Date */}
-          <div className={`grid gap-3 ${newStatus === 'Follow-up' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+          {/* Row 3: Target Studio Branch & Lead Date */}
+          <div className={`grid gap-3 ${newStatus === 'Follow-up' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-amber-900 mb-1 flex items-center space-x-1">
+                <Building2 className="h-3 w-3 text-amber-700" />
+                <span>Target Studio Branch *</span>
+              </label>
+              <select
+                value={newStudioSlug}
+                onChange={(e) => setNewStudioSlug(e.target.value)}
+                className="w-full rounded-lg border border-amber-300 p-2 text-xs font-black text-amber-950 bg-amber-50/50 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
+                {studios.map((st) => (
+                  <option key={st.slug} value={st.slug}>
+                    {st.name} ({st.shortName})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">
                 <span>Lead Date</span>

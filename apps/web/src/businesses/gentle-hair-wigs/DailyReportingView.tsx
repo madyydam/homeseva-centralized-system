@@ -379,7 +379,13 @@ export function DailyReportingView({
   // Staff member name - enterable by telecaller, ZERO fake defaults
   const [staffName, setStaffName] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(`telecaller_name_${branch}`) || currentTelecallerName || '';
+      return (
+        localStorage.getItem('telecaller_name_central') ||
+        localStorage.getItem(`telecaller_name_${branch}`) ||
+        localStorage.getItem('telecaller_name_viman-nagar') ||
+        currentTelecallerName ||
+        ''
+      );
     }
     return currentTelecallerName || '';
   });
@@ -451,18 +457,19 @@ export function DailyReportingView({
     }
   };
 
-  // Fetch report for selectedDate
+  // Fetch report for selectedDate (Centralized across all studios)
   const fetchReport = useCallback(async (targetDate: string) => {
     setIsLoading(true);
     setErrorMsg('');
+    const queryBranch = branch === 'all' || !branch ? 'all' : branch;
     try {
-      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}&date=${targetDate}`);
+      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${queryBranch}&date=${targetDate}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.reports)) {
         const myReport = data.reports.find((r: any) =>
           (currentTelecallerId && r.staffId === currentTelecallerId) ||
           (staffName && r.staffName && r.staffName.toLowerCase() === staffName.toLowerCase()) ||
-          (!currentTelecallerId && r.branch === branch)
+          (!currentTelecallerId && (queryBranch === 'all' || r.branch === queryBranch || r.branch === 'central'))
         );
         // Only populate if report actually exists and was submitted by user (not just auto holiday placeholder)
         if (myReport && (myReport.punchInTime || myReport.callsMade > 0 || myReport.workSummary)) {
@@ -498,12 +505,12 @@ export function DailyReportingView({
         }
       }
 
-      // Fetch history for this telecaller
-      const histRes = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}&allDates=true`);
+      // Fetch history for this telecaller (Centralized across all studios)
+      const histRes = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${queryBranch}&allDates=true`);
       const histData = await histRes.json();
       if (histData.success && Array.isArray(histData.reports)) {
         const myReports = histData.reports
-          .filter((r: any) => (!branch || r.branch === branch) && (r.punchInTime || r.callsMade > 0 || r.workSummary))
+          .filter((r: any) => (queryBranch === 'all' || !branch || r.branch === branch || r.branch === 'central') && (r.punchInTime || r.callsMade > 0 || r.workSummary))
           .sort((a: any, b: any) => (b.reportDate || '').localeCompare(a.reportDate || ''));
         setHistoryList(myReports);
       }
@@ -529,12 +536,12 @@ export function DailyReportingView({
     const formattedIn = punchInTime ? to12HourDisplay(punchInTime) : null;
     const formattedOut = punchOutTime ? to12HourDisplay(punchOutTime) : null;
     const effectiveStaffName = staffName.trim() || 'Telecaller';
-    const effectiveStaffId = currentTelecallerId || `tc_${branch}_${effectiveStaffName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    const effectiveStaffId = currentTelecallerId || `tc_central_${effectiveStaffName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
     const payload = {
       staffId: effectiveStaffId,
       staffName: effectiveStaffName,
-      branch,
+      branch: branch && branch !== 'all' ? branch : 'central',
       reportDate: selectedDate,
       punchInTime: isHolidayOrLeave ? null : formattedIn,
       punchOutTime: isHolidayOrLeave ? null : formattedOut,
@@ -582,17 +589,17 @@ export function DailyReportingView({
           <div className="space-y-1">
             <div className="flex items-center space-x-2">
               <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full border border-white/25">
-                Telecaller Tab
+                Central Telecaller Tab
               </span>
               <span className="text-xs text-amber-100 font-bold uppercase">
-                {branch.replace('-', ' ')} Studio
+                All 3 Studios Centralized
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Daily Work Reporting
+              Telecaller Daily Work Reporting
             </h1>
             <p className="text-xs text-amber-100 font-medium">
-              Studio: <span className="capitalize font-bold text-white">{branch.replace('-', ' ')}</span>
+              Centralized Calling Desk: <span className="font-bold text-white">Studio of Viman Nagar · Ravet · Kolhapur</span>
               {staffName && (
                 <> · Staff: <span className="font-bold text-white">{staffName}</span></>
               )}
@@ -772,7 +779,10 @@ export function DailyReportingView({
               const val = e.target.value;
               setStaffName(val);
               if (typeof window !== 'undefined') {
-                localStorage.setItem(`telecaller_name_${branch}`, val);
+                localStorage.setItem('telecaller_name_central', val);
+                if (branch && branch !== 'all') {
+                  localStorage.setItem(`telecaller_name_${branch}`, val);
+                }
               }
             }}
             className="w-full sm:max-w-xs rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"

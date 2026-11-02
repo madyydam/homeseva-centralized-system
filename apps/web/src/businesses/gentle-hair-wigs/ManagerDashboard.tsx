@@ -1363,10 +1363,10 @@ export function ManagerDashboard({
             </div>
           )}
 
-          {/* TAB: CLIENT CRM & LEADS */}
+          {/* TAB: CLIENT CRM & LEADS (Centralized for all 3 studios) */}
           {activeTab === 'crm' && (
             <CrmView
-              branch={currentBranch}
+              branch="all"
               crmLeads={data.crmLeads || []}
               callLogs={data.callLogs || []}
               onRefresh={refreshData}
@@ -1378,9 +1378,9 @@ export function ManagerDashboard({
             />
           )}
 
-          {/* TAB: TEAM ATTENDANCE & DAILY REPORTING */}
+          {/* TAB: TEAM ATTENDANCE & DAILY REPORTING (Centralized for all 3 studios) */}
           {activeTab === 'team' && (
-            <TeamAttendanceView currentBranch={currentBranch} role={userRole} />
+            <TeamAttendanceView currentBranch="all" role={userRole} />
           )}
 
           {/* TAB 5: HAIR INVENTORY */}

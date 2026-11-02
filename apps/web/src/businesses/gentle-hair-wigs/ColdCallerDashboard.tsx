@@ -74,14 +74,16 @@ export function ColdCallerDashboard({
   const checkStatus = useCallback(async () => {
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${currentBranch}&date=${today}`);
+      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=all&date=${today}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.reports) && data.reports.length > 0) {
         const myReport = data.reports[0];
         setTodayStatus(myReport.status || 'PENDING');
+      } else {
+        setTodayStatus('PENDING');
       }
     } catch {}
-  }, [currentBranch]);
+  }, []);
 
   useEffect(() => {
     checkStatus();
@@ -102,7 +104,7 @@ export function ColdCallerDashboard({
           <div>
             <span className="block text-xs font-black text-slate-900 leading-tight">Gentle Hair Wigs</span>
             <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-200/80">
-              {currentBranchInfo.shortName} Studio
+              All 3 Studios Centralized
             </span>
           </div>
         </div>
@@ -227,7 +229,7 @@ export function ColdCallerDashboard({
                     </span>
                     <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-200/80 leading-none">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      {currentBranchInfo.shortName}
+                      All 3 Studios Central
                     </span>
                   </div>
                 </div>
@@ -377,7 +379,7 @@ export function ColdCallerDashboard({
                     {role || 'Cold Caller'}
                   </span>
                   <span className="block text-[10px] font-semibold truncate leading-tight text-slate-500">
-                    {currentBranchInfo.shortName} Studio
+                    Central Calling Desk · All Studios
                   </span>
                 </div>
               </div>
@@ -430,27 +432,20 @@ export function ColdCallerDashboard({
             )}
           </div>
 
-          {/* Centered Middle Section: Title & Studio Selector ("center me middle me kar") */}
+          {/* Centered Middle Section: Title & Centralized Studio Indicator */}
           <div className="flex items-center justify-center space-x-3.5 mx-auto">
             <h1 className="text-xs sm:text-[13px] font-bold text-slate-800 tracking-tight whitespace-nowrap">
-              Client CRM & Monthly Sheets
+              Centralized CRM &amp; Telecalling Sheets
             </h1>
 
-            {/* Studio Branch Switcher */}
-            <div className="inline-flex items-center space-x-1 bg-amber-50/90 border border-amber-200/80 rounded-lg p-0.5 shadow-2xs">
-              {BRANCH_LIST.map((b) => (
-                <Link
-                  key={b.slug}
-                  href={`/app/gentle-hair-wigs/dashboard?branch=${b.slug}&role=${encodeURIComponent(role)}`}
-                  className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition ${
-                    currentBranch === b.slug
-                      ? 'bg-amber-600 text-white shadow-2xs'
-                      : 'text-amber-800 hover:bg-amber-100'
-                  }`}
-                >
-                  {b.shortName}
-                </Link>
-              ))}
+            {/* Centralized Studios Badge */}
+            <div className="inline-flex items-center space-x-1.5 bg-amber-50/90 border border-amber-200/80 rounded-lg px-2 py-0.5 shadow-2xs">
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-600 text-white shadow-2xs">
+                All 3 Studios Centralized
+              </span>
+              <span className="text-[10px] font-bold text-amber-900 hidden sm:inline">
+                Viman Nagar · Ravet · Kolhapur
+              </span>
             </div>
           </div>
 
@@ -494,12 +489,12 @@ export function ColdCallerDashboard({
         <div className="p-3.5 sm:p-5 max-w-[1720px] w-full">
           {activeTab === 'daily-reporting' ? (
             <DailyReportingView
-              branch={currentBranch}
+              branch="all"
               onReportUpdated={checkStatus}
             />
           ) : (
             <CrmView
-              branch={currentBranch}
+              branch="all"
               initialViewMode={activeTab === 'annual' ? 'month-selector' : 'month-sheet'}
               initialStatusFilter={
                 activeTab === 'follow-up'

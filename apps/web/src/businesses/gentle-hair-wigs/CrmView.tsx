@@ -77,6 +77,7 @@ export function CrmView({
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter);
+  const [studioFilter, setStudioFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
@@ -332,6 +333,12 @@ export function CrmView({
         }
       }
 
+      if (studioFilter !== 'all') {
+        if (item.studioSlug && item.studioSlug !== studioFilter) {
+          return false;
+        }
+      }
+
       if (dateFilter) {
         const createdMatch = item.createdAt === dateFilter;
         const updatedMatch = item.updatedAt === dateFilter;
@@ -382,7 +389,7 @@ export function CrmView({
       }
       return 0;
     });
-  }, [currentMonthLeads, statusFilter, dateFilter, sortBy, deferredSearchTerm]);
+  }, [currentMonthLeads, statusFilter, studioFilter, dateFilter, sortBy, deferredSearchTerm]);
 
   const handleOpenMonthSheet = useCallback((monthValue: string) => {
     setSelectedMonth(monthValue);
@@ -506,7 +513,8 @@ export function CrmView({
 
     const notesArr = newNotesList.map((n) => n.trim()).filter((n) => n.length > 0);
     const targetStudio =
-      studios.find((s) => s.slug === (newStatus === 'Converted' ? newStudioSlug : branch)) ||
+      studios.find((s) => s.slug === newStudioSlug) ||
+      studios.find((s) => s.slug === branch) ||
       studios[0]!;
 
     const todayYMD = new Date().toISOString().split('T')[0] || '2026-10-30';
@@ -1052,6 +1060,8 @@ export function CrmView({
             setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
+            studioFilter={studioFilter}
+            setStudioFilter={setStudioFilter}
             dateFilter={dateFilter}
             setDateFilter={setDateFilter}
             sortBy={sortBy}

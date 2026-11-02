@@ -54,7 +54,7 @@ export function TeamAttendanceView({
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-  const [selectedBranch, setSelectedBranch] = useState<string>(currentBranch || 'all');
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'PRESENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY'>('all');
 
