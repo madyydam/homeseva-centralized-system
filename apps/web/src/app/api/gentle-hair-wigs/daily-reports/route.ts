@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const branch = searchParams.get('branch') || 'viman-nagar';
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    const allDates = searchParams.get('allDates') === 'true';
     const today = new Date().toISOString().slice(0, 10);
 
     const admin = getAdminClient();
@@ -37,14 +38,17 @@ export async function GET(req: NextRequest) {
       let query = admin
         .from('telecaller_daily_reports')
         .select('*')
-        .eq('business_id', BUSINESS_ID)
-        .eq('report_date', date);
+        .eq('business_id', BUSINESS_ID);
+
+      if (!allDates) {
+        query = query.eq('report_date', date);
+      }
 
       if (branch !== 'all') {
         query = query.eq('branch', branch);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.order('report_date', { ascending: false });
       if (!error && Array.isArray(data) && data.length > 0) {
         dbReports = data;
       }
@@ -66,16 +70,18 @@ export async function GET(req: NextRequest) {
           const seen = new Set<string>();
           auditData.forEach((a) => {
             const m = a.metadata || {};
-            if (m.reportDate === date && (!branch || branch === 'all' || m.branch === branch)) {
-              const dedupeKey = `${a.entity_id}_${m.branch}`;
+            if ((allDates || m.reportDate === date) && (!branch || branch === 'all' || m.branch === branch)) {
+              const dedupeKey = `${a.entity_id}_${m.reportDate || date}_${m.branch}`;
               if (!seen.has(dedupeKey)) {
                 seen.add(dedupeKey);
                 dbReports.push({
                   id: a.id,
+                  business_id: BUSINESS_ID,
+                  business_slug: BUSINESS_SLUG,
+                  branch: m.branch,
                   staff_id: a.entity_id,
                   staff_name: a.actor_identifier,
-                  branch: m.branch,
-                  report_date: m.reportDate,
+                  report_date: m.reportDate || date,
                   punch_in_time: m.punchInTime,
                   punch_out_time: m.punchOutTime,
                   total_hours: m.totalHours,
@@ -131,6 +137,35 @@ export async function GET(req: NextRequest) {
         }
       }
     });
+
+    if (allDates) {
+      const allFormatted = dbReports.map((r) => ({
+        id: r.id,
+        staffId: r.staff_id,
+        staffName: r.staff_name,
+        branch: r.branch,
+        reportDate: r.report_date,
+        punchInTime: r.punch_in_time || null,
+        punchOutTime: r.punch_out_time || null,
+        totalHours: Number(r.total_hours) || 0,
+        callsMade: Number(r.calls_made) || 0,
+        callsConnected: Number(r.calls_connected) || 0,
+        appointmentsBooked: Number(r.appointments_booked) || 0,
+        convertedClients: Number(r.converted_clients) || 0,
+        followUpsDue: Number(r.follow_ups_due) || 0,
+        workSummary: r.work_summary || '',
+        status: r.status || 'PRESENT',
+        isHoliday: Boolean(r.is_holiday),
+        updatedAt: r.updated_at || r.created_at,
+      }));
+
+      return NextResponse.json({
+        success: true,
+        branch,
+        reports: allFormatted,
+        roster: branchRoster,
+      });
+    }
 
     // Populate missing roster entries
     const isPastDate = date < today;
@@ -216,8 +251,8 @@ export async function POST(req: NextRequest) {
       converted_clients: Number(convertedClients) || 0,
       follow_ups_due: Number(followUpsDue) || 0,
       work_summary: workSummary || '',
-      status: isHoliday ? 'HOLIDAY' : status,
-      is_holiday: Boolean(isHoliday),
+      status: status === 'HOLIDAY' ? 'HOLIDAY' : status === 'LEAVE' ? 'LEAVE' : status === 'HALF_DAY' ? 'HALF_DAY' : status || 'PRESENT',
+      is_holiday: status === 'HOLIDAY',
       updated_at: new Date().toISOString(),
     };
 
@@ -254,8 +289,8 @@ export async function POST(req: NextRequest) {
       convertedClients: Number(convertedClients) || 0,
       followUpsDue: Number(followUpsDue) || 0,
       workSummary: workSummary || '',
-      status: isHoliday ? 'HOLIDAY' : status,
-      isHoliday: Boolean(isHoliday),
+      status: status === 'HOLIDAY' ? 'HOLIDAY' : status === 'LEAVE' ? 'LEAVE' : status === 'HALF_DAY' ? 'HALF_DAY' : status || 'PRESENT',
+      isHoliday: status === 'HOLIDAY',
       updatedAt: new Date().toISOString(),
     };
     inMemoryReportsCache.set(cacheKey, formattedReport);

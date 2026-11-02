@@ -7,16 +7,14 @@ import {
   AlertCircle,
   PhoneCall,
   Calendar,
-  UserCheck,
   Send,
-  Palmtree,
-  Sparkles,
-  ClipboardCheck,
-  ArrowRight,
-  TrendingUp,
   History,
-  PhoneForwarded,
   Trophy,
+  Sparkles,
+  Edit3,
+  UserCheck,
+  Palmtree,
+  Coffee,
 } from 'lucide-react';
 
 export interface TelecallerDailyRecord {
@@ -34,8 +32,9 @@ export interface TelecallerDailyRecord {
   convertedClients: number;
   followUpsDue: number;
   workSummary: string;
-  status: 'PRESENT' | 'IN_PROGRESS' | 'HOLIDAY' | 'PENDING' | 'LEAVE';
+  status: 'PRESENT' | 'HALF_DAY' | 'HOLIDAY' | 'LEAVE' | 'IN_PROGRESS' | 'PENDING';
   isHoliday: boolean;
+  updatedAt?: string;
 }
 
 interface DailyReportingViewProps {
@@ -51,176 +50,145 @@ export function DailyReportingView({
   currentTelecallerId = 'tc-vn-1',
   onReportUpdated,
 }: DailyReportingViewProps) {
-  const today = new Date().toISOString().slice(0, 10);
+  const todayYMD = new Date().toISOString().slice(0, 10);
+
+  // Form State - ZERO fake/dummy prefill values
+  const [selectedDate, setSelectedDate] = useState<string>(todayYMD);
+  const [status, setStatus] = useState<'PRESENT' | 'HALF_DAY' | 'HOLIDAY' | 'LEAVE'>('PRESENT');
+  const [punchInTime, setPunchInTime] = useState<string>('');
+  const [punchOutTime, setPunchOutTime] = useState<string>('');
+  const [totalHours, setTotalHours] = useState<string>('');
+  const [callsMade, setCallsMade] = useState<string>('');
+  const [callsConnected, setCallsConnected] = useState<string>('');
+  const [appointmentsBooked, setAppointmentsBooked] = useState<string>('');
+  const [convertedClients, setConvertedClients] = useState<string>('');
+  const [followUpsDue, setFollowUpsDue] = useState<string>('');
+  const [workSummary, setWorkSummary] = useState<string>('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [savedRecord, setSavedRecord] = useState<TelecallerDailyRecord | null>(null);
   const [historyList, setHistoryList] = useState<TelecallerDailyRecord[]>([]);
 
-  // Daily report form states
-  const [report, setReport] = useState<TelecallerDailyRecord>({
-    staffId: currentTelecallerId,
-    staffName: currentTelecallerName,
-    branch,
-    reportDate: today,
-    punchInTime: null,
-    punchOutTime: null,
-    totalHours: 0,
-    callsMade: 0,
-    callsConnected: 0,
-    appointmentsBooked: 0,
-    convertedClients: 0,
-    followUpsDue: 0,
-    workSummary: '',
-    status: 'PENDING',
-    isHoliday: false,
-  });
-
-  // Current real-time clock
-  const [currentTimeStr, setCurrentTimeStr] = useState('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTimeStr(
-        now.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true,
-        })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch today's report & recent history
-  const fetchReportData = useCallback(async () => {
-    setIsLoading(true);
+  // Calculate worked hours automatically when user enters both times (optional helper, user can still override)
+  const autoCalculateHours = (inStr: string, outStr: string) => {
+    if (!inStr || !outStr) return;
     try {
-      // Fetch today's report
-      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}&date=${today}`);
+      // Handles 24-hr (HH:mm) or 12-hr with AM/PM
+      const parseMinutes = (t: string) => {
+        const clean = t.trim().toUpperCase();
+        const isPM = clean.includes('PM');
+        const isAM = clean.includes('AM');
+        const nums = clean.replace(/[^0-9:]/g, '').split(':');
+        let h = parseInt(nums[0] || '0', 10);
+        const m = parseInt(nums[1] || '0', 10);
+        if (isPM && h < 12) h += 12;
+        if (isAM && h === 12) h = 0;
+        return h * 60 + m;
+      };
+      const minIn = parseMinutes(inStr);
+      const minOut = parseMinutes(outStr);
+      if (minOut > minIn) {
+        const diffHrs = Math.round(((minOut - minIn) / 60) * 10) / 10;
+        setTotalHours(String(diffHrs));
+      }
+    } catch {}
+  };
+
+  // Fetch report for selectedDate
+  const fetchReport = useCallback(async (targetDate: string) => {
+    setIsLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}&date=${targetDate}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.reports)) {
         const myReport = data.reports.find((r: any) => r.staffId === currentTelecallerId);
-        if (myReport && myReport.punchInTime) {
-          setReport(myReport);
+        // Only populate if report actually exists and was submitted by user (not just auto holiday placeholder)
+        if (myReport && (myReport.punchInTime || myReport.callsMade > 0 || myReport.workSummary)) {
+          setSavedRecord(myReport);
+          setStatus(myReport.status === 'HOLIDAY' ? 'HOLIDAY' : myReport.status === 'HALF_DAY' ? 'HALF_DAY' : myReport.status === 'LEAVE' ? 'LEAVE' : 'PRESENT');
+          setPunchInTime(myReport.punchInTime || '');
+          setPunchOutTime(myReport.punchOutTime || '');
+          setTotalHours(myReport.totalHours ? String(myReport.totalHours) : '');
+          setCallsMade(myReport.callsMade ? String(myReport.callsMade) : '');
+          setCallsConnected(myReport.callsConnected ? String(myReport.callsConnected) : '');
+          setAppointmentsBooked(myReport.appointmentsBooked ? String(myReport.appointmentsBooked) : '');
+          setConvertedClients(myReport.convertedClients ? String(myReport.convertedClients) : '');
+          setFollowUpsDue(myReport.followUpsDue ? String(myReport.followUpsDue) : '');
+          setWorkSummary(myReport.workSummary || '');
+          setIsSaved(true);
+        } else {
+          // Reset fields to blank for this date
+          setSavedRecord(null);
+          setStatus('PRESENT');
+          setPunchInTime('');
+          setPunchOutTime('');
+          setTotalHours('');
+          setCallsMade('');
+          setCallsConnected('');
+          setAppointmentsBooked('');
+          setConvertedClients('');
+          setFollowUpsDue('');
+          setWorkSummary('');
+          setIsSaved(false);
         }
       }
 
-      // Fetch last 7 days history
-      const historyRes = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}`);
-      const historyData = await historyRes.json();
-      if (historyData.success && Array.isArray(historyData.reports)) {
-        const myPast = historyData.reports
-          .filter((r: any) => r.staffId === currentTelecallerId)
+      // Fetch history for this telecaller
+      const histRes = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${branch}&allDates=true`);
+      const histData = await histRes.json();
+      if (histData.success && Array.isArray(histData.reports)) {
+        const myReports = histData.reports
+          .filter((r: any) => r.staffId === currentTelecallerId && (r.punchInTime || r.callsMade > 0 || r.workSummary))
           .sort((a: any, b: any) => (b.reportDate || '').localeCompare(a.reportDate || ''));
-        setHistoryList(myPast.slice(0, 7));
+        setHistoryList(myReports);
       }
     } catch (err: any) {
-      console.warn('Failed to load daily report data:', err);
+      console.warn('Could not load report for date:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [branch, today, currentTelecallerId]);
+  }, [branch, currentTelecallerId]);
 
   useEffect(() => {
-    fetchReportData();
-  }, [fetchReportData]);
+    fetchReport(selectedDate);
+  }, [fetchReport, selectedDate]);
 
-  // Handle Punch In
-  const handlePunchIn = async () => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-
-    const updated: TelecallerDailyRecord = {
-      ...report,
-      punchInTime: timeStr,
-      status: 'IN_PROGRESS',
-      isHoliday: false,
-    };
-
-    setReport(updated);
-    saveReport(updated, 'Punched In successfully! Your shift is now active.');
-  };
-
-  // Handle Punch Out
-  const handlePunchOut = async () => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-
-    let totalHrs = report.totalHours;
-    if (report.punchInTime) {
-      try {
-        const [inH, inM] = report.punchInTime.split(':').map(Number);
-        const [outH, outM] = timeStr.split(':').map(Number);
-        const inMinutes = (inH || 0) * 60 + (inM || 0);
-        const outMinutes = (outH || 0) * 60 + (outM || 0);
-        const diff = Math.max(0, outMinutes - inMinutes);
-        totalHrs = Math.round((diff / 60) * 10) / 10;
-      } catch {}
-    }
-
-    const updated: TelecallerDailyRecord = {
-      ...report,
-      punchOutTime: timeStr,
-      totalHours: totalHrs,
-      status: 'PRESENT',
-    };
-
-    setReport(updated);
-    saveReport(updated, `Punched Out at ${timeStr}. Total shift: ${totalHrs} hrs.`);
-  };
-
-  // Handle Mark Holiday / Leave
-  const handleMarkHoliday = async () => {
-    if (!window.confirm('Mark today as Holiday / Leave? Your attendance will be saved as off.')) {
-      return;
-    }
-
-    const updated: TelecallerDailyRecord = {
-      ...report,
-      punchInTime: null,
-      punchOutTime: null,
-      totalHours: 0,
-      callsMade: 0,
-      callsConnected: 0,
-      appointmentsBooked: 0,
-      convertedClients: 0,
-      followUpsDue: 0,
-      workSummary: 'Marked on leave / holiday by staff',
-      status: 'HOLIDAY',
-      isHoliday: true,
-    };
-
-    setReport(updated);
-    saveReport(updated, 'Marked today as Holiday / Leave.');
-  };
-
-  // Save report to server
-  const saveReport = async (dataToSave: TelecallerDailyRecord, customSuccess?: string) => {
+  // Save / Submit Daily Report
+  const handleSaveReport = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
+
+    const isHolidayOrLeave = status === 'HOLIDAY' || status === 'LEAVE';
+
+    const payload = {
+      staffId: currentTelecallerId,
+      staffName: currentTelecallerName,
+      branch,
+      reportDate: selectedDate,
+      punchInTime: isHolidayOrLeave ? null : (punchInTime.trim() || null),
+      punchOutTime: isHolidayOrLeave ? null : (punchOutTime.trim() || null),
+      totalHours: isHolidayOrLeave ? 0 : (Number(totalHours) || 0),
+      callsMade: isHolidayOrLeave ? 0 : (Number(callsMade) || 0),
+      callsConnected: isHolidayOrLeave ? 0 : (Number(callsConnected) || 0),
+      appointmentsBooked: isHolidayOrLeave ? 0 : (Number(appointmentsBooked) || 0),
+      convertedClients: isHolidayOrLeave ? 0 : (Number(convertedClients) || 0),
+      followUpsDue: isHolidayOrLeave ? 0 : (Number(followUpsDue) || 0),
+      workSummary: workSummary.trim(),
+      status: status,
+      isHoliday: status === 'HOLIDAY',
+    };
 
     try {
       const res = await fetch('/api/gentle-hair-wigs/daily-reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSave),
+        body: JSON.stringify(payload),
       });
 
       const resData = await res.json();
@@ -228,10 +196,12 @@ export function DailyReportingView({
         throw new Error(resData.error || 'Failed to save daily report');
       }
 
-      setSuccessMsg(customSuccess || 'Daily report submitted successfully!');
+      setSuccessMsg(`Daily report for ${selectedDate} saved successfully!`);
+      setSavedRecord({ ...payload, updatedAt: new Date().toISOString() });
+      setIsSaved(true);
       if (onReportUpdated) onReportUpdated();
-      fetchReportData();
-      setTimeout(() => setSuccessMsg(''), 4000);
+      fetchReport(selectedDate);
+      setTimeout(() => setSuccessMsg(''), 5000);
     } catch (err: any) {
       setErrorMsg(err.message || 'Error saving daily report');
     } finally {
@@ -239,423 +209,408 @@ export function DailyReportingView({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const finalStatus = report.punchInTime ? 'PRESENT' : 'PENDING';
-    const updated: TelecallerDailyRecord = {
-      ...report,
-      status: finalStatus,
-    };
-    setReport(updated);
-    saveReport(updated, 'Daily work report submitted successfully for manager review!');
-  };
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-150 pb-12">
       {/* 1. Header Banner */}
-      <div className="rounded-3xl bg-gradient-to-r from-amber-700 via-amber-600 to-yellow-600 p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 -mt-10 -mr-10 h-64 w-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+      <div className="rounded-3xl bg-gradient-to-r from-amber-700 via-amber-600 to-yellow-600 p-6 sm:p-7 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full border border-white/25">
-                Daily Operations
+              <span className="text-[11px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full border border-white/25">
+                Telecaller Tab
               </span>
-              <span className="text-xs text-amber-100 font-mono">
-                {new Date().toLocaleDateString('en-IN', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })}
+              <span className="text-xs text-amber-100 font-bold">
+                {currentTelecallerName}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Telecaller Daily Reporting
+              Daily Work Reporting
             </h1>
-            <p className="text-xs sm:text-sm text-amber-100 font-medium">
-              {report.staffName} · Studio Branch:{' '}
-              <span className="capitalize font-bold text-white">
-                {branch === 'viman-nagar' ? 'Viman Nagar' : branch === 'ravet' ? 'Ravet' : 'Kolhapur'}
-              </span>
+            <p className="text-xs text-amber-100 font-medium">
+              Studio: <span className="capitalize font-bold text-white">{branch.replace('-', ' ')}</span> · Enter your daily worked hours, calls, appointments, and report anytime.
             </p>
           </div>
 
-          {/* Status Pill & Live Clock */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="rounded-2xl bg-black/20 backdrop-blur-xs px-4 py-2 border border-white/15 text-center">
-              <span className="text-[10px] uppercase font-bold text-amber-200 block">Live Clock</span>
-              <span className="text-base font-black font-mono tracking-wider">{currentTimeStr || '--:--:--'}</span>
-            </div>
-
-            <div className="rounded-2xl bg-white px-4 py-2.5 text-slate-900 shadow-md">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Shift Status</span>
-              <span
-                className={`text-xs font-black inline-flex items-center space-x-1 ${
-                  report.status === 'PRESENT'
-                    ? 'text-emerald-700'
-                    : report.status === 'IN_PROGRESS'
-                    ? 'text-amber-800'
-                    : report.status === 'HOLIDAY'
-                    ? 'text-purple-700'
-                    : 'text-rose-700'
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full mr-1.5 ${
-                    report.status === 'PRESENT'
-                      ? 'bg-emerald-500'
-                      : report.status === 'IN_PROGRESS'
-                      ? 'bg-amber-500 animate-pulse'
-                      : report.status === 'HOLIDAY'
-                      ? 'bg-purple-500'
-                      : 'bg-rose-500 animate-ping'
-                  }`}
-                />
-                {report.status === 'PRESENT'
-                  ? 'Present & Reported'
-                  : report.status === 'IN_PROGRESS'
-                  ? 'Shift Active'
-                  : report.status === 'HOLIDAY'
-                  ? 'Holiday / Off'
-                  : 'Pending Punch-In'}
-              </span>
-            </div>
+          {/* Date Selector */}
+          <div className="flex items-center space-x-2 bg-black/20 backdrop-blur-xs p-2 rounded-2xl border border-white/20">
+            <Calendar className="h-4 w-4 text-amber-200 ml-1.5" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-white font-mono text-xs font-bold focus:outline-none cursor-pointer pr-1"
+            />
           </div>
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* Success Notification */}
       {successMsg && (
-        <div className="flex items-center space-x-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 font-bold shadow-xs animate-in fade-in">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+        <div className="flex items-center space-x-2.5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 font-bold shadow-xs">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
+      {/* Error Notification */}
       {errorMsg && (
-        <div className="flex items-center space-x-2 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-sm text-rose-700 font-bold shadow-xs animate-in fade-in">
-          <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
+        <div className="flex items-center space-x-2.5 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-sm text-rose-700 font-bold shadow-xs">
+          <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 2. Punch In / Punch Out Card */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
-            <div className="flex items-center space-x-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
-                <Clock className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-extrabold text-slate-900">Shift Punch In & Punch Out</h2>
-                <p className="text-xs text-slate-500">Record your working hours for studio attendance</p>
-              </div>
+      {/* 2. Submitted Report Summary Card (Shown when a report exists for this date) */}
+      {savedRecord && (
+        <div className="rounded-3xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/30 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-emerald-100">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-sm font-black text-slate-900">
+                Report Submitted for {savedRecord.reportDate}
+              </h2>
             </div>
-
-            {report.totalHours > 0 && (
-              <span className="text-xs font-black font-mono px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Total: {report.totalHours} hrs
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-black px-2.5 py-1 rounded-full uppercase bg-emerald-600 text-white shadow-2xs">
+                Status: {savedRecord.status}
               </span>
-            )}
+              <button
+                type="button"
+                onClick={() => {
+                  const elem = document.getElementById('reporting-form');
+                  if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer inline-flex items-center space-x-1"
+              >
+                <Edit3 className="h-3 w-3" />
+                <span>Edit / Update</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Punch In Box */}
-            <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Punch In</span>
-                {report.punchInTime && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    Recorded
-                  </span>
-                )}
-              </div>
-              <div className="text-2xl font-black font-mono text-slate-900">
-                {report.punchInTime || '--:--'}
-              </div>
-              <button
-                type="button"
-                disabled={Boolean(report.punchInTime) || isLoading}
-                onClick={handlePunchIn}
-                className="w-full inline-flex items-center justify-center space-x-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold transition shadow-xs cursor-pointer"
-              >
-                <UserCheck className="h-4 w-4" />
-                <span>{report.punchInTime ? 'Punched In' : 'Punch In Now'}</span>
-              </button>
+          {/* Quick Metrics Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="rounded-xl bg-white border border-emerald-200/80 p-3 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Worked Hours</span>
+              <span className="text-lg font-black font-mono text-slate-900">
+                {savedRecord.totalHours || 0} hrs
+              </span>
+              <span className="text-[10px] text-slate-500 block mt-0.5 font-mono">
+                {savedRecord.punchInTime || '--'} → {savedRecord.punchOutTime || '--'}
+              </span>
             </div>
 
-            {/* Punch Out Box */}
-            <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Punch Out</span>
-                {report.punchOutTime && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    Shift Ended
-                  </span>
-                )}
-              </div>
-              <div className="text-2xl font-black font-mono text-slate-900">
-                {report.punchOutTime || '--:--'}
-              </div>
-              <button
-                type="button"
-                disabled={!report.punchInTime || Boolean(report.punchOutTime) || isLoading}
-                onClick={handlePunchOut}
-                className="w-full inline-flex items-center justify-center space-x-2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold transition shadow-xs cursor-pointer"
-              >
-                <Clock className="h-4 w-4" />
-                <span>{report.punchOutTime ? 'Shift Completed' : 'Punch Out Now'}</span>
-              </button>
+            <div className="rounded-xl bg-white border border-emerald-200/80 p-3 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Calls Handled</span>
+              <span className="text-lg font-black font-mono text-amber-700">
+                {savedRecord.callsMade || 0}
+              </span>
+              <span className="text-[10px] text-slate-500 block mt-0.5">
+                {savedRecord.callsConnected || 0} connected
+              </span>
             </div>
+
+            <div className="rounded-xl bg-white border border-emerald-200/80 p-3 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Appointments</span>
+              <span className="text-lg font-black font-mono text-emerald-700">
+                {savedRecord.appointmentsBooked || 0} Booked
+              </span>
+              <span className="text-[10px] text-slate-500 block mt-0.5">
+                {savedRecord.convertedClients || 0} Converted Sales
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-white border border-emerald-200/80 p-3 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Follow-ups</span>
+              <span className="text-lg font-black font-mono text-blue-700">
+                {savedRecord.followUpsDue || 0} Scheduled
+              </span>
+              <span className="text-[10px] text-slate-500 block mt-0.5">
+                For next callbacks
+              </span>
+            </div>
+          </div>
+
+          {savedRecord.workSummary && (
+            <div className="rounded-xl bg-white border border-emerald-100 p-3 text-xs text-slate-700 font-medium">
+              <span className="font-bold text-slate-900 block mb-1">Work Description / Summary:</span>
+              <p className="whitespace-pre-line leading-relaxed">{savedRecord.workSummary}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. Daily Reporting Input Form (Full Manual Freedom) */}
+      <form id="reporting-form" onSubmit={handleSaveReport} className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-black text-slate-900">
+              {savedRecord ? `Update Report for ${selectedDate}` : `Enter Daily Work Report for ${selectedDate}`}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Fill in your worked hours, times, and phone calling numbers. You can submit this at any time.
+            </p>
+          </div>
+
+          {/* Status Selection */}
+          <div className="flex items-center space-x-2">
+            <label className="text-xs font-bold text-slate-600">Status:</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as any)}
+              className="text-xs font-bold rounded-xl border border-slate-300 p-2 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="PRESENT">Present (Full Day)</option>
+              <option value="HALF_DAY">Half Day</option>
+              <option value="LEAVE">Leave</option>
+              <option value="HOLIDAY">Holiday / Off</option>
+            </select>
           </div>
         </div>
 
-        {/* 3. Daily Work Performance Counters */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
-            <div className="flex items-center space-x-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
-                <PhoneCall className="h-5 w-5" />
-              </div>
+        {status !== 'HOLIDAY' && status !== 'LEAVE' ? (
+          <>
+            {/* ROW 1: Timing & Worked Hours (Manual Inputs) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <h2 className="text-base font-extrabold text-slate-900">Work Metrics Done Today</h2>
-                <p className="text-xs text-slate-500">Input your completed calls, inquiries, and bookings</p>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Punch-In Time (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 09:30 AM or 09:30"
+                  value={punchInTime}
+                  onChange={(e) => {
+                    setPunchInTime(e.target.value);
+                    autoCalculateHours(e.target.value, punchOutTime);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Punch-Out Time (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 06:30 PM or 18:30"
+                  value={punchOutTime}
+                  onChange={(e) => {
+                    setPunchOutTime(e.target.value);
+                    autoCalculateHours(punchInTime, e.target.value);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Total Worked Hours (Optional)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="24"
+                  placeholder="e.g. 8.5"
+                  value={totalHours}
+                  onChange={(e) => setTotalHours(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
               </div>
             </div>
-            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-              Live Counters
-            </span>
+
+            {/* ROW 2: Calling & Lead Metrics (Manual Inputs) */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Calls Dialed
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={callsMade}
+                  onChange={(e) => setCallsMade(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Connected
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={callsConnected}
+                  onChange={(e) => setCallsConnected(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Appts Booked
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={appointmentsBooked}
+                  onChange={(e) => setAppointmentsBooked(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Converted Sales
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={convertedClients}
+                  onChange={(e) => setConvertedClients(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                  Follow-ups Set
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={followUpsDue}
+                  onChange={(e) => setFollowUpsDue(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 p-3 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs font-bold text-amber-900 flex items-center space-x-3">
+            <Palmtree className="h-5 w-5 text-amber-700 shrink-0" />
+            <span>Marked as {status === 'HOLIDAY' ? 'Holiday / Off' : 'Leave'}. Timings and call numbers will be saved as 0.</span>
           </div>
+        )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-            {/* Calls Made */}
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/60 hover:border-amber-400 transition">
-              <label className="text-xs font-bold text-slate-600 block mb-1">Calls Dialed</label>
-              <input
-                type="number"
-                min="0"
-                value={report.callsMade}
-                onChange={(e) => setReport({ ...report, callsMade: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                className="w-full font-mono text-2xl font-black text-slate-900 focus:outline-none border-b-2 border-slate-200 focus:border-amber-500 pb-1 bg-transparent"
-              />
-              <div className="flex space-x-1.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, callsMade: r.callsMade + 1 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +1
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, callsMade: r.callsMade + 5 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +5
-                </button>
-              </div>
-            </div>
-
-            {/* Calls Connected */}
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/60 hover:border-amber-400 transition">
-              <label className="text-xs font-bold text-slate-600 block mb-1">Answered / Connected</label>
-              <input
-                type="number"
-                min="0"
-                value={report.callsConnected}
-                onChange={(e) => setReport({ ...report, callsConnected: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                className="w-full font-mono text-2xl font-black text-slate-900 focus:outline-none border-b-2 border-slate-200 focus:border-amber-500 pb-1 bg-transparent"
-              />
-              <div className="flex space-x-1.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, callsConnected: r.callsConnected + 1 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +1
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, callsConnected: r.callsConnected + 5 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +5
-                </button>
-              </div>
-            </div>
-
-            {/* Appointments Booked */}
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/60 hover:border-amber-400 transition">
-              <label className="text-xs font-bold text-slate-600 block mb-1">Appointments Booked</label>
-              <input
-                type="number"
-                min="0"
-                value={report.appointmentsBooked}
-                onChange={(e) => setReport({ ...report, appointmentsBooked: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                className="w-full font-mono text-2xl font-black text-slate-900 focus:outline-none border-b-2 border-slate-200 focus:border-amber-500 pb-1 bg-transparent"
-              />
-              <div className="flex space-x-1.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, appointmentsBooked: r.appointmentsBooked + 1 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +1
-                </button>
-              </div>
-            </div>
-
-            {/* Converted Orders */}
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/60 hover:border-amber-400 transition">
-              <label className="text-xs font-bold text-slate-600 block mb-1">Converted Orders</label>
-              <input
-                type="number"
-                min="0"
-                value={report.convertedClients}
-                onChange={(e) => setReport({ ...report, convertedClients: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                className="w-full font-mono text-2xl font-black text-slate-900 focus:outline-none border-b-2 border-slate-200 focus:border-amber-500 pb-1 bg-transparent"
-              />
-              <div className="flex space-x-1.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, convertedClients: r.convertedClients + 1 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +1
-                </button>
-              </div>
-            </div>
-
-            {/* Follow-ups Due */}
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/60 hover:border-amber-400 transition col-span-2 sm:col-span-1">
-              <label className="text-xs font-bold text-slate-600 block mb-1">Follow-ups Due</label>
-              <input
-                type="number"
-                min="0"
-                value={report.followUpsDue}
-                onChange={(e) => setReport({ ...report, followUpsDue: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                className="w-full font-mono text-2xl font-black text-slate-900 focus:outline-none border-b-2 border-slate-200 focus:border-amber-500 pb-1 bg-transparent"
-              />
-              <div className="flex space-x-1.5 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setReport((r) => ({ ...r, followUpsDue: r.followUpsDue + 1 }))}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                >
-                  +1
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* ROW 3: Work Description & Calling Notes */}
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-1">
+            Work Description / Calling Notes (Optional)
+          </label>
+          <textarea
+            rows={3}
+            placeholder="Enter calling notes, customer inquiries, wig trials discussed, objections handled, etc..."
+            value={workSummary}
+            onChange={(e) => setWorkSummary(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 p-3.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder:text-slate-400 leading-relaxed font-medium"
+          />
         </div>
 
-        {/* 4. Daily Work Summary Notes */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <label className="block text-sm font-extrabold text-slate-900 mb-1">
-            Work Summary &amp; Key Highlights
-          </label>
-          <p className="text-xs text-slate-500 mb-3">
-            Add notes on key leads contacted, client wig customization requirements, objections, or trial schedules.
-          </p>
-          <textarea
-            rows={4}
-            value={report.workSummary}
-            onChange={(e) => setReport({ ...report, workSummary: e.target.value })}
-            placeholder="e.g. Handled 32 calls for Viman Nagar leads. Scheduled 3 scalp trials for custom lace patches. Two clients confirmed fitting on Thursday..."
-            className="w-full rounded-2xl border border-slate-300 p-4 text-xs sm:text-sm text-slate-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 leading-relaxed font-medium"
-          />
-
-          {/* Action Row */}
-          <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={handleMarkHoliday}
-              className="inline-flex items-center space-x-2 text-xs font-bold text-slate-500 hover:text-rose-600 transition cursor-pointer px-3 py-2 rounded-xl hover:bg-rose-50"
-            >
-              <Palmtree className="h-4 w-4" />
-              <span>Mark Today as Holiday / Leave</span>
-            </button>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:opacity-95 text-xs font-extrabold text-white shadow-md transition cursor-pointer disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-              <span>Submit Daily Work Report</span>
-            </button>
-          </div>
+        {/* Submit Button */}
+        <div className="pt-2 flex items-center justify-end space-x-3">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="inline-flex items-center space-x-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-700 to-yellow-600 hover:opacity-95 text-xs font-extrabold text-white shadow-md transition cursor-pointer disabled:opacity-50"
+          >
+            <Send className="h-4 w-4" />
+            <span>{isLoading ? 'Saving...' : 'Save Daily Report'}</span>
+          </button>
         </div>
       </form>
 
-      {/* 5. Past Attendance History (Last 7 Days) */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+      {/* 4. Past Attendance & Reporting Records */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center space-x-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-              <History className="h-5 w-5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+              <History className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-900">Your Attendance History</h2>
-              <p className="text-xs text-slate-500">Recent submissions and verified manager records</p>
+              <h3 className="text-sm font-black text-slate-900">Your Past Attendance & Reports</h3>
+              <p className="text-[11px] text-slate-500">Click any date row to load and view or edit that day&apos;s submission</p>
             </div>
           </div>
-          <span className="text-xs font-bold text-slate-400">Recent 7 Days</span>
+          <span className="text-[11px] font-bold text-slate-400">Recent Records</span>
         </div>
 
         {historyList.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400 font-semibold">
-            No past reporting history found yet. Today&apos;s submission will be recorded here.
+          <div className="py-8 text-center text-xs text-slate-400 font-medium">
+            No saved reports yet. Once you submit a report above, it will appear here.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+              <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="py-2.5 px-3">Date</th>
                   <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Punch In</th>
-                  <th className="py-2.5 px-3">Punch Out</th>
-                  <th className="py-2.5 px-3">Shift Hours</th>
-                  <th className="py-2.5 px-3">Calls Made</th>
+                  <th className="py-2.5 px-3">In / Out</th>
+                  <th className="py-2.5 px-3">Hours</th>
+                  <th className="py-2.5 px-3">Calls</th>
                   <th className="py-2.5 px-3">Appts</th>
-                  <th className="py-2.5 px-3">Summary</th>
+                  <th className="py-2.5 px-3">Sales</th>
+                  <th className="py-2.5 px-3">Work Summary</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                 {historyList.map((hist, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/70 transition">
-                    <td className="py-3 px-3 font-mono font-bold text-slate-900">{hist.reportDate}</td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                      {hist.reportDate}
+                    </td>
                     <td className="py-3 px-3">
                       <span
                         className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
                           hist.status === 'PRESENT'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : hist.status === 'IN_PROGRESS'
+                            : hist.status === 'HALF_DAY'
                             ? 'bg-amber-50 text-amber-900 border-amber-200'
                             : hist.status === 'HOLIDAY'
                             ? 'bg-purple-50 text-purple-800 border-purple-200'
                             : 'bg-rose-50 text-rose-800 border-rose-200'
                         }`}
                       >
-                        {hist.status === 'PRESENT'
-                          ? 'Present'
-                          : hist.status === 'IN_PROGRESS'
-                          ? 'In Progress'
-                          : hist.status === 'HOLIDAY'
-                          ? 'Holiday / Off'
-                          : 'Pending'}
+                        {hist.status}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-mono text-slate-600">{hist.punchInTime || '--:--'}</td>
-                    <td className="py-3 px-3 font-mono text-slate-600">{hist.punchOutTime || '--:--'}</td>
-                    <td className="py-3 px-3 font-mono font-bold text-slate-900">{hist.totalHours || 0} hrs</td>
-                    <td className="py-3 px-3 font-mono text-amber-700 font-bold">{hist.callsMade || 0}</td>
-                    <td className="py-3 px-3 font-mono text-emerald-700 font-bold">{hist.appointmentsBooked || 0}</td>
-                    <td className="py-3 px-3 text-slate-500 max-w-xs truncate">{hist.workSummary || 'No notes'}</td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                      {hist.punchInTime || '--'} - {hist.punchOutTime || '--'}
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                      {hist.totalHours || 0} hrs
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-amber-700 whitespace-nowrap">
+                      {hist.callsMade || 0} <span className="text-[10px] text-slate-400 font-normal">({hist.callsConnected || 0})</span>
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-emerald-700 whitespace-nowrap">
+                      {hist.appointmentsBooked || 0}
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold text-purple-700 whitespace-nowrap">
+                      {hist.convertedClients || 0}
+                    </td>
+                    <td className="py-3 px-3 text-slate-600 max-w-xs truncate">
+                      {hist.workSummary || '-'}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDate(hist.reportDate)}
+                        className="text-[11px] font-bold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
