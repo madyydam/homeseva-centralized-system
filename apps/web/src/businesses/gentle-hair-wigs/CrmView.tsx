@@ -19,6 +19,8 @@ import {
   normalizeStatus,
   formatDateToDMY,
   normalizeDateToYMD,
+  findDuplicateLead,
+  normalizePhoneNumber,
 } from './crm/crmUtils';
 import { CrmKpiCards, MonthKpiStats } from './crm/CrmKpiCards';
 import { CrmTable } from './crm/CrmTable';
@@ -490,7 +492,17 @@ export function CrmView({
 
   const handleCreateLead = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPhone.trim()) return;
+    const trimmedPhone = newPhone.trim();
+    if (!trimmedPhone) return;
+
+    // Duplicate Phone Number Check (Prevent duplicate data)
+    const duplicate = findDuplicateLead(trimmedPhone, leads);
+    if (duplicate) {
+      setNotificationMsg(
+        `This phone number already exists for client "${duplicate.clientName}" in ${duplicate.studioName || duplicate.studioSlug}!`
+      );
+      return;
+    }
 
     const notesArr = newNotesList.map((n) => n.trim()).filter((n) => n.length > 0);
     const targetStudio =
@@ -502,7 +514,7 @@ export function CrmView({
 
     gentleHairWigsDb.addCentralCrmLead({
       clientName: newClientName.trim() || "Don't know",
-      phone: newPhone.trim(),
+      phone: trimmedPhone,
       studioSlug: targetStudio.slug,
       studioName: targetStudio.name,
       status: newStatus,
@@ -522,7 +534,7 @@ export function CrmView({
     setNewFollowUpDate('');
     setNewNotesList(['', '', '', '', '']);
     setNotificationMsg('Lead added successfully!');
-  }, [newClientName, newPhone, newNotesList, newStatus, newStudioSlug, branch, studios, newLeadDate, newCallCount, newFollowUpDate]);
+  }, [newClientName, newPhone, newNotesList, newStatus, newStudioSlug, branch, studios, newLeadDate, newCallCount, newFollowUpDate, leads]);
 
   const handleExportExcel = useCallback(async () => {
     const XLSX = await import('xlsx');
@@ -864,7 +876,23 @@ export function CrmView({
       };
     });
 
-    gentleHairWigsDb.addCentralCrmLeadsBatch(batchPayload);
+    const existingPhones = new Set(leads.map((l) => normalizePhoneNumber(l.phone)).filter(Boolean));
+    const uniqueBatch: typeof batchPayload = [];
+    let skippedCount = 0;
+
+    batchPayload.forEach((lead) => {
+      const norm = normalizePhoneNumber(lead.phone);
+      if (norm && existingPhones.has(norm)) {
+        skippedCount++;
+      } else {
+        if (norm) existingPhones.add(norm);
+        uniqueBatch.push(lead);
+      }
+    });
+
+    if (uniqueBatch.length > 0) {
+      gentleHairWigsDb.addCentralCrmLeadsBatch(uniqueBatch);
+    }
 
     setShowImportModal(false);
     setImportFile(null);
@@ -872,8 +900,14 @@ export function CrmView({
     setImportError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
 
-    setNotificationMsg(`Successfully imported ${importPreview.length} leads with dates & activity logs!`);
-  }, [importPreview, studios, branch, selectedYear, selectedMonth]);
+    if (skippedCount > 0) {
+      setNotificationMsg(
+        `Imported ${uniqueBatch.length} unique leads! (${skippedCount} duplicate numbers safely skipped)`
+      );
+    } else {
+      setNotificationMsg(`Successfully imported ${uniqueBatch.length} leads with dates & activity logs!`);
+    }
+  }, [importPreview, studios, branch, selectedYear, selectedMonth, leads]);
 
   return (
     <div className="space-y-3.5">
@@ -1069,6 +1103,7 @@ export function CrmView({
         selectedMonthName={selectedMonthObj.name}
         selectedYear={selectedYear}
         studios={studios}
+        existingLeads={leads}
         newClientName={newClientName}
         setNewClientName={setNewClientName}
         newPhone={newPhone}

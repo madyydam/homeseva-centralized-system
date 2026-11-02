@@ -26,6 +26,13 @@
 2. **No Placeholders in Name and Phone Fields**:
    - Do NOT use gray placeholder text inside Name or Phone input fields (e.g. no `"e.g. Ramesh Kulkarni"`, no `"e.g. 9822114455"`, no `"+91..."`).
    - Keep input fields clean with empty placeholders (`placeholder=""` or omitted).
+3. **Duplicate Phone Number Prevention (Strict — Save from Duplicate Data)**:
+   - When entering a phone number in the CRM or adding a lead, the system must perform **live duplicate detection**.
+   - If the phone number already exists in the company's CRM:
+     - The system must immediately display: `"This phone number already exists in CRM!"` showing the existing lead's name, status, branch, and added date.
+     - The submission button is disabled (`"Duplicate Exists"`) to prevent duplicate records.
+     - The backend API (`POST /api/gentle-hair-wigs/crm-leads`) and local database layer (`gentleHairWigsDb`) reject duplicate phone numbers (HTTP 409 Conflict).
+     - Excel/CSV bulk import detects existing phone numbers and safely skips duplicate rows.
 
 ---
 

@@ -715,6 +715,22 @@ export class GentleHairWigsDatabase {
     if (!this.isHydrated && typeof window !== 'undefined') {
       this.hydrateFromStorage();
     }
+
+    // Duplicate Phone Check: prevent duplicate lead creation
+    const cleanPhone = (lead.phone || '').replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length >= 5) {
+      const existing = this.centralCrmLeads.find((item) => {
+        const itemDigits = (item.phone || '').replace(/\D/g, '').slice(-10);
+        return itemDigits.length >= 5 && itemDigits === cleanPhone;
+      });
+      if (existing) {
+        console.warn(
+          `[gentleHairWigsDb] Duplicate phone prevented: ${lead.phone}. Existing lead: ${existing.clientName} (${existing.id})`
+        );
+        return existing;
+      }
+    }
+
     const studios = this.getStudiosList();
     const targetStudioSlug = lead.studioSlug || 'viman-nagar';
     const targetStudio = studios.find((s) => s.slug === targetStudioSlug) || studios[0]!;
@@ -782,7 +798,21 @@ export class GentleHairWigsDatabase {
     const studios = this.getStudiosList();
     const createdLeads: CrmLeadItem[] = [];
 
+    // Track existing phones to prevent duplicates
+    const seenPhones = new Set<string>();
+    this.centralCrmLeads.forEach((l) => {
+      const d = (l.phone || '').replace(/\D/g, '').slice(-10);
+      if (d) seenPhones.add(d);
+    });
+
     leadsToAdd.forEach((lead, idx) => {
+      const d = (lead.phone || '').replace(/\D/g, '').slice(-10);
+      if (d && seenPhones.has(d)) {
+        // Skip duplicate
+        return;
+      }
+      if (d) seenPhones.add(d);
+
       const targetStudioSlug = lead.studioSlug || 'viman-nagar';
       const targetStudio = studios.find((s) => s.slug === targetStudioSlug) || studios[0]!;
 

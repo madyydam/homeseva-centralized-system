@@ -126,6 +126,38 @@ export const formatDateToDMY = (dateStr?: string | null): string => {
   return trimmed;
 };
 
+// Helper to normalize phone numbers for consistent matching and duplicate detection
+export const normalizePhoneNumber = (phone?: string | null): string => {
+  if (!phone) return '';
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return digits.slice(2);
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return digits.slice(1);
+  }
+  if (digits.length > 10) {
+    return digits.slice(-10);
+  }
+  return digits;
+};
+
+// Helper to check if a phone number already exists in a list of leads
+export const findDuplicateLead = <T extends { phone?: string | null; id?: string }>(
+  phoneToTest: string,
+  leadsList: T[],
+  ignoreLeadId?: string
+): T | undefined => {
+  const target = normalizePhoneNumber(phoneToTest);
+  if (!target || target.length < 5) return undefined;
+  return leadsList.find((item) => {
+    if (ignoreLeadId && item.id === ignoreLeadId) return false;
+    const existing = normalizePhoneNumber(item.phone);
+    return existing.length >= 5 && existing === target;
+  });
+};
+
+
 // Helper to normalize imported date strings into YYYY-MM-DD for internal storage & sorting
 export const normalizeDateToYMD = (dateStr?: string | null): string => {
   if (!dateStr) return '';
@@ -188,4 +220,5 @@ export const normalizeDateToYMD = (dateStr?: string | null): string => {
 
   return trimmed;
 };
+
 

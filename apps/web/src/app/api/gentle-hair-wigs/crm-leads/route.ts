@@ -100,7 +100,24 @@ export async function POST(req: NextRequest) {
     // Check if body is an array (batch import)
     if (Array.isArray(body)) {
       const createdLeads = [];
+      const existingInDb = await prisma.gentleHairWigsLead.findMany({
+        where: { businessId: BUSINESS_ID },
+        select: { phone: true },
+      });
+      const seenPhones = new Set(
+        existingInDb.map((l) => (l.phone || '').replace(/\D/g, '').slice(-10)).filter(Boolean)
+      );
+
       for (const item of body) {
+        const itemDigits = (item.phone || '').replace(/\D/g, '').slice(-10);
+        if (itemDigits && seenPhones.has(itemDigits)) {
+          // Skip duplicate phone
+          continue;
+        }
+        if (itemDigits) {
+          seenPhones.add(itemDigits);
+        }
+
         const lead = await prisma.gentleHairWigsLead.create({
           data: {
             businessId: BUSINESS_ID,
@@ -137,7 +154,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Single lead creation
+    // Single lead creation - check duplicate phone
+    const rawPhone = (body.phone || '').trim();
+    const phoneDigits = rawPhone.replace(/\D/g, '').slice(-10);
+
+    if (phoneDigits && phoneDigits.length >= 5) {
+      const allLeads = await prisma.gentleHairWigsLead.findMany({
+        where: { businessId: BUSINESS_ID },
+        select: { id: true, clientName: true, phone: true, studioName: true, status: true, createdAt: true },
+      });
+      const existing = allLeads.find((l) => (l.phone || '').replace(/\D/g, '').slice(-10) === phoneDigits);
+      if (existing) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `This phone number (${rawPhone}) already exists in the CRM for ${existing.clientName}.`,
+            existingLead: existing,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const lead = await prisma.gentleHairWigsLead.create({
       data: {
         businessId: BUSINESS_ID,

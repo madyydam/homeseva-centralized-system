@@ -1,14 +1,15 @@
 'use client';
 
-import { Dispatch, SetStateAction, memo } from 'react';
+import { Dispatch, SetStateAction, memo, useMemo } from 'react';
 import {
   X,
   Plus,
   Building2,
   Calendar,
+  AlertTriangle,
 } from 'lucide-react';
-import { CrmLeadStatusType, StudioInfoItem } from '../types';
-import { formatDateToDMY } from './crmUtils';
+import { CrmLeadItem, CrmLeadStatusType, StudioInfoItem } from '../types';
+import { formatDateToDMY, findDuplicateLead } from './crmUtils';
 
 interface AddLeadModalProps {
   showAddLeadModal: boolean;
@@ -16,6 +17,7 @@ interface AddLeadModalProps {
   selectedMonthName: string;
   selectedYear: string;
   studios: StudioInfoItem[];
+  existingLeads?: CrmLeadItem[];
   newClientName: string;
   setNewClientName: Dispatch<SetStateAction<string>>;
   newPhone: string;
@@ -41,6 +43,7 @@ export const AddLeadModal = memo(function AddLeadModal({
   selectedMonthName,
   selectedYear,
   studios,
+  existingLeads = [],
   newClientName,
   setNewClientName,
   newPhone,
@@ -59,6 +62,12 @@ export const AddLeadModal = memo(function AddLeadModal({
   setNewNotesList,
   handleCreateLead,
 }: AddLeadModalProps) {
+  // Live duplicate detection
+  const duplicateLead = useMemo(() => {
+    if (!newPhone || !existingLeads || existingLeads.length === 0) return null;
+    return findDuplicateLead(newPhone, existingLeads);
+  }, [newPhone, existingLeads]);
+
   if (!showAddLeadModal) return null;
 
   return (
@@ -100,16 +109,40 @@ export const AddLeadModal = memo(function AddLeadModal({
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                Phone Number *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600">
+                  Phone Number *
+                </label>
+                {duplicateLead && (
+                  <span className="text-[9.5px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                    Already Exists
+                  </span>
+                )}
+              </div>
               <input
                 type="tel"
                 required
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 p-2 text-xs font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                className={`w-full rounded-lg border p-2 text-xs font-mono font-bold transition ${
+                  duplicateLead
+                    ? 'border-rose-400 bg-rose-50/40 text-rose-950 focus:ring-1 focus:ring-rose-500'
+                    : 'border-slate-200 text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500'
+                }`}
               />
+              {duplicateLead && (
+                <div className="mt-1.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-[11px] font-bold flex items-start space-x-2 animate-in fade-in duration-150 shadow-2xs">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 leading-snug">
+                    <span className="block font-black text-rose-900">
+                      This phone number already exists in CRM!
+                    </span>
+                    <span className="text-[10px] text-rose-800 block mt-0.5 font-medium">
+                      Existing Lead: <strong className="text-slate-900">{duplicateLead.clientName}</strong> · Status: <span className="font-bold uppercase text-slate-900">{duplicateLead.status}</span> · Studio: <span className="text-slate-900 font-bold">{duplicateLead.studioName || duplicateLead.studioSlug}</span> · Added: {formatDateToDMY(duplicateLead.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -247,21 +280,39 @@ export const AddLeadModal = memo(function AddLeadModal({
           </div>
 
           {/* Form Actions */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
-            <button
-              type="button"
-              onClick={() => setShowAddLeadModal(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex items-center space-x-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 px-4 py-1.5 text-xs font-black text-white shadow-2xs transition cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Save Lead</span>
-            </button>
+          <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            {duplicateLead ? (
+              <span className="text-[11px] font-bold text-rose-700 flex items-center space-x-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                <span>Duplicate phone number. Cannot save duplicate lead.</span>
+              </span>
+            ) : (
+              <span className="text-[10px] text-slate-400">
+                Centralized CRM · Unique Phone Guaranteed
+              </span>
+            )}
+            <div className="flex items-center space-x-2 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setShowAddLeadModal(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={Boolean(duplicateLead)}
+                title={duplicateLead ? 'This phone number already exists in CRM' : 'Save Lead'}
+                className={`inline-flex items-center space-x-1.5 rounded-lg px-4 py-1.5 text-xs font-black shadow-2xs transition cursor-pointer ${
+                  duplicateLead
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-75'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
+                }`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{duplicateLead ? 'Duplicate Exists' : 'Save Lead'}</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>
