@@ -6,6 +6,7 @@ import { ecolabDistributionModule } from './ecolab-distribution';
 import { hsCoworkingModule } from './hs-coworking';
 import { firstMoverAdvantageModule } from './first-mover-advantage';
 import { printboothModule } from './printbooth';
+import { adjsModule } from './adjs';
 import { dvrEnterpriseModule } from './dvr-enterprise';
 import { dveEnterprisesModule } from './dve-enterprises';
 import { ndaServicesModule } from './nda-services';
@@ -20,7 +21,8 @@ export const BUSINESS_MODULES: Record<string, BusinessModule> = {
   'ecolab-distribution': ecolabDistributionModule,
   'hs-coworking': hsCoworkingModule,
   'first-mover-advantage': firstMoverAdvantageModule,
-  'printbooth': printboothModule,
+  'adjs': adjsModule,
+  'printbooth': adjsModule,
   'dvr-enterprise': dvrEnterpriseModule,
   'dvr-enterprises': dvrEnterpriseModule,
   'dve-enterprises': dvrEnterpriseModule,

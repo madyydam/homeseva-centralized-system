@@ -27,8 +27,6 @@ interface CrmTableProps {
   setSearchTerm: Dispatch<SetStateAction<string>>;
   statusFilter: string;
   setStatusFilter: Dispatch<SetStateAction<string>>;
-  studioFilter?: string;
-  setStudioFilter?: Dispatch<SetStateAction<string>>;
   dateFilter: string;
   setDateFilter: Dispatch<SetStateAction<string>>;
   sortBy: 'newest' | 'oldest' | 'name';
@@ -65,8 +63,6 @@ export const CrmTable = memo(function CrmTable({
   setSearchTerm,
   statusFilter,
   setStatusFilter,
-  studioFilter = 'all',
-  setStudioFilter,
   dateFilter,
   setDateFilter,
   sortBy,
@@ -117,24 +113,6 @@ export const CrmTable = memo(function CrmTable({
                 <option value="Not Interested">Not Interested</option>
               </select>
             </div>
-
-            {/* 1.5. Studio Filter (Centralized across all 3 studios) */}
-            {setStudioFilter && (
-              <div className="flex items-center space-x-1 bg-amber-50/70 border border-amber-200/80 px-2.5 py-1 rounded-lg">
-                <Building2 className="h-3 w-3 text-amber-700 shrink-0" />
-                <span className="text-[10px] font-black text-amber-900">Studio:</span>
-                <select
-                  value={studioFilter}
-                  onChange={(e) => setStudioFilter(e.target.value)}
-                  className="bg-transparent text-xs font-black text-amber-950 focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All 3 Studios</option>
-                  <option value="viman-nagar">Viman Nagar</option>
-                  <option value="ravet">Ravet</option>
-                  <option value="kolhapur">Kolhapur</option>
-                </select>
-              </div>
-            )}
 
             {/* 2. Single Date Activity Filter */}
             <div
@@ -241,21 +219,6 @@ export const CrmTable = memo(function CrmTable({
               </span>
             )}
 
-            {studioFilter !== 'all' && setStudioFilter && (
-              <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-lg text-xs font-black bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">
-                <Building2 className="h-3 w-3 text-amber-700 shrink-0" />
-                <span>Studio: {studioFilter === 'viman-nagar' ? 'Viman Nagar' : studioFilter === 'ravet' ? 'Ravet' : studioFilter === 'kolhapur' ? 'Kolhapur' : studioFilter}</span>
-                <button
-                  type="button"
-                  onClick={() => setStudioFilter('all')}
-                  className="hover:opacity-75 cursor-pointer ml-1 font-black text-sm leading-none text-amber-900"
-                  title="Clear studio filter"
-                >
-                  &times;
-                </button>
-              </span>
-            )}
-
             {dateFilter && (
               <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-lg text-xs font-black bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">
                 <Calendar className="h-3 w-3 text-amber-700 shrink-0" />
@@ -297,7 +260,6 @@ export const CrmTable = memo(function CrmTable({
             type="button"
             onClick={() => {
               setStatusFilter('all');
-              if (setStudioFilter) setStudioFilter('all');
               setDateFilter('');
               setSearchTerm('');
               setSortBy('newest');
@@ -360,12 +322,15 @@ export const CrmTable = memo(function CrmTable({
                             </button>
                           </div>
 
-                          {/* Studio Branch & Follow-up Badges */}
+                          {/* Converted Studio Branch & Follow-up Badges */}
                           <div className="mt-1 flex items-center space-x-1.5 flex-wrap gap-1">
-                            <span className="inline-flex items-center space-x-1 text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200/80">
-                              <Building2 className="h-2.5 w-2.5 text-amber-700" />
-                              <span>{lead.studioName || (lead.studioSlug === 'ravet' ? 'Studio of Ravet' : lead.studioSlug === 'kolhapur' ? 'Studio of Kolhapur' : 'Studio of Viman Nagar')}</span>
-                            </span>
+                            {/* Studio ONLY shown when lead is Converted */}
+                            {isConverted && (lead.studioName || lead.studioSlug) && (
+                              <span className="inline-flex items-center space-x-1 text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-900 border border-purple-200">
+                                <Building2 className="h-2.5 w-2.5 text-purple-700" />
+                                <span>{lead.studioName || (lead.studioSlug === 'ravet' ? 'Studio of Ravet' : lead.studioSlug === 'kolhapur' ? 'Studio of Kolhapur' : 'Studio of Viman Nagar')}</span>
+                              </span>
+                            )}
 
                             {/* Follow-up Date */}
                             {lead.status === 'Follow-up' && lead.nextFollowUpDate && (

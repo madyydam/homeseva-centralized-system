@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getBusinessModule } from '@/businesses';
 import { ArrowLeft, Building2 } from 'lucide-react';
@@ -17,6 +18,47 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const branchParam = searchParams.get('branch') || undefined;
   const divisionParam = searchParams.get('division') || undefined;
   const roleParam = searchParams.get('role') || undefined;
+
+  const [activeRole, setActiveRole] = useState<string | undefined>(() => {
+    if (roleParam) return roleParam;
+    if (typeof window !== 'undefined') {
+      try {
+        const match = document.cookie.match(/homeseva_session=([^;]+)/);
+        if (match && match[1]) {
+          const parts = match[1].split('.');
+          if (parts[0]) {
+            const json = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
+            const payload = JSON.parse(json);
+            return payload.role || undefined;
+          }
+        }
+      } catch {}
+    }
+    return undefined;
+  });
+
+  useEffect(() => {
+    if (roleParam) {
+      setActiveRole(roleParam);
+      return;
+    }
+    // Fallback: extract authenticated role from secure session cookie
+    try {
+      const match = document.cookie.match(/homeseva_session=([^;]+)/);
+      if (match && match[1]) {
+        const parts = match[1].split('.');
+        if (parts[0]) {
+          const json = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
+          const payload = JSON.parse(json);
+          if (payload.role) {
+            setActiveRole(payload.role);
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }, [roleParam]);
 
   const businessModule = getBusinessModule(businessSlug);
 
@@ -47,7 +89,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
     <Dashboard
       branch={branchParam}
       division={divisionParam}
-      role={roleParam}
+      role={activeRole || roleParam}
     />
   );
 }

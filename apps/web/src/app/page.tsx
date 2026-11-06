@@ -29,6 +29,7 @@ interface BusinessItem {
   hoverEffect: string;
   isGentleHairWigs?: boolean;
   isHorecaEssentials?: boolean;
+  isAdjs?: boolean;
 }
 
 const BUSINESSES: BusinessItem[] = [
@@ -102,14 +103,15 @@ const BUSINESSES: BusinessItem[] = [
   },
   {
     id: '7',
-    name: 'Printbooth',
-    subtitle: 'Digital & Commercial Printing',
-    slug: 'printbooth',
+    name: 'ADJS',
+    subtitle: 'Smart Kiosks & Autonomous Tech',
+    slug: 'adjs',
     icon: Printer,
     color: 'text-purple-600',
     bgColor: 'bg-purple-50 group-hover:bg-purple-600 group-hover:text-white',
     buttonStyle: 'bg-purple-50 text-purple-700 border-purple-200/90 hover:bg-purple-100 hover:border-purple-300',
     hoverEffect: 'hover:border-purple-500 hover:shadow-purple-500/35 hover:ring-2 hover:ring-purple-400/25',
+    isAdjs: true,
   },
   {
     id: '8',
@@ -264,6 +266,17 @@ export default function HomePage() {
                           title="Crockery Rental"
                         >
                           Crockery Rental
+                        </Link>
+                      </div>
+                    ) : biz.isAdjs ? (
+                      /* ADJS SUBCOMPANY: PRINTBOOTH™ */
+                      <div className="mt-2 flex justify-center w-full">
+                        <Link
+                          href="/signin/adjs?subcompany=printbooth"
+                          className="inline-flex items-center justify-center rounded-lg border border-purple-300/90 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 px-2.5 py-1 text-[10.5px] font-black text-purple-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
+                          title="PRINTBOOTH™ – Think It. Print It."
+                        >
+                          PRINTBOOTH™
                         </Link>
                       </div>
                     ) : (

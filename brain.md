@@ -32,6 +32,11 @@
      - Warning show karo: `"This phone number already exists in CRM!"` saath me existing lead ki details (Client Name, Status, Studio, Added Date).
      - Save button disable ho jayega (`"Duplicate Exists"`) taaki duplicate lead save na ho sake.
      - Single lead modal, bulk Excel/CSV import, database layer aur API route sab jagah duplicate strictly block hona chahiye.
+4. **Studio Branch ONLY Matters When Client Is Converted**:
+   - Inquiries, raw leads, calling records, aur follow-ups me **STUDIO NAHI HOTA AUR NA HI PUCHA JAYEGA**.
+   - Add Lead modal me regular leads ke liye koi "Target Studio Branch" nahi hoga.
+   - Leads table me client name ke neeche non-converted leads ke liye koi studio badge nahi aayega.
+   - **Studio sirf aur sirf tab pucha aur dikhaya jayega jab lead ka status `Converted` ho** (jis studio me fitting/order ke liye convert hua).
 
 ---
 
@@ -51,7 +56,7 @@
    - **Ecolab Institutional Distribution**: Industrial Supply, Healthcare Hygiene.
    - **HS Co-working Spaces**: Location Hubs, Private Suites.
    - **First Mover Advantage**: Performance Marketing, Client Campaigns.
-   - **Printbooth Digital Printing**: Offset Division, Signage & Digital Counter.
+   - **ADJS (Parent Company)**: Sub-Company: **PRINTBOOTH™** (*"THINK IT. PRINT IT."*) — Smart self-service printing kiosks sold directly to merchants & entrepreneurs.
    - **DVR / DVE Enterprises**: Logistics, Industrial Supply.
    - **NDA Security & Facility Care**: Guarding Deployments, Facility Care.
    - **HS Real Estate & Assets**: Commercial Leasing, Residential Sales.
@@ -76,3 +81,27 @@
    - User report din me kisi bhi waqt fill karke submit kar sakta hai.
 4. **Daily Reporting Dedicated Tab Me Hogi**:
    - Daily reporting dashboard ke dedicated tab me hi honi chahiye, koi floating button (FAB) nahi.
+
+---
+
+## 5. ADJS & PRINTBOOTH™: MACHINE SALES & CRM RULES
+
+1. **Parent Company & Sub-Company Structure**:
+   - Parent Entity: **ADJS** (Group).
+   - Sub-Company: **PRINTBOOTH™** (*"THINK IT. PRINT IT."*).
+   - Kiosks are sold directly to merchants, stationery shops, colleges, hospitals, and entrepreneurs.
+2. **NO Machine Management (Post-Sale)**:
+   - Once a kiosk is sold to the merchant, daily machine management (paper, toner, ink, cash, cleaning) belongs entirely to the merchant.
+   - System does NOT do paper refill logistics or fleet maintenance routes.
+3. **The 5 Operational Roles**:
+   - `Owner`: Business P&L, machine sales revenue, manufacturing margins & expansion.
+   - `Manager`: Machine order pipeline, merchant onboarding & dispatch operations.
+   - `Coldcaller`: Dedicated B2B merchant prospecting & kiosk placement CRM.
+   - `Developer`: Kiosk touchscreen OS, Cloud Print APIs & payment gateways.
+   - `Staff`: Freight dispatch logistics, invoicing challans & merchant helpdesk.
+4. **Centralized CRM Rules (Same as Gentle Hair Wigs architecture)**:
+   - 12-Month Annual sheets (Jan - Dec).
+   - Clean inputs with ZERO gray placeholders (`placeholder=""`).
+   - Duplicate phone number protection: instant warning alert & save button disabled.
+   - Up to 5 notes per lead with click-to-edit notes modal.
+   - Kiosk model and installation city asked/displayed ONLY when status is `Converted`.

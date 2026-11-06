@@ -138,7 +138,7 @@ export const AddLeadModal = memo(function AddLeadModal({
                       This phone number already exists in CRM!
                     </span>
                     <span className="text-[10px] text-rose-800 block mt-0.5 font-medium">
-                      Existing Lead: <strong className="text-slate-900">{duplicateLead.clientName}</strong> · Status: <span className="font-bold uppercase text-slate-900">{duplicateLead.status}</span> · Studio: <span className="text-slate-900 font-bold">{duplicateLead.studioName || duplicateLead.studioSlug}</span> · Added: {formatDateToDMY(duplicateLead.createdAt)}
+                      Existing Lead: <strong className="text-slate-900">{duplicateLead.clientName}</strong> · Status: <span className="font-bold uppercase text-slate-900">{duplicateLead.status}</span>{duplicateLead.status === 'Converted' && (duplicateLead.studioName || duplicateLead.studioSlug) ? <> · Studio: <span className="text-slate-900 font-bold">{duplicateLead.studioName || duplicateLead.studioSlug}</span></> : ''} · Added: {formatDateToDMY(duplicateLead.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -185,25 +185,27 @@ export const AddLeadModal = memo(function AddLeadModal({
             </div>
           </div>
 
-          {/* Row 3: Target Studio Branch & Lead Date */}
-          <div className={`grid gap-3 ${newStatus === 'Follow-up' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-wider text-amber-900 mb-1 flex items-center space-x-1">
-                <Building2 className="h-3 w-3 text-amber-700" />
-                <span>Target Studio Branch *</span>
-              </label>
-              <select
-                value={newStudioSlug}
-                onChange={(e) => setNewStudioSlug(e.target.value)}
-                className="w-full rounded-lg border border-amber-300 p-2 text-xs font-black text-amber-950 bg-amber-50/50 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              >
-                {studios.map((st) => (
-                  <option key={st.slug} value={st.slug}>
-                    {st.name} ({st.shortName})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Row 3: Converted Studio Branch (ONLY when status is Converted) & Lead Date & Follow-up Date */}
+          <div className={`grid gap-3 ${newStatus === 'Converted' || newStatus === 'Follow-up' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+            {newStatus === 'Converted' && (
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-purple-700 mb-1 flex items-center space-x-1">
+                  <Building2 className="h-3 w-3 text-purple-600" />
+                  <span>Converted Studio Branch *</span>
+                </label>
+                <select
+                  value={newStudioSlug}
+                  onChange={(e) => setNewStudioSlug(e.target.value)}
+                  className="w-full rounded-lg border border-purple-300 p-2 text-xs font-black text-purple-900 bg-purple-50/50 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  {studios.map((st) => (
+                    <option key={st.slug} value={st.slug}>
+                      {st.name} ({st.shortName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1 flex items-center justify-between">

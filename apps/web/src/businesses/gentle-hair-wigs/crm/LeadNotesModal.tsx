@@ -137,9 +137,9 @@ export const LeadNotesModal = memo(function LeadNotesModal({
           </div>
 
           <div className="flex items-center space-x-2 text-[10.5px]">
-            {activeNotesLead.studioName && (
-              <span className="text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200 font-bold">
-                {activeNotesLead.studioName}
+            {activeNotesLead.status === 'Converted' && (activeNotesLead.studioName || activeNotesLead.studioSlug) && (
+              <span className="text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 font-bold">
+                {activeNotesLead.studioName || activeNotesLead.studioSlug}
               </span>
             )}
             <span className="bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-black font-mono">

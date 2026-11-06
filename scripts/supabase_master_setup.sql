@@ -331,7 +331,8 @@ INSERT INTO public.businesses (id, slug, name, subtitle, description, theme_colo
 (gen_random_uuid()::text, 'ecolab-distribution', 'Ecolab Institutional Distribution', 'Hygiene & Chemical Solutions', 'Commercial hygiene solutions, industrial sanitization, and chemical safety audits', 'blue', true),
 (gen_random_uuid()::text, 'hs-coworking', 'HS Co-working Spaces', 'Flexible Desks & Workspaces', 'Executive co-working desks, private cabins, and collaborative team environments', 'indigo', true),
 (gen_random_uuid()::text, 'first-mover-advantage', 'First Mover Advantage', 'App SaaS Platform', 'Next-generation tech platform, SaaS application ecosystems, and platform development', 'cyan', true),
-(gen_random_uuid()::text, 'printbooth', 'Printbooth Digital Printing', 'Digital & Commercial Printing', 'Large format commercial printing, branded packaging, promotional merchandise', 'purple', true),
+(gen_random_uuid()::text, 'adjs', 'ADJS', 'Smart Kiosks & Autonomous Tech', 'Parent company for smart automated kiosks, merchant printing networks, and PRINTBOOTH™ business solutions', 'purple', true),
+(gen_random_uuid()::text, 'printbooth', 'ADJS', 'Smart Kiosks & Autonomous Tech', 'Parent company for smart automated kiosks, merchant printing networks, and PRINTBOOTH™ business solutions', 'purple', true),
 (gen_random_uuid()::text, 'dvr-enterprise', 'DVR Enterprise', 'Commercial Trading & Supplies', 'Industrial goods trading, wholesale material distribution, and supply chain solutions', 'orange', true),
 (gen_random_uuid()::text, 'nda-services', 'NDA Security & Facility Care', 'Security & Facility Care', 'Facility upkeep, manned guarding, surveillance deployments, and corporate security', 'sky', true),
 (gen_random_uuid()::text, 'hs-real-estate', 'HS Real Estate & Assets', 'Property Leasing & Assets', 'Commercial leasing, high-yield asset portfolios, and legal conveyance management', 'rose', true)
@@ -361,6 +362,7 @@ DECLARE
   b_ecolab TEXT;
   b_cowork TEXT;
   b_fma TEXT;
+  b_adjs TEXT;
   b_print TEXT;
   b_dvr TEXT;
   b_nda TEXT;
@@ -372,6 +374,7 @@ BEGIN
   SELECT id::text INTO b_ecolab FROM public.businesses WHERE slug = 'ecolab-distribution';
   SELECT id::text INTO b_cowork FROM public.businesses WHERE slug = 'hs-coworking';
   SELECT id::text INTO b_fma FROM public.businesses WHERE slug = 'first-mover-advantage';
+  SELECT id::text INTO b_adjs FROM public.businesses WHERE slug = 'adjs';
   SELECT id::text INTO b_print FROM public.businesses WHERE slug = 'printbooth';
   SELECT id::text INTO b_dvr FROM public.businesses WHERE slug = 'dvr-enterprise';
   SELECT id::text INTO b_nda FROM public.businesses WHERE slug = 'nda-services';
@@ -465,12 +468,25 @@ BEGIN
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
 
-  -- 7. Printbooth (Business 7)
+  -- 7. ADJS / Printbooth (Business 7)
+  IF b_adjs IS NOT NULL THEN
+    INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
+    (b_adjs, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', 'Adjs@123', '1001'),
+    (b_adjs, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', 'Adjs@123', '1002'),
+    (b_adjs, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', 'Adjs@123', '1003'),
+    (b_adjs, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', 'Adjs@123', '1004'),
+    (b_adjs, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', 'Adjs@123', '1005')
+    ON CONFLICT (business_id, role_id) DO UPDATE SET
+      label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
+  END IF;
+
   IF b_print IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_print, 'Production Supervisor', 'Production Supervisor', 'Job queue scheduling, print runs and quality checks', 'Production', 'Print@123', '7010'),
-    (b_print, 'Machine Operator', 'Machine Operator', 'Digital presses, flex printing, laminators, cutting plotters', 'Press', 'Operator@123', '7020'),
-    (b_print, 'Counter & Delivery Desk', 'Counter & Delivery Desk', 'Customer counter, packaging, billing, and parcel dispatch', 'Dispatch', 'Counter@123', '7030')
+    (b_print, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', 'Adjs@123', '1001'),
+    (b_print, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', 'Adjs@123', '1002'),
+    (b_print, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', 'Adjs@123', '1003'),
+    (b_print, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', 'Adjs@123', '1004'),
+    (b_print, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', 'Adjs@123', '1005')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;

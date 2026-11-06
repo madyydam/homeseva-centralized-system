@@ -26,6 +26,7 @@ import {
   PhoneCall,
   UserCheck,
   Sparkles,
+  Laptop,
 } from 'lucide-react';
 import WaveBackground from '../../../components/WaveBackground';
 
@@ -58,6 +59,7 @@ interface KeyState {
 // Icon helper mapped dynamically by role keyword
 function getRoleIcon(roleName: string, dept: string = '') {
   const text = `${roleName} ${dept}`.toLowerCase();
+  if (text.includes('developer') || text.includes('dev') || text.includes('code') || text.includes('engineer')) return Laptop;
   if (text.includes('manager') || text.includes('supervisor') || text.includes('director')) return ShieldCheck;
   if (text.includes('call') || text.includes('telecaller')) return PhoneCall;
   if (text.includes('stylist') || text.includes('hair') || text.includes('cut')) return Scissors;
@@ -65,11 +67,25 @@ function getRoleIcon(roleName: string, dept: string = '') {
   if (text.includes('billing') || text.includes('desk') || text.includes('front') || text.includes('account')) return Receipt;
   if (text.includes('inventory') || text.includes('warehouse') || text.includes('stock')) return Package;
   if (text.includes('partner') || text.includes('owner') || text.includes('lead')) return Award;
-  if (text.includes('engineer') || text.includes('site') || text.includes('civil')) return Building2;
+  if (text.includes('site') || text.includes('civil')) return Building2;
   return UserCheck;
 }
 
 const DEFAULT_BUSINESS_ROLES: Record<string, DynamicRole[]> = {
+  'adjs': [
+    { id: '1', role_id: 'Owner', label: 'Owner', department: 'Executive', description: 'Business P&L, kiosk unit economics & expansion' },
+    { id: '2', role_id: 'Manager', label: 'Manager', department: 'Operations', description: 'Machine orders, merchant onboarding & dispatch' },
+    { id: '3', role_id: 'Coldcaller', label: 'Coldcaller', department: 'Sales / CRM', description: 'B2B merchant prospecting & kiosk placement CRM' },
+    { id: '4', role_id: 'Developer', label: 'Developer', department: 'Engineering', description: 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways' },
+    { id: '5', role_id: 'Staff', label: 'Staff', department: 'Support', description: 'Freight dispatch logistics & merchant helpdesk' },
+  ],
+  'printbooth': [
+    { id: '1', role_id: 'Owner', label: 'Owner', department: 'Executive', description: 'Business P&L, kiosk unit economics & expansion' },
+    { id: '2', role_id: 'Manager', label: 'Manager', department: 'Operations', description: 'Machine orders, merchant onboarding & dispatch' },
+    { id: '3', role_id: 'Coldcaller', label: 'Coldcaller', department: 'Sales / CRM', description: 'B2B merchant prospecting & kiosk placement CRM' },
+    { id: '4', role_id: 'Developer', label: 'Developer', department: 'Engineering', description: 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways' },
+    { id: '5', role_id: 'Staff', label: 'Staff', department: 'Support', description: 'Freight dispatch logistics & merchant helpdesk' },
+  ],
   'gentle-hair-wigs': [
     { id: '1', role_id: 'Studio Manager', label: 'Studio Manager', department: 'Operations', description: 'Studio operations & roster' },
     { id: '2', role_id: 'Cold Caller', label: 'Cold Caller / Telecaller', department: 'Telecalling', description: 'Leads & calling desk' },
@@ -279,9 +295,9 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           if (isGentleHairWigs && selectedBranch) {
             router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(rRole)}`);
           } else if (isHorecaEssentials && selectedDivision) {
-            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}`);
+            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(rRole)}`);
           } else {
-            router.push(`/app/${businessSlug}/dashboard`);
+            router.push(`/app/${businessSlug}/dashboard?role=${encodeURIComponent(rRole)}`);
           }
         }, 460);
         return true;

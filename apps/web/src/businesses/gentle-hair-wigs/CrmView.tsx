@@ -77,7 +77,6 @@ export function CrmView({
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter);
-  const [studioFilter, setStudioFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
@@ -333,12 +332,6 @@ export function CrmView({
         }
       }
 
-      if (studioFilter !== 'all') {
-        if (item.studioSlug && item.studioSlug !== studioFilter) {
-          return false;
-        }
-      }
-
       if (dateFilter) {
         const createdMatch = item.createdAt === dateFilter;
         const updatedMatch = item.updatedAt === dateFilter;
@@ -389,7 +382,7 @@ export function CrmView({
       }
       return 0;
     });
-  }, [currentMonthLeads, statusFilter, studioFilter, dateFilter, sortBy, deferredSearchTerm]);
+  }, [currentMonthLeads, statusFilter, dateFilter, sortBy, deferredSearchTerm]);
 
   const handleOpenMonthSheet = useCallback((monthValue: string) => {
     setSelectedMonth(monthValue);
@@ -506,16 +499,16 @@ export function CrmView({
     const duplicate = findDuplicateLead(trimmedPhone, leads);
     if (duplicate) {
       setNotificationMsg(
-        `This phone number already exists for client "${duplicate.clientName}" in ${duplicate.studioName || duplicate.studioSlug}!`
+        `This phone number already exists for client "${duplicate.clientName}"${duplicate.status === 'Converted' && (duplicate.studioName || duplicate.studioSlug) ? ` in ${duplicate.studioName || duplicate.studioSlug}` : ''}!`
       );
       return;
     }
 
     const notesArr = newNotesList.map((n) => n.trim()).filter((n) => n.length > 0);
-    const targetStudio =
-      studios.find((s) => s.slug === newStudioSlug) ||
-      studios.find((s) => s.slug === branch) ||
-      studios[0]!;
+    const isConverted = newStatus === 'Converted';
+    const targetStudio = isConverted
+      ? (studios.find((s) => s.slug === newStudioSlug) || studios[0]!)
+      : null;
 
     const todayYMD = new Date().toISOString().split('T')[0] || '2026-10-30';
     const leadDate = newLeadDate || todayYMD;
@@ -523,8 +516,8 @@ export function CrmView({
     gentleHairWigsDb.addCentralCrmLead({
       clientName: newClientName.trim() || "Don't know",
       phone: trimmedPhone,
-      studioSlug: targetStudio.slug,
-      studioName: targetStudio.name,
+      studioSlug: targetStudio ? targetStudio.slug : '',
+      studioName: targetStudio ? targetStudio.name : '',
       status: newStatus,
       callCount: newCallCount,
       notesList: notesArr,
@@ -542,7 +535,7 @@ export function CrmView({
     setNewFollowUpDate('');
     setNewNotesList(['', '', '', '', '']);
     setNotificationMsg('Lead added successfully!');
-  }, [newClientName, newPhone, newNotesList, newStatus, newStudioSlug, branch, studios, newLeadDate, newCallCount, newFollowUpDate, leads]);
+  }, [newClientName, newPhone, newNotesList, newStatus, newStudioSlug, studios, newLeadDate, newCallCount, newFollowUpDate, leads]);
 
   const handleExportExcel = useCallback(async () => {
     const XLSX = await import('xlsx');
@@ -1060,8 +1053,6 @@ export function CrmView({
             setSearchTerm={setSearchTerm}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
-            studioFilter={studioFilter}
-            setStudioFilter={setStudioFilter}
             dateFilter={dateFilter}
             setDateFilter={setDateFilter}
             sortBy={sortBy}
