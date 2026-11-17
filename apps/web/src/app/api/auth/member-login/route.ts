@@ -78,10 +78,24 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Smart role check: Verify if member is trying to login to a different role
-    if (targetMember.role_id.trim().toLowerCase() !== rId.toLowerCase()) {
+    const normalizeRole = (r: string) => {
+      const norm = r.trim().toLowerCase().replace(/[\s\-_]+/g, '');
+      if (norm === 'coldcaller' || norm === 'telecaller' || norm === 'caller') {
+        return 'caller';
+      }
+      if (norm === 'owner' || norm === 'studiopartner' || norm === 'studiopartnerowner' || norm === 'partner') {
+        return 'owner';
+      }
+      if (norm === 'manager' || norm === 'studiomanager' || norm === 'storeoperationsmanager' || norm === 'operationsmanager') {
+        return 'manager';
+      }
+      return norm;
+    };
+
+    if (normalizeRole(targetMember.role_id) !== normalizeRole(rId)) {
       return NextResponse.json({
         success: false,
-        error: `You are not ${rId}. You are ${targetMember.role_id}. Please select ${targetMember.role_id} and try again.`,
+        error: `You are not ${rId}. You are assigned to the role "${targetMember.role_id}". Please select "${targetMember.role_id}" and try again.`,
         wrongRole: true,
         actualRole: targetMember.role_id,
       }, { status: 403 });

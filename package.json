@@ -17,10 +17,11 @@
     "desktop:dist": "pnpm --filter @homeseva/desktop dist"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "typescript": "^5.4.0",
+    "@supabase/supabase-js": "^2.118.0",
     "eslint": "^8.57.0",
-    "prettier": "^3.2.0"
+    "prettier": "^3.2.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
   },
   "engines": {
     "node": ">=20.0.0",

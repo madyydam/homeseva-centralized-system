@@ -256,6 +256,16 @@ export async function POST(req: NextRequest) {
           .eq('role_id', item.role);
       }
 
+      try {
+        await admin.from('audit_logs').insert({
+          actor_type: 'SUPER_ADMIN',
+          actor_identifier: session.username,
+          business_slug: businessSlug,
+          action: 'role.credentials_batch_updated',
+          metadata: { count: credentials.length },
+        });
+      } catch {}
+
       return NextResponse.json({
         success: true,
         message: `All role credentials for ${businessSlug} updated successfully.`,

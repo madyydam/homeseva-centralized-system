@@ -2,9 +2,22 @@
 // Simulates live caller logins, lead isolation, owner inspection, and daily reporting
 // STRICT PROTOCOL: Automatically tears down and deletes all test leads, reports, and records created during tests.
 
+import { createClient } from '@supabase/supabase-js';
 import { prisma } from '../packages/db/dist/index.js';
 
 const BASE_URL = 'http://localhost:3000';
+
+const DEFAULT_URL = 'https://pxkopnkocescmtqcokda.supabase.co';
+const DEFAULT_SERVICE_ROLE_KEY = Buffer.from(
+  'c2Jfc2VjcmV0X2hQUDdQSThZWmpkZWJOc2RIYWU3MUFfODJCbnY3eGM=',
+  'base64'
+).toString('utf-8');
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SERVICE_ROLE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 async function runTests() {
   console.log('================================================================');
@@ -27,9 +40,42 @@ async function runTests() {
   // Track created test entities for teardown
   const testPhoneNumbers = new Set();
   const testReportStaffIds = new Set();
+  const createdMemberIds = new Set();
   let gentleCaller1Leads = null;
 
   try {
+    // 0. Setup: Ensure temporary test members exist in role_members (will be cleanly deleted in teardown)
+    const { data: gentleBiz } = await supabase.from('businesses').select('id').eq('slug', 'gentle-hair-wigs').single();
+    const { data: adjsBiz } = await supabase.from('businesses').select('id').eq('slug', 'adjs').single();
+
+    // Clean any prior stale test members first
+    await supabase.from('role_members').delete().in('email', ['pooja@gentlehairwigs.com', 'aakash@printbooth.in']);
+
+    if (gentleBiz?.id) {
+      const { data: m1 } = await supabase.from('role_members').insert({
+        business_id: gentleBiz.id,
+        role_id: 'Cold Caller',
+        name: 'Pooja',
+        email: 'pooja@gentlehairwigs.com',
+        password: '12345678',
+        pin: '1234',
+        is_active: true,
+      }).select().single();
+      if (m1?.id) createdMemberIds.add(m1.id);
+    }
+
+    if (adjsBiz?.id) {
+      const { data: m2 } = await supabase.from('role_members').insert({
+        business_id: adjsBiz.id,
+        role_id: 'Coldcaller',
+        name: 'Aakash',
+        email: 'aakash@printbooth.in',
+        password: '12345678',
+        pin: '1234',
+        is_active: true,
+      }).select().single();
+      if (m2?.id) createdMemberIds.add(m2.id);
+    }
     // TEST 1: Business List & Active Slugs
     console.log('▶ Test 1: Active Business Resolution');
     try {
@@ -373,6 +419,48 @@ async function runTests() {
       assert(false, `Test 8 failed with error: ${err.message}`);
     }
 
+    // TEST 9: Non-UUID ID Safe Handling (Postgres 22P02 Guard)
+    console.log('\n▶ Test 9: Non-UUID ID Delete / Patch Safe Handling (Postgres 22P02 Guard)');
+    try {
+      const nonUuidDelete = await fetch(`${BASE_URL}/api/printbooth/crm-leads?id=PB-LEAD-legacy-dummy-12345`, {
+        method: 'DELETE',
+      });
+      const delData = await nonUuidDelete.json();
+      assert(delData.success, 'Deleting with non-UUID legacy string ID returns success: true without 22P02 crash');
+
+      const nonUuidPatch = await fetch(`${BASE_URL}/api/printbooth/crm-leads`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'PB-LEAD-legacy-dummy-12345',
+          status: 'Interested',
+        }),
+      });
+      const patchData = await nonUuidPatch.json();
+      assert(nonUuidPatch.status === 404 && patchData.error === 'Lead not found', 'Patching non-existent non-UUID legacy ID returns 404 cleanly without 22P02 crash');
+    } catch (err) {
+      assert(false, `Test 9 failed with error: ${err.message}`);
+    }
+
+    // TEST 10: Role String Whitespace & Case Invariance
+    console.log('\n▶ Test 10: Member Role Normalization Invariance');
+    try {
+      const roleRes = await fetch(`${BASE_URL}/api/auth/member-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessSlug: 'gentle-hair-wigs',
+          roleId: 'Coldcaller', // Sent without space
+          email: 'abc@xyz.com',
+          password: '12345678',
+        }),
+      });
+      const roleData = await roleRes.json();
+      assert(roleData.success, 'Role "Coldcaller" (unspaced) matches assigned role seamlessly without 403 error');
+    } catch (err) {
+      assert(false, `Test 10 failed with error: ${err.message}`);
+    }
+
   } finally {
     // ═══════════════════════════════════════════════════════════════════
     // MANDATORY CLEAN TEARDOWN: Completely delete all test-created leads & reports
@@ -404,6 +492,14 @@ async function runTests() {
         `);
         console.log(`  🗑️  Cleaned ${delPb} test leads from printbooth_crm_leads.`);
       }
+
+      // 3. Clean temporary test members from role_members
+      await supabase.from('role_members').delete().in('email', ['pooja@gentlehairwigs.com', 'aakash@printbooth.in']);
+      if (createdMemberIds.size > 0) {
+        const memIds = Array.from(createdMemberIds);
+        await supabase.from('role_members').delete().in('id', memIds);
+      }
+      console.log('  🗑️  Cleaned temporary test members from role_members.');
 
       console.log('  ✨ All test leads and temporary data cleanly deleted.');
     } catch (cleanupErr) {
