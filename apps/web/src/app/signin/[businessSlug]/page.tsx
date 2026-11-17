@@ -338,7 +338,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         return false;
       }
     },
-    [businessSlug, isGentleHairWigs, isHorecaEssentials, router, selectedBranch, selectedDivision]
+    [businessSlug, isGentleHairWigs, isHorecaEssentials, selectedBranch, selectedDivision]
   );
 
   // Single field flight & verification ceremony (Used for both Auto-Trigger & Form Submit)
