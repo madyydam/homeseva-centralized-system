@@ -122,13 +122,16 @@ export async function POST(req: NextRequest) {
         isSuperAdmin: false,
       }, 43200);
 
-      cookies().set(USER_SESSION_COOKIE, token, {
+      const isHttps = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';
+      const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isHttps,
+        sameSite: 'lax' as const,
         path: '/',
         maxAge: 43200,
-      });
+      };
+
+      cookies().set(USER_SESSION_COOKIE, token, cookieOptions);
 
       // Audit log
       try {
@@ -144,12 +147,15 @@ export async function POST(req: NextRequest) {
         });
       } catch {}
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: 'Authentication successful',
         businessSlug: slug,
         role: roleId,
       });
+
+      response.cookies.set(USER_SESSION_COOKIE, token, cookieOptions);
+      return response;
     }
 
     return NextResponse.json({

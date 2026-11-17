@@ -106,13 +106,16 @@ export async function POST(req: NextRequest) {
       isSuperAdmin: true,
     }, 86400);
 
-    cookies().set(SUPER_ADMIN_COOKIE, token, {
+    const isHttps = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';
+    const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isHttps,
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: 86400,
-    });
+    };
+
+    cookies().set(SUPER_ADMIN_COOKIE, token, cookieOptions);
 
     // Audit log
     try {
@@ -129,11 +132,14 @@ export async function POST(req: NextRequest) {
       // Ignore if table not created yet
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Master Super Admin authentication verified successfully.',
       redirect: '/super-admin/credentials',
     });
+
+    response.cookies.set(SUPER_ADMIN_COOKIE, token, cookieOptions);
+    return response;
   } catch (err: any) {
     console.error('Super admin login error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

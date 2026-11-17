@@ -108,7 +108,12 @@ export default function SuperAdminCredentialsPage() {
   const fetchCredentials = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/admin/credentials');
+      let res = await fetch('/api/admin/credentials');
+      if (res.status === 401) {
+        // Fast retry once (250ms) to allow browser cookie jar synchronization
+        await new Promise((r) => setTimeout(r, 250));
+        res = await fetch('/api/admin/credentials');
+      }
       if (res.status === 401) {
         router.push('/super-admin/signin');
         return;

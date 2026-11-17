@@ -289,16 +289,17 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         }
 
         // ✅ Security handshake complete: cookie is confirmed saved in the browser!
-        // Smoothly elevate the vault door into the ceiling
+        // Smoothly elevate the vault door into the ceiling, then do full browser navigation
         setIsDoorAscending(true);
         setTimeout(() => {
+          let target = `/app/${businessSlug}/dashboard?role=${encodeURIComponent(rRole)}`;
           if (isGentleHairWigs && selectedBranch) {
-            router.push(`/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(rRole)}`);
+            target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(rRole)}`;
           } else if (isHorecaEssentials && selectedDivision) {
-            router.push(`/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(rRole)}`);
-          } else {
-            router.push(`/app/${businessSlug}/dashboard?role=${encodeURIComponent(rRole)}`);
+            target = `/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(rRole)}`;
           }
+          // Full browser navigation guarantees cookie persistence without SPA race conditions
+          window.location.href = target;
         }, 460);
         return true;
       } catch (err: any) {

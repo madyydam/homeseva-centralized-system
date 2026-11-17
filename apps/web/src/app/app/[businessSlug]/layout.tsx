@@ -34,7 +34,19 @@ export default async function BusinessWorkspaceLayout({
   }
 
   const userPayload = await verifySession(userToken);
-  if (!userPayload || userPayload.businessSlug !== businessSlug) {
+  const isSlugMatch =
+    userPayload &&
+    (userPayload.businessSlug === businessSlug ||
+      (userPayload.businessSlug === 'adjs' && businessSlug === 'printbooth') ||
+      (userPayload.businessSlug === 'printbooth' && businessSlug === 'adjs') ||
+      (userPayload.businessSlug === 'gentle-hair-wigs' && businessSlug === 'business-2') ||
+      (userPayload.businessSlug === 'business-2' && businessSlug === 'gentle-hair-wigs') ||
+      (userPayload.businessSlug === 'horeca-essentials' && businessSlug === 'crockery-rental') ||
+      (userPayload.businessSlug === 'crockery-rental' && businessSlug === 'horeca-essentials') ||
+      (userPayload.businessSlug === 'ecolab-distribution' && businessSlug === 'business-4') ||
+      (userPayload.businessSlug === 'business-4' && businessSlug === 'ecolab-distribution'));
+
+  if (!isSlugMatch) {
     redirect(`/signin/${businessSlug}`);
   }
 

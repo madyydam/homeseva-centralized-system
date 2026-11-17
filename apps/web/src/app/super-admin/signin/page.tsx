@@ -159,7 +159,8 @@ export default function SuperAdminSignInPage() {
         return;
       }
 
-      router.push('/super-admin/credentials');
+      // Force full navigation to guarantee cookies are committed and sent on the first attempt
+      window.location.href = '/super-admin/credentials';
     } catch {
       setErrorMsg('Failed to connect to authentication server. Please try again.');
       setIsLoading(false);
