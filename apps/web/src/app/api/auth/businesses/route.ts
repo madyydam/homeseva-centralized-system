@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // List all active businesses for catalog/homepage
+    // List all active businesses for catalog/homepage with deduplication
     const { data: businesses, error } = await admin
       .from('businesses')
       .select('id, name, slug, subtitle, description, theme_color, logo_url, is_active')
@@ -63,7 +63,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, businesses: businesses || [] });
+    const seenSlugs = new Set<string>();
+    const uniqueBusinesses: any[] = [];
+    for (const b of (businesses || [])) {
+      if (b.slug === 'printbooth' && seenSlugs.has('adjs')) continue;
+      if (b.slug === 'adjs' && seenSlugs.has('printbooth')) continue;
+      if (seenSlugs.has(b.slug)) continue;
+
+      seenSlugs.add(b.slug);
+      const displayName = (b.slug === 'adjs' || b.slug === 'printbooth') ? 'ADJS - PRINTBOOTH™' : b.name;
+      uniqueBusinesses.push({ ...b, name: displayName });
+    }
+
+    return NextResponse.json({ success: true, businesses: uniqueBusinesses });
   } catch (err: any) {
     console.error('Error fetching businesses catalog:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
