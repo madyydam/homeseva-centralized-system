@@ -710,8 +710,21 @@ CREATE TABLE IF NOT EXISTS public.role_members (
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT role_members_business_email_unique UNIQUE (business_id, email)
+  CONSTRAINT role_members_business_role_email_unique UNIQUE (business_id, role_id, email)
 );
+
+
+-- Ensure constraint compatibility if table was partially created
+ALTER TABLE public.role_members DROP CONSTRAINT IF EXISTS role_members_business_email_unique;
+ALTER TABLE public.role_members DROP CONSTRAINT IF EXISTS role_members_email_key;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'role_members_business_role_email_unique'
+  ) THEN
+    ALTER TABLE public.role_members ADD CONSTRAINT role_members_business_role_email_unique UNIQUE (business_id, role_id, email);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_role_members_business_role ON public.role_members(business_id, role_id);
 CREATE INDEX IF NOT EXISTS idx_role_members_email ON public.role_members(email);
@@ -802,7 +815,7 @@ VALUES
   ('f9d7e763-d4b9-451e-b173-d8edec97e752', 'Accounts Desk', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('f9d7e763-d4b9-451e-b173-d8edec97e752', 'Dispatch Coordinator', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('f9d7e763-d4b9-451e-b173-d8edec97e752', 'Trading Manager', 'Demo User', 'abc@xyz.com', '12345678', '1234')
-ON CONFLICT (business_id, email) DO UPDATE SET
+ON CONFLICT (business_id, role_id, email) DO UPDATE SET
   password = EXCLUDED.password,
   pin = EXCLUDED.pin,
   name = EXCLUDED.name,
