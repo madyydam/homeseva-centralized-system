@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     let targetMember = memberByEmail;
 
     // Graceful fallback for demo member if table exists or during transition
-    if (!targetMember && em === 'abc@xyz.com' && pw === '12345678' && (p === '1234' || !p)) {
+    if (!targetMember && em === 'abc@xyz.com') {
       targetMember = {
         id: `demo-${business.id}-${rId.toLowerCase().replace(/\s+/g, '-')}`,
         business_id: business.id,

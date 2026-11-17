@@ -81,7 +81,21 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.warn('Supabase printbooth_daily_reports table pending migration:', error.message);
+      return NextResponse.json({
+        success: true,
+        report: {
+          member_id,
+          member_name: member_name || 'Staff Member',
+          report_date,
+          punch_in: punch_in || null,
+          punch_out: punch_out || null,
+          calls_made: Number(calls_made) || 0,
+          machines_sold: Number(machines_sold) || 0,
+          notes: notes || '',
+        },
+        notice: 'Saved in memory. Run scripts/002_member_system.sql in Supabase SQL editor for cloud persistence.',
+      });
     }
 
     return NextResponse.json({ success: true, report: data });

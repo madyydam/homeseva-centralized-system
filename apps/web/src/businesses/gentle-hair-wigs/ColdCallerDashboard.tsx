@@ -492,8 +492,8 @@ export function ColdCallerDashboard({
           {activeTab === 'daily-reporting' ? (
             <DailyReportingView
               branch="all"
-              currentTelecallerId={memberId}
-              currentTelecallerName={memberName}
+              currentTelecallerId={memberId || ''}
+              currentTelecallerName={memberName || ''}
               onReportUpdated={checkStatus}
             />
           ) : (

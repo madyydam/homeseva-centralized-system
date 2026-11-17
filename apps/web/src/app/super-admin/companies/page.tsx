@@ -88,10 +88,11 @@ export default function CompaniesPage() {
             }
           }
           setCompanies(unique);
-          if (unique.length > 0) {
-            setSelectedCompany(unique[0]);
-            if (unique[0].roles?.length > 0) {
-              setSelectedRole(unique[0].roles[0]);
+          if (unique.length > 0 && unique[0]) {
+            const firstCompany = unique[0];
+            setSelectedCompany(firstCompany);
+            if (firstCompany.roles && firstCompany.roles.length > 0 && firstCompany.roles[0]) {
+              setSelectedRole(firstCompany.roles[0]);
             }
           }
         }
@@ -284,7 +285,7 @@ export default function CompaniesPage() {
                   key={c.businessSlug}
                   onClick={() => {
                     setSelectedCompany(c);
-                    if (c.roles?.length > 0) {
+                    if (c.roles && c.roles.length > 0 && c.roles[0]) {
                       setSelectedRole(c.roles[0]);
                     } else {
                       setSelectedRole(null);

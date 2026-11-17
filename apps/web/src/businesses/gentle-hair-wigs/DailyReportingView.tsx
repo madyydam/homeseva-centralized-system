@@ -363,9 +363,9 @@ function ClockNumberPicker({
 
 interface DailyReportingViewProps {
   branch: string;
-  currentTelecallerName?: string;
-  currentTelecallerId?: string;
-  onReportUpdated?: () => void;
+  currentTelecallerName?: string | undefined;
+  currentTelecallerId?: string | undefined;
+  onReportUpdated?: (() => void) | undefined;
 }
 
 export function DailyReportingView({
