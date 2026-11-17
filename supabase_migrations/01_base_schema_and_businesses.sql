@@ -117,8 +117,7 @@ INSERT INTO public.businesses (id, slug, name, subtitle, description, theme_colo
 (gen_random_uuid()::text, 'ecolab-distribution', 'Ecolab Institutional Distribution', 'Hygiene & Chemical Solutions', 'Commercial hygiene solutions, industrial sanitization, and chemical safety audits', 'blue', true),
 (gen_random_uuid()::text, 'hs-coworking', 'HS Co-working Spaces', 'Flexible Desks & Workspaces', 'Executive co-working desks, private cabins, and collaborative team environments', 'indigo', true),
 (gen_random_uuid()::text, 'first-mover-advantage', 'First Mover Advantage', 'App SaaS Platform', 'Next-generation tech platform, SaaS application ecosystems, and platform development', 'cyan', true),
-(gen_random_uuid()::text, 'adjs', 'ADJS', 'Smart Kiosks & Autonomous Tech', 'Parent company for smart automated kiosks, merchant printing networks, and PRINTBOOTH™ business solutions', 'purple', true),
-(gen_random_uuid()::text, 'printbooth', 'ADJS', 'Smart Kiosks & Autonomous Tech', 'Parent company for smart automated kiosks, merchant printing networks, and PRINTBOOTH™ business solutions', 'purple', true),
+(gen_random_uuid()::text, 'adjs', 'ADJS - PRINTBOOTH™', 'Smart Self-Service Printing Kiosks', 'Parent company for smart automated kiosks, merchant printing networks, and PRINTBOOTH™ business solutions', 'purple', true),
 (gen_random_uuid()::text, 'dvr-enterprise', 'DVR Enterprise', 'Commercial Trading & Supplies', 'Industrial goods trading, wholesale material distribution, and supply chain solutions', 'orange', true),
 (gen_random_uuid()::text, 'nda-services', 'NDA Security & Facility Care', 'Security & Facility Care', 'Facility upkeep, manned guarding, surveillance deployments, and corporate security', 'sky', true),
 (gen_random_uuid()::text, 'hs-real-estate', 'HS Real Estate & Assets', 'Property Leasing & Assets', 'Commercial leasing, high-yield asset portfolios, and legal conveyance management', 'rose', true)

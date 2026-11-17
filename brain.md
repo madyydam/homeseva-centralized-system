@@ -105,3 +105,41 @@
    - Duplicate phone number protection: instant warning alert & save button disabled.
    - Up to 5 notes per lead with click-to-edit notes modal.
    - Kiosk model and installation city asked/displayed ONLY when status is `Converted`.
+
+
+---
+
+## 6. MANDATORY ACTION PLAN CONFIRMATION PROTOCOL
+
+> **CRITICAL RULE**: AI Agent ko koi bhi naya code likhne, database/schema badalne, ya UI overhaul karne se pehle **HAR BAAR** mandatory taur par:
+
+1. **See & Analyze**: Problem aur user request ko thoroughly deep analyze karo.
+2. **Present Clear Action Plan**: User ke samne clear, step-by-step Action Plan (points me) rakho — jisme explicitly bataya ho ki kya-kya changes hone wale hain aur UI kaisa dikhega.
+3. **Ask Confirmation**: User se explicit confirmation / haan maango:
+   - *"Should I proceed with this Action Plan?"*
+4. **Execute, Test, Solve, Repeat**:
+   - User ka confirmation milne ke baad hi execution start karo.
+   - Execution hamesha step-by-step karo, bina kisi mistake ke:
+     - **See / Analyze** -> **Plan** -> **Execute** -> **Test** -> **Test** -> **Solve** -> **Repeat**.
+   - Har step ke baad compilation aur test verify karo (`pnpm --filter @homeseva/web build`).
+   - Agar koi error aaye toh solve karo aur verify karo.
+
+---
+
+## 7. SUPER ADMIN CONSOLE: CLEAN WHITE THEME & LEFT NAVIGATION
+
+1. **Clean White / Light Theme Only**:
+   - Super Admin UI dark/black theme (`bg-slate-950`, dark glowing borders) nahi hoga.
+   - Modern, professional, crisp White/Light Theme (`bg-slate-50`, `bg-white`, crisp borders `border-slate-200`, text `text-slate-900`) hoga.
+2. **Persistent Left Sidebar Navigation**:
+   - Screen open hote hi horizontal cluttered dark cards nahi honge.
+   - Dedicated Left Sidebar hoga:
+     - **Companies** (Primary / Default Module: Company list -> Selected Company Roles -> Role Members with CRUD & password visibility toggle).
+     - **Security & Master Keys** (Rotate Super Admin 4-factor master credentials).
+     - **Database Backups** (Export / Import data).
+     - **Lock Console** (Secure logout).
+3. **Individual Multi-Member System**:
+   - Har role ke andar multiple individual members add, edit, aur delete ho sakte hain.
+   - Universal Demo User: `abc@xyz.com` / `12345678` / `1234` for testing across all roles.
+   - Smart Role Verification: Agar member kisi aur role me login karne ki koshish kare, show clear alert: *"You are not {selectedRole}. You are {actualRole}. Please select {actualRole} and try again."*
+   - 99-Year Permanent Session Cookie (`homeseva_user_session`) jo user tab close ya refresh karne par expire na ho, sirf manual logout par hi clear ho.

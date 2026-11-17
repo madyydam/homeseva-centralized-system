@@ -1,12 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
-  Building2, Users, ChevronRight, Plus, Trash2,
-  ArrowLeft, Edit2, Check, X, Eye, EyeOff, ShieldCheck, LogOut, HardDrive
+  Building2,
+  Users,
+  ChevronRight,
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  X,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Search,
+  KeyRound,
+  Mail,
+  UserCheck,
+  Sparkles,
+  RefreshCw,
+  Lock,
+  ArrowRight,
 } from 'lucide-react';
+import { SuperAdminSidebar } from '@/components/SuperAdminSidebar';
 
 interface Member {
   id: string;
@@ -39,91 +56,113 @@ export default function CompaniesPage() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [notification, setNotification] = useState('');
 
-  // Add member form state
-  const [showAddForm, setShowAddForm] = useState(false);
+  // Password visibility map { [memberId]: boolean }
+  const [showPassMap, setShowPassMap] = useState<Record<string, boolean>>({});
+  const [showPinMap, setShowPinMap] = useState<Record<string, boolean>>({});
+
+  // Add Member Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('12345678');
   const [newPin, setNewPin] = useState('1234');
+  const [showNewPass, setShowNewPass] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Edit member state
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // Edit Member Modal State
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editPin, setEditPin] = useState('');
   const [showEditPass, setShowEditPass] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const notify = (msg: string) => {
     setNotification(msg);
-    setTimeout(() => setNotification(''), 3500);
+    setTimeout(() => setNotification(''), 4000);
   };
 
-  // Fetch companies and their roles
-  useEffect(() => {
-    setIsLoading(true);
-    fetch('/api/admin/credentials')
-      .then(r => {
-        if (r.status === 401) {
-          router.push('/super-admin/signin');
-          return null;
-        }
-        return r.json();
-      })
-      .then(data => {
-        if (!data) return;
-        if (data.companies) {
-          // De-duplicate companies by businessSlug
-          const seen = new Set<string>();
-          const unique: Company[] = [];
-          for (const c of data.companies) {
-            if (!seen.has(c.businessSlug)) {
-              seen.add(c.businessSlug);
-              unique.push(c);
-            }
-          }
-          setCompanies(unique);
-          if (unique.length > 0 && unique[0]) {
-            const firstCompany = unique[0];
-            setSelectedCompany(firstCompany);
-            if (firstCompany.roles && firstCompany.roles.length > 0 && firstCompany.roles[0]) {
-              setSelectedRole(firstCompany.roles[0]);
-            }
+  // 1. Fetch companies
+  const fetchCompanies = useCallback(async () => {
+    setIsLoadingCompanies(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/credentials');
+      if (res.status === 401) {
+        router.push('/super-admin/signin');
+        return;
+      }
+      const data = await res.json();
+      if (data.companies) {
+        // Strict deduplication & normalization
+        const seen = new Set<string>();
+        const unique: Company[] = [];
+        for (const c of data.companies) {
+          if (!seen.has(c.businessSlug)) {
+            seen.add(c.businessSlug);
+            unique.push(c);
           }
         }
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setError('Failed to load companies from server.');
-        setIsLoading(false);
-      });
+        setCompanies(unique);
+
+        // Auto-select first company and its first role if available
+        if (unique.length > 0 && unique[0]) {
+          const first = unique[0];
+          setSelectedCompany(first);
+          if (first.roles && first.roles.length > 0 && first.roles[0]) {
+            setSelectedRole(first.roles[0]);
+          }
+        }
+      }
+    } catch {
+      setError('Failed to load companies from server.');
+    } finally {
+      setIsLoadingCompanies(false);
+    }
   }, [router]);
 
-  // Fetch members when company or role changes
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  // 2. Fetch members when selectedCompany or selectedRole changes
   useEffect(() => {
     if (!selectedCompany || !selectedRole) {
       setMembers([]);
       return;
     }
+    setIsLoadingMembers(true);
     const roleId = selectedRole.role || selectedRole.label;
     fetch(`/api/members?businessId=${selectedCompany.businessId}&roleId=${encodeURIComponent(roleId)}`)
-      .then(r => r.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data) => {
         if (data.success) {
           setMembers(data.members || []);
         } else {
           setMembers([]);
         }
       })
-      .catch(() => setMembers([]));
+      .catch(() => setMembers([]))
+      .finally(() => setIsLoadingMembers(false));
   }, [selectedCompany, selectedRole]);
 
-  const handleAddMember = async () => {
+  // Filtered companies
+  const filteredCompanies = useMemo(() => {
+    if (!searchQuery.trim()) return companies;
+    const q = searchQuery.toLowerCase();
+    return companies.filter((c) => c.businessName.toLowerCase().includes(q));
+  }, [companies, searchQuery]);
+
+  // Handle Add Member
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedCompany || !selectedRole) return;
     if (!newName.trim() || !newEmail.trim() || !newPassword.trim() || !newPin.trim()) {
       setError('All fields (Name, Email, Password, PIN) are required.');
@@ -132,6 +171,7 @@ export default function CompaniesPage() {
     setIsSaving(true);
     setError('');
     const roleId = selectedRole.role || selectedRole.label;
+
     try {
       const res = await fetch('/api/members', {
         method: 'POST',
@@ -144,17 +184,17 @@ export default function CompaniesPage() {
           password: newPassword,
           pin: newPin,
         }),
-      }).then(r => r.json());
+      }).then((r) => r.json());
 
       setIsSaving(false);
       if (res.success) {
-        setMembers(prev => [...prev, res.member]);
+        setMembers((prev) => [...prev, res.member]);
         setNewName('');
         setNewEmail('');
         setNewPassword('12345678');
         setNewPin('1234');
-        setShowAddForm(false);
-        notify(`Member "${res.member.name}" added successfully!`);
+        setShowAddModal(false);
+        notify(`Member "${res.member.name}" added successfully to live database!`);
       } else {
         setError(res.error || 'Failed to add member to database.');
       }
@@ -164,12 +204,71 @@ export default function CompaniesPage() {
     }
   };
 
-  const handleDeleteMember = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove member "${name}"? They will no longer be able to log in.`)) return;
+  // Open Edit Modal
+  const startEdit = (m: Member) => {
+    setEditingMember(m);
+    setEditName(m.name);
+    setEditEmail(m.email);
+    setEditPassword(m.password === '••••••••' ? '' : m.password);
+    setEditPin(m.pin === '••••' ? '' : m.pin);
+    setShowEditPass(false);
+  };
+
+  // Handle Save Edit
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+    setIsUpdating(true);
+    setError('');
+
     try {
-      const res = await fetch(`/api/members?id=${id}`, { method: 'DELETE' }).then(r => r.json());
+      const res = await fetch('/api/members', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingMember.id,
+          name: editName,
+          email: editEmail,
+          password: editPassword || undefined,
+          pin: editPin || undefined,
+        }),
+      }).then((r) => r.json());
+
+      setIsUpdating(false);
       if (res.success) {
-        setMembers(prev => prev.filter(m => m.id !== id));
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.id === editingMember.id
+              ? {
+                  ...m,
+                  name: editName,
+                  email: editEmail,
+                  password: editPassword || m.password,
+                  pin: editPin || m.pin,
+                }
+              : m
+          )
+        );
+        setEditingMember(null);
+        notify(`Member "${editName}" updated successfully in Supabase!`);
+      } else {
+        setError(res.error || 'Failed to update member.');
+      }
+    } catch (err: any) {
+      setIsUpdating(false);
+      setError(err.message || 'Network error while updating member.');
+    }
+  };
+
+  // Handle Delete Member
+  const handleDeleteMember = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete member "${name}"? They will permanently lose access.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/members?id=${id}`, { method: 'DELETE' }).then((r) => r.json());
+      if (res.success) {
+        setMembers((prev) => prev.filter((m) => m.id !== id));
         notify(`Member "${name}" removed from database.`);
       } else {
         setError(res.error || 'Failed to delete member.');
@@ -179,413 +278,592 @@ export default function CompaniesPage() {
     }
   };
 
-  const handleEditSave = async (id: string) => {
-    try {
-      const res = await fetch('/api/members', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id,
-          name: editName,
-          email: editEmail,
-          password: editPassword,
-          pin: editPin,
-        }),
-      }).then(r => r.json());
-
-      if (res.success) {
-        setMembers(prev => prev.map(m => m.id === id ? { ...m, name: editName, email: editEmail } : m));
-        setEditingId(null);
-        notify('Member updated successfully in live database!');
-      } else {
-        setError(res.error || 'Update failed.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Network error while updating member.');
-    }
-  };
-
-  const handleSignOut = async () => {
-    document.cookie = 'homeseva_sa_token=; Max-Age=0; path=/;';
-    router.push('/super-admin/signin');
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="w-8 h-8 rounded-full border-3 border-amber-500 border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Link
-            href="/super-admin/credentials"
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Credentials Console</span>
-          </Link>
-          <span className="text-slate-600">/</span>
-          <span className="flex h-6 items-center rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 text-xs font-bold">
-            COMPANIES &amp; MEMBERS
-          </span>
-        </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 antialiased font-sans">
+      {/* 1. Permanent Left Sidebar Navigation */}
+      <SuperAdminSidebar activeTab="companies" />
 
-        <div className="flex items-center space-x-2">
-          <Link
-            href="/super-admin/backup"
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
-          >
-            <HardDrive className="h-3.5 w-3.5 text-slate-400" />
-            <span>Backups</span>
-          </Link>
+      {/* 2. Main Workspace */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-slate-50">
+        {/* Top Header */}
+        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0 shadow-2xs">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-base font-bold text-slate-900 leading-tight">
+                  Companies &amp; Multi-Member Management
+                </h1>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  Live Supabase
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Select a company to browse operational roles and manage authorized individual personnel accounts.
+              </p>
+            </div>
+          </div>
+
           <button
             type="button"
-            onClick={handleSignOut}
-            className="inline-flex items-center space-x-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 hover:text-white transition cursor-pointer"
+            onClick={fetchCompanies}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs cursor-pointer"
           >
-            <LogOut className="h-3.5 w-3.5" />
-            <span>Lock Console</span>
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+            <span>Refresh</span>
           </button>
-        </div>
-      </header>
+        </header>
 
-      {/* Notifications */}
-      {notification && (
-        <div className="mx-6 mt-4 px-4 py-2.5 bg-emerald-950/80 border border-emerald-500/50 rounded-xl text-emerald-300 text-xs font-medium flex items-center space-x-2">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{notification}</span>
-        </div>
-      )}
-      {error && (
-        <div className="mx-6 mt-4 px-4 py-2.5 bg-rose-950/80 border border-rose-500/50 rounded-xl text-rose-300 text-xs font-medium flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError('')}><X className="w-4 h-4" /></button>
-        </div>
-      )}
-
-      {/* Tri-Column Layout: Companies -> Roles -> Members */}
-      <div className="flex h-[calc(100vh-65px)]">
-        {/* Column 1: Companies (Deduplicated) */}
-        <div className="w-72 border-r border-slate-800 bg-slate-900/60 overflow-y-auto">
-          <div className="px-4 py-3 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Companies</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px]">{companies.length}</span>
+        {/* Notification Toast */}
+        {notification && (
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center space-x-2 shadow-2xs animate-fade-in">
+            <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{notification}</span>
           </div>
-          <div className="divide-y divide-slate-800/60">
-            {companies.map(c => {
-              const isSelected = selectedCompany?.businessSlug === c.businessSlug;
-              return (
-                <button
-                  key={c.businessSlug}
-                  onClick={() => {
-                    setSelectedCompany(c);
-                    if (c.roles && c.roles.length > 0 && c.roles[0]) {
-                      setSelectedRole(c.roles[0]);
-                    } else {
-                      setSelectedRole(null);
-                    }
-                    setShowAddForm(false);
-                  }}
-                  className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors ${
-                    isSelected
-                      ? 'bg-amber-500/10 text-amber-300 font-semibold border-l-2 border-amber-500'
-                      : 'text-slate-300 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div className="truncate">
-                    <div className="text-sm truncate">{c.businessName}</div>
-                    <div className="text-[11px] text-slate-500 font-mono">/{c.businessSlug}</div>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-600'}`} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
-        {/* Column 2: Roles of Selected Company */}
-        <div className="w-80 border-r border-slate-800 bg-slate-900/40 overflow-y-auto">
-          {selectedCompany ? (
-            <>
-              <div className="px-4 py-3 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>Roles ({selectedCompany.roles?.length || 0})</span>
-                <span className="text-[11px] text-amber-400 truncate max-w-[150px]">{selectedCompany.businessName}</span>
+        {/* Error Toast */}
+        {error && (
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center space-x-2 shadow-2xs animate-fade-in">
+            <X className="w-4 h-4 text-rose-600 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button type="button" onClick={() => setError('')} className="text-rose-500 hover:text-rose-700">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* 3. Tri-Column Work Area */}
+        <div className="flex-1 p-6 overflow-hidden flex gap-5 min-h-0">
+          {/* COLUMN 1: Companies Directory */}
+          <div className="w-72 xl:w-80 flex-shrink-0 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Companies Directory
+                </span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                  {filteredCompanies.length} Active
+                </span>
               </div>
-              <div className="divide-y divide-slate-800/60">
-                {(selectedCompany.roles || []).map(r => {
-                  const roleId = r.role || r.label;
-                  const isSelected = (selectedRole?.role || selectedRole?.label) === roleId;
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter companies..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {isLoadingCompanies ? (
+                <div className="py-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
+                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs">Loading companies...</p>
+                </div>
+              ) : filteredCompanies.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">No matching companies</div>
+              ) : (
+                filteredCompanies.map((c) => {
+                  const isSelected = selectedCompany?.businessSlug === c.businessSlug;
                   return (
                     <button
-                      key={roleId}
+                      key={c.businessSlug}
+                      type="button"
                       onClick={() => {
-                        setSelectedRole(r);
-                        setShowAddForm(false);
+                        setSelectedCompany(c);
+                        if (c.roles && c.roles.length > 0 && c.roles[0]) {
+                          setSelectedRole(c.roles[0]);
+                        } else {
+                          setSelectedRole(null);
+                        }
                       }}
-                      className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors ${
+                      className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group cursor-pointer ${
                         isSelected
-                          ? 'bg-amber-500/15 text-amber-300 font-semibold border-l-2 border-amber-400'
-                          : 'text-slate-300 hover:bg-slate-800/50'
+                          ? 'bg-indigo-50/90 border border-indigo-200/90 shadow-2xs'
+                          : 'hover:bg-slate-50 border border-transparent'
                       }`}
                     >
-                      <div className="truncate">
-                        <div className="text-sm font-medium truncate">{r.label || r.role}</div>
-                        <div className="text-[11px] text-slate-500">{r.department || 'General'}</div>
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200/80 group-hover:text-slate-900'
+                          }`}
+                        >
+                          {c.businessName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p
+                            className={`text-xs font-semibold truncate leading-tight ${
+                              isSelected ? 'text-indigo-950' : 'text-slate-800'
+                            }`}
+                          >
+                            {c.businessName}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                            {c.roles?.length || 0} configured roles
+                          </p>
+                        </div>
                       </div>
-                      <ChevronRight className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-400' : 'text-slate-600'}`} />
+                      <ChevronRight
+                        className={`w-4 h-4 flex-shrink-0 transition-transform ${
+                          isSelected ? 'text-indigo-600 translate-x-0.5' : 'text-slate-300'
+                        }`}
+                      />
                     </button>
                   );
-                })}
+                })
+              )}
+            </div>
+          </div>
+
+          {/* COLUMN 2: Operational Roles */}
+          <div className="w-72 xl:w-80 flex-shrink-0 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Operational Roles
+                </span>
+                <p className="text-xs text-slate-800 font-semibold truncate mt-0.5">
+                  {selectedCompany ? selectedCompany.businessName : 'Select a company'}
+                </p>
               </div>
-            </>
-          ) : (
-            <div className="p-8 text-center text-xs text-slate-500">Select a company from the left column.</div>
-          )}
-        </div>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                {selectedCompany?.roles?.length || 0}
+              </span>
+            </div>
 
-        {/* Column 3: Active Members in Selected Role */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-950">
-          {selectedRole && selectedCompany ? (
-            <>
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
-                <div>
-                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    {selectedCompany.businessName} &bull; {selectedRole.department || 'Role'}
-                  </div>
-                  <h2 className="text-xl font-bold text-white flex items-center space-x-2 mt-0.5">
-                    <Users className="w-5 h-5 text-amber-400" />
-                    <span>{selectedRole.label || selectedRole.role}</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Manage active members. Each member logs in with their own registered email, password &amp; PIN.
-                  </p>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {!selectedCompany ? (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  Choose a company to see its roles
                 </div>
+              ) : selectedCompany.roles.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">No roles registered</div>
+              ) : (
+                selectedCompany.roles.map((r) => {
+                  const isSelected = selectedRole?.role === r.role;
+                  return (
+                    <button
+                      key={r.role}
+                      type="button"
+                      onClick={() => setSelectedRole(r)}
+                      className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group cursor-pointer ${
+                        isSelected
+                          ? 'bg-indigo-50/90 border border-indigo-200/90 shadow-2xs'
+                          : 'hover:bg-slate-50 border border-transparent'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center space-x-2">
+                          <p
+                            className={`text-xs font-semibold truncate ${
+                              isSelected ? 'text-indigo-950 font-bold' : 'text-slate-800'
+                            }`}
+                          >
+                            {r.label}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {r.department}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {r.role}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className={`w-4 h-4 flex-shrink-0 transition-transform ${
+                          isSelected ? 'text-indigo-600 translate-x-0.5' : 'text-slate-300'
+                        }`}
+                      />
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
 
+          {/* COLUMN 3: Members Desk */}
+          <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-sm font-bold text-slate-900">
+                    {selectedRole ? selectedRole.label : 'Select a Role'}
+                  </h2>
+                  {selectedRole && (
+                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                      {selectedRole.department}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {selectedCompany ? selectedCompany.businessName : ''} &bull; Authorized Personnel Accounts
+                </p>
+              </div>
+
+              {selectedRole && (
                 <button
                   type="button"
-                  onClick={() => setShowAddForm(prev => !prev)}
-                  className="flex items-center space-x-1.5 px-4 py-2 bg-amber-500 text-slate-950 rounded-xl text-xs font-bold hover:bg-amber-400 transition"
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Member</span>
                 </button>
-              </div>
-
-              {/* Add Member Form Modal / Drawer */}
-              {showAddForm && (
-                <div className="mb-6 p-5 rounded-2xl border border-amber-500/40 bg-slate-900 shadow-xl">
-                  <h3 className="text-sm font-bold text-amber-300 mb-4 flex items-center space-x-2">
-                    <Plus className="w-4 h-4" />
-                    <span>Add New Member to {selectedRole.label || selectedRole.role}</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Rahul Sharma"
-                        value={newName}
-                        onChange={e => setNewName(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Registered Email</label>
-                      <input
-                        type="email"
-                        placeholder="e.g. rahul@company.com"
-                        value={newEmail}
-                        onChange={e => setNewEmail(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Password</label>
-                      <input
-                        type="text"
-                        placeholder="Default: 12345678"
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">4-Digit Security PIN</label>
-                      <input
-                        type="text"
-                        maxLength={4}
-                        placeholder="Default: 1234"
-                        value={newPin}
-                        onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 mt-4 pt-3 border-t border-slate-800">
-                    <button
-                      type="button"
-                      onClick={handleAddMember}
-                      disabled={isSaving}
-                      className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 text-slate-950 rounded-xl text-xs font-bold hover:bg-emerald-400 disabled:opacity-50 transition"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>{isSaving ? 'Saving to Database...' : 'Save Member Instantly'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="px-4 py-2 border border-slate-700 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-700 transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
               )}
+            </div>
 
-              {/* Members List */}
-              {members.length === 0 ? (
-                <div className="p-12 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30">
-                  <Users className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-slate-400">No individual members added to this role yet.</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Click &ldquo;Add Member&rdquo; above to register individual coldcallers or staff accounts.
-                  </p>
+            {/* Universal Demo Notice Banner */}
+            <div className="bg-blue-50/70 border-b border-blue-100 px-4 py-2.5 flex items-center justify-between text-xs text-blue-900">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span className="font-medium">
+                  Universal Demo Account: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold text-blue-800">abc@xyz.com</code> &bull; Password: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold text-blue-800">12345678</code> &bull; PIN: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold text-blue-800">1234</code>
+                </span>
+              </div>
+              <span className="text-[11px] text-blue-600 font-semibold hidden md:inline">
+                Instant DB Sync
+              </span>
+            </div>
+
+            {/* Members List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {isLoadingMembers ? (
+                <div className="py-16 flex flex-col items-center justify-center text-slate-400 space-y-2">
+                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs">Loading members from Supabase...</p>
+                </div>
+              ) : !selectedRole ? (
+                <div className="py-20 text-center text-slate-400 text-xs">
+                  Please select an operational role from the middle column.
+                </div>
+              ) : members.length === 0 ? (
+                <div className="py-16 text-center text-slate-400 space-y-3">
+                  <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">No members registered yet</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Click &ldquo;+ Add Member&rdquo; above to create the first authorized account for this role.
+                    </p>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {members.map(m => {
-                    const isEditing = editingId === m.id;
-                    return (
-                      <div
-                        key={m.id}
-                        className="p-4 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-slate-700 transition"
-                      >
-                        {isEditing ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input
-                              type="text"
-                              value={editName}
-                              onChange={e => setEditName(e.target.value)}
-                              placeholder="Name"
-                              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
-                            />
-                            <input
-                              type="email"
-                              value={editEmail}
-                              onChange={e => setEditEmail(e.target.value)}
-                              placeholder="Email"
-                              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400"
-                            />
-                            <div className="relative">
-                              <input
-                                type={showEditPass ? 'text' : 'password'}
-                                value={editPassword}
-                                onChange={e => setEditPassword(e.target.value)}
-                                placeholder="New password (leave blank to keep current)"
-                                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 font-mono pr-9"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowEditPass(!showEditPass)}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
-                              >
-                                {showEditPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              maxLength={4}
-                              value={editPin}
-                              onChange={e => setEditPin(e.target.value.replace(/\D/g, ''))}
-                              placeholder="New PIN (leave blank to keep current)"
-                              className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
-                            />
-                            <div className="col-span-full flex items-center space-x-2 mt-2">
-                              <button
-                                type="button"
-                                onClick={() => handleEditSave(m.id)}
-                                className="flex items-center space-x-1 px-3 py-1.5 bg-emerald-500 text-slate-950 rounded-lg text-xs font-bold hover:bg-emerald-400"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Save Changes</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingId(null)}
-                                className="px-3 py-1.5 border border-slate-700 bg-slate-800 text-slate-300 rounded-lg text-xs"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                members.map((m) => {
+                  const showPass = !!showPassMap[m.id];
+                  const showPin = !!showPinMap[m.id];
+                  return (
+                    <div
+                      key={m.id}
+                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      {/* Member Info */}
+                      <div className="flex items-center space-x-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs flex-shrink-0">
+                          {m.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-xs font-bold text-slate-900 truncate">{m.name}</h3>
+                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                              Active
+                            </span>
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 font-bold flex items-center justify-center text-sm">
-                                {m.name ? m.name.charAt(0).toUpperCase() : 'U'}
-                              </div>
-                              <div>
-                                <div className="text-sm font-semibold text-white flex items-center space-x-2">
-                                  <span>{m.name}</span>
-                                  {m.email === 'abc@xyz.com' && (
-                                    <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
-                                      UNIVERSAL DEMO
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-xs text-slate-400 font-mono mt-0.5">{m.email}</div>
-                                <div className="text-[11px] text-slate-500 mt-0.5">
-                                  Password: <span className="font-mono text-slate-400">••••••••</span> &bull; PIN: <span className="font-mono text-slate-400">••••</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center space-x-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingId(m.id);
-                                  setEditName(m.name);
-                                  setEditEmail(m.email);
-                                  setEditPassword('');
-                                  setEditPin('');
-                                }}
-                                className="p-2 rounded-xl text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition"
-                                title="Edit Member Credentials"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteMember(m.id, m.name)}
-                                className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
-                                title="Remove Member"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                          <div className="flex items-center space-x-1.5 text-xs text-slate-500 mt-0.5">
+                            <Mail className="w-3 h-3 text-slate-400" />
+                            <span className="font-mono text-[11px] truncate">{m.email}</span>
                           </div>
-                        )}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {/* Credentials Display & Actions */}
+                      <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+                        {/* Password with eye toggle */}
+                        <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                          <KeyRound className="w-3 h-3 text-slate-400" />
+                          <span className="text-[11px] text-slate-500 font-medium">Pass:</span>
+                          <span className="font-mono text-xs font-semibold text-slate-800">
+                            {showPass ? m.password : '••••••••'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowPassMap((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                            }
+                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer transition"
+                            title={showPass ? 'Hide Password' : 'Show Password'}
+                          >
+                            {showPass ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </button>
+                        </div>
+
+                        {/* PIN with toggle */}
+                        <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                          <Lock className="w-3 h-3 text-slate-400" />
+                          <span className="text-[11px] text-slate-500 font-medium">PIN:</span>
+                          <span className="font-mono text-xs font-semibold text-slate-800">
+                            {showPin ? m.pin : '••••'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowPinMap((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                            }
+                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer transition"
+                            title={showPin ? 'Hide PIN' : 'Show PIN'}
+                          >
+                            {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </button>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(m)}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs cursor-pointer"
+                            title="Edit Member"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMember(m.id, m.name)}
+                            className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition shadow-2xs cursor-pointer"
+                            title="Delete Member"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-500">
-              <Building2 className="w-10 h-10 mb-2 opacity-50" />
-              <p className="text-sm font-medium">Select a company and role to inspect and manage members</p>
             </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* 4. Add Member Modal (White Theme) */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-scale-in">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Add Authorized Member</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Role: <span className="font-semibold text-slate-800">{selectedRole?.label}</span> &bull; {selectedCompany?.businessName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddMember} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. John Doe"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Login Work Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="member@company.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPass(!showNewPass)}
+                      className="text-[10px] text-indigo-600 font-semibold"
+                    >
+                      {showNewPass ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    4-Digit PIN
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save to Live Database'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Edit Member Modal (White Theme) */}
+      {editingMember && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-scale-in">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Edit Member Details</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Update credentials for <span className="font-semibold">{editingMember.name}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMember(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Work Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700">New Password</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPass(!showEditPass)}
+                      className="text-[10px] text-indigo-600 font-semibold"
+                    >
+                      {showEditPass ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <input
+                    type={showEditPass ? 'text' : 'password'}
+                    placeholder="Leave blank to keep"
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Security PIN
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="Leave blank to keep"
+                    value={editPin}
+                    onChange={(e) => setEditPin(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition disabled:opacity-50"
+                >
+                  {isUpdating ? 'Saving...' : 'Update Member in Supabase'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

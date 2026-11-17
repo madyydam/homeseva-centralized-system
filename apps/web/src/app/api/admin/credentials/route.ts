@@ -58,21 +58,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    const companies = (businesses || []).map((b: any) => ({
-      businessId: b.id,
-      businessSlug: b.slug,
-      businessName: b.name,
-      roles: (b.business_roles || []).map((r: any) => ({
-        id: r.id,
-        role: r.role_id,
-        label: r.label || r.role_id,
-        department: r.department || 'General',
-        // CRITICAL SECURITY ENFORCEMENT: Never send plaintext passwords or pins to client!
-        hasPassword: !!(r.password && r.password.trim()),
-        hasPin: !!(r.pin && r.pin.trim()),
-        lastUpdated: r.updated_at,
-      })),
-    }));
+    const seenSlugs = new Set<string>();
+    const companies: any[] = [];
+    for (const b of (businesses || [])) {
+      if (b.slug === 'printbooth' && seenSlugs.has('adjs')) continue;
+      if (b.slug === 'adjs' && seenSlugs.has('printbooth')) continue;
+      if (seenSlugs.has(b.slug)) continue;
+
+      seenSlugs.add(b.slug);
+      const displayName = (b.slug === 'adjs' || b.slug === 'printbooth') ? 'ADJS - PRINTBOOTH™' : b.name;
+
+      companies.push({
+        businessId: b.id,
+        businessSlug: b.slug,
+        businessName: displayName,
+        roles: (b.business_roles || []).map((r: any) => ({
+          id: r.id,
+          role: r.role_id,
+          label: r.label || r.role_id,
+          department: r.department || 'General',
+          // CRITICAL SECURITY ENFORCEMENT: Never send plaintext passwords or pins to client!
+          hasPassword: !!(r.password && r.password.trim()),
+          hasPin: !!(r.pin && r.pin.trim()),
+          lastUpdated: r.updated_at,
+        })),
+      });
+    }
 
     return NextResponse.json({
       success: true,

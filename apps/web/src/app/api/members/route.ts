@@ -22,14 +22,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // Mask passwords and PINs for security
-    const masked = (data || []).map((m: any) => ({
+    // For authenticated Super Admin, return the real passwords and PINs so the console eye-toggle can view/reveal them
+    const isSuperAdmin = !!session;
+    const members = (data || []).map((m: any) => ({
       ...m,
-      password: '••••••••',
-      pin: '••••',
+      password: isSuperAdmin ? m.password : '••••••••',
+      pin: isSuperAdmin ? m.pin : '••••',
     }));
 
-    return NextResponse.json({ success: true, members: masked });
+    return NextResponse.json({ success: true, members });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
