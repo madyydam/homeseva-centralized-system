@@ -165,7 +165,7 @@ export default function HomePage() {
               HomeSeva
             </span>
             <span className="rounded-md bg-white/10 border border-white/20 px-2 py-0.5 text-[10px] font-bold text-slate-100 uppercase tracking-wider">
-              ERP v1.2
+              ERP v1.3
             </span>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function HomePage() {
             Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300">HomeSeva</span>
           </h1>
           <p className="mt-1.5 text-sm sm:text-base md:text-lg text-slate-200 font-bold tracking-wide drop-shadow-[0_1px_6px_rgba(0,0,0,0.85)]">
-            Centralized ERP v1.2
+            Centralized ERP v1.3
           </p>
         </section>
 
@@ -190,119 +190,47 @@ export default function HomePage() {
               const IconComponent = biz.icon;
               const staggerClass = `stagger-${Math.min(idx + 1, 10)}`;
               return (
-                <div
+                <Link
                   key={biz.id}
+                  href={`/signin/${biz.slug}`}
                   className={`group relative flex flex-col items-center justify-between text-center rounded-2xl bg-white p-4 sm:p-5 text-slate-900 shadow-xl shadow-black/40 border border-slate-100/90 hover:-translate-y-2 hover:scale-[1.04] hover:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-10 hover:z-30 cursor-pointer transform-gpu animate-in fade-in-up duration-300 ${staggerClass} ${biz.hoverEffect}`}
                 >
                   {/* 1. LOGO IN MIDDLE */}
                   <div className="flex flex-col items-center w-full">
                     {biz.logoImg ? (
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl overflow-hidden border shadow-xs mb-2 p-1 group-hover:scale-110 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl overflow-hidden border shadow-xs mb-3 p-1 group-hover:scale-110 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                         biz.isGentleHairWigs ? 'border-amber-300/80 bg-white' : 'border-blue-400/80 bg-[#005eb8]'
                       }`}>
                         <img
                           src={biz.logoImg}
                           alt={biz.name}
-                          width={44}
-                          height={44}
+                          width={48}
+                          height={48}
                           loading="eager"
                           decoding="async"
                           className="h-full w-full object-contain"
                         />
                       </div>
                     ) : (
-                      <div className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${biz.bgColor} shadow-xs mb-2 group-hover:scale-110`}>
-                        {IconComponent && <IconComponent className={`h-5 w-5 ${biz.color} group-hover:text-white transition-colors duration-200`} />}
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${biz.bgColor} shadow-xs mb-3 group-hover:scale-110`}>
+                        {IconComponent && <IconComponent className={`h-6 w-6 ${biz.color} group-hover:text-white transition-colors duration-200`} />}
                       </div>
                     )}
 
                     {/* 2. NAME */}
-                    <Link
-                      href={`/signin/${biz.slug}`}
-                      className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-tight line-clamp-1 hover:underline"
-                    >
+                    <span className="text-xs sm:text-[13px] font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-tight line-clamp-1">
                       {biz.name}
-                    </Link>
-
-                    {/* 3. SUB-BUSINESS BUTTON(S) */}
-                    {biz.isGentleHairWigs ? (
-                      /* 3 SEPARATE BUTTONS (Viman Nagar, Ravet & Kolhapur) */
-                      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 w-full">
-                        <Link
-                          href="/signin/gentle-hair-wigs?branch=viman-nagar"
-                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
-                          title="Studio of Viman Nagar"
-                        >
-                          Viman Nagar
-                        </Link>
-                        <Link
-                          href="/signin/gentle-hair-wigs?branch=ravet"
-                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
-                          title="Studio of Ravet"
-                        >
-                          Ravet
-                        </Link>
-                        <Link
-                          href="/signin/gentle-hair-wigs?branch=kolhapur"
-                          className="inline-flex items-center justify-center rounded-md border border-amber-300/90 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
-                          title="Studio of Kolhapur"
-                        >
-                          Kolhapur
-                        </Link>
-                      </div>
-                    ) : biz.isHorecaEssentials ? (
-                      /* 2 SEPARATE BUTTONS (Essentials Sales & Crockery Rental) */
-                      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 w-full">
-                        <Link
-                          href="/signin/horeca-essentials?division=essentials-sales"
-                          className="inline-flex items-center justify-center rounded-md border border-emerald-300/90 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
-                          title="Essentials Sales"
-                        >
-                          Essentials Sales
-                        </Link>
-                        <Link
-                          href="/signin/horeca-essentials?division=crockery-rental"
-                          className="inline-flex items-center justify-center rounded-md border border-emerald-300/90 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
-                          title="Crockery Rental"
-                        >
-                          Crockery Rental
-                        </Link>
-                      </div>
-                    ) : biz.isAdjs ? (
-                      /* ADJS SUBCOMPANY: PRINTBOOTH™ */
-                      <div className="mt-2 flex justify-center w-full">
-                        <Link
-                          href="/signin/adjs?subcompany=printbooth"
-                          className="inline-flex items-center justify-center rounded-lg border border-purple-300/90 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 px-2.5 py-1 text-[10.5px] font-black text-purple-900 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95"
-                          title="PRINTBOOTH™ – Think It. Print It."
-                        >
-                          PRINTBOOTH™
-                        </Link>
-                      </div>
-                    ) : (
-                      /* Standard sub-business button */
-                      <div className="mt-2 flex justify-center w-full">
-                        <Link
-                          href={`/signin/${biz.slug}`}
-                          className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-1 text-[10.5px] font-bold shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95 line-clamp-1 ${biz.buttonStyle}`}
-                        >
-                          {biz.subtitle}
-                        </Link>
-                      </div>
-                    )}
+                    </span>
                   </div>
 
-                  {/* 4. GO BUTTON */}
-                  <div className="mt-2.5 w-full pt-2 border-t border-slate-100 flex items-center justify-center">
-                    <Link
-                      href={`/signin/${biz.slug}`}
-                      className="inline-flex items-center space-x-1 rounded-full px-3 py-0.5 text-[10px] font-bold text-blue-600 bg-blue-50/80 group-hover:bg-blue-600 group-hover:text-white transition-all duration-150 active:scale-95"
-                    >
+                  {/* 3. GO BUTTON */}
+                  <div className="mt-4 w-full pt-2.5 border-t border-slate-100 flex items-center justify-center">
+                    <span className="inline-flex items-center space-x-1.5 rounded-full px-3.5 py-1 text-[10.5px] font-bold text-blue-600 bg-blue-50/80 group-hover:bg-blue-600 group-hover:text-white transition-all duration-150">
                       <span>Go</span>
-                      <ArrowRight className="h-2.5 w-2.5 group-hover:translate-x-1 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]" />
-                    </Link>
+                      <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]" />
+                    </span>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

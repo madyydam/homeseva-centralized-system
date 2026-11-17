@@ -1,0 +1,33 @@
+appId: com.homeseva.erp
+productName: HomeSeva ERP
+copyright: Copyright © 2026 HomeSeva Technologies
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - "dist-app/**/*"
+  - "assets/**/*"
+  - "package.json"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.ico
+  artifactName: "HomeSeva-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "HomeSeva ERP"
+  uninstallDisplayName: "HomeSeva ERP"
+
+publish:
+  provider: generic
+  url: "https://updates.homeseva.internal/desktop/"
