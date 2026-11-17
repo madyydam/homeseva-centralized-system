@@ -184,6 +184,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
+  const [memberEmail, setMemberEmail] = useState('abc@xyz.com');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -223,6 +224,8 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   latestPasswordRef.current = password;
   const latestPinRef = useRef(pin);
   latestPinRef.current = pin;
+  const latestEmailRef = useRef(memberEmail);
+  latestEmailRef.current = memberEmail;
   const latestLocksRef = useRef(locks);
   latestLocksRef.current = locks;
   const latestRoleRef = useRef(selectedRole);
@@ -270,22 +273,48 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
       isSubmittingSessionRef.current = true;
       try {
-        const res = await fetch('/api/auth/verify', {
+        const curEmail = (latestEmailRef.current || 'abc@xyz.com').trim();
+        // 1. Try individual member login
+        let res = await fetch('/api/auth/member-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             businessSlug,
-            role: rRole,
+            roleId: rRole,
+            email: curEmail,
             password: rPass,
             pin: rPin,
           }),
         });
 
-        const data = await res.json();
-        if (!data.success) {
-          setErrorMsg(data.error || 'Authentication failed. Please check your credentials.');
+        let data = await res.json();
+
+        // If wrong role selected for this member, show exact prompt
+        if (!data.success && data.wrongRole) {
+          setErrorMsg(data.error);
           isSubmittingSessionRef.current = false;
           return false;
+        }
+
+        // Graceful fallback to legacy role verify if table not yet migrated or other issue
+        if (!data.success) {
+          const fallbackRes = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              businessSlug,
+              role: rRole,
+              password: rPass,
+              pin: rPin,
+            }),
+          });
+          const fallbackData = await fallbackRes.json();
+          if (!fallbackData.success) {
+            setErrorMsg(data.error || fallbackData.error || 'Authentication failed. Please check your credentials.');
+            isSubmittingSessionRef.current = false;
+            return false;
+          }
+          data = fallbackData;
         }
 
         // ✅ Security handshake complete: cookie is confirmed saved in the browser!
@@ -1760,6 +1789,26 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                           )}
                         </>
                       ) : null}
+                    </div>
+
+                    {/* 1.5. REGISTERED EMAIL INPUT */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Registered Member Email</label>
+                      <div className="relative">
+                        <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="email"
+                          value={memberEmail}
+                          onChange={(e) => {
+                            setMemberEmail(e.target.value);
+                            latestEmailRef.current = e.target.value;
+                            setErrorMsg('');
+                          }}
+                          placeholder="e.g. abc@xyz.com"
+                          required
+                          className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-3 text-xs sm:text-sm text-slate-900 focus:outline-none transition border-slate-300 ${theme.ring}`}
+                        />
+                      </div>
                     </div>
 
                     {/* 2. PASSWORD INPUT (Linked to Left Column Lock 1) */}

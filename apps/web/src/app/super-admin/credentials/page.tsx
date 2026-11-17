@@ -437,6 +437,13 @@ export default function SuperAdminCredentialsPage() {
           {/* Console Tab Links & Logout */}
           <div className="flex items-center space-x-2">
             <Link
+              href="/super-admin/companies"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 hover:text-white transition"
+            >
+              <Building2 className="h-3.5 w-3.5 text-amber-400" />
+              <span>Companies &amp; Members</span>
+            </Link>
+            <Link
               href="/super-admin/backup"
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
             >

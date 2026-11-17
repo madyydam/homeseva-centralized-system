@@ -12,6 +12,7 @@ import {
   Sparkles,
   ChevronRight,
   CheckCircle2,
+  Users,
 } from 'lucide-react';
 import { BusinessDashboardProps } from '../types';
 import { printboothConfig } from './config';
@@ -21,11 +22,25 @@ import {
   PaperStockItem,
   PrintboothData,
 } from './types';
+import { PrintBoothColdcallerDashboard } from './ColdcallerDashboard';
 
-export default function PrintboothDashboard({
+export default function PrintboothDashboard(props: BusinessDashboardProps) {
+  const isColdcaller = (props.role || '').toLowerCase().includes('cold');
+  if (isColdcaller) {
+    return <PrintBoothColdcallerDashboard {...props} />;
+  }
+  return <PrintboothManagerView {...props} />;
+}
+
+function PrintboothManagerView({
   role = 'Press Production Manager',
+  memberId,
+  memberName,
 }: BusinessDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'paper'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'paper' | 'coldcallers'>('overview');
+  const [selectedCallerId, setSelectedCallerId] = useState<string | null>(null);
+  const [selectedCallerName, setSelectedCallerName] = useState<string | null>(null);
+  const [coldCallersList, setColdCallersList] = useState<{ id: string; name: string; email: string }[]>([]);
   const [data, setData] = useState<PrintboothData>({
     jobs: [],
     paperStock: [],
@@ -37,6 +52,12 @@ export default function PrintboothDashboard({
 
   useEffect(() => {
     refreshData();
+    fetch('/api/members?businessId=0d900d63-d53d-4870-a4a9-8fb0435fd55f&roleId=Coldcaller')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.success) setColdCallersList(d.members || []);
+      })
+      .catch(() => {});
   }, []);
 
   const [showJobModal, setShowJobModal] = useState(false);
@@ -158,6 +179,20 @@ export default function PrintboothDashboard({
                     {data.paperStock.length}
                   </span>
                 </button>
+                <button
+                  onClick={() => setActiveTab('coldcallers')}
+                  className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                    activeTab === 'coldcallers'
+                      ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <Users className="h-4 w-4 text-purple-600" />
+                  <span>Coldcallers &amp; CRM</span>
+                  <span className="ml-auto rounded-full bg-amber-100 text-amber-800 px-1.5 text-[10px] font-mono font-bold">
+                    {coldCallersList.length}
+                  </span>
+                </button>
               </nav>
             </div>
           </div>
@@ -270,6 +305,96 @@ export default function PrintboothDashboard({
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* COLDCALLERS MONITORING FOR OWNER */}
+          {activeTab === 'coldcallers' && (
+            <div className="space-y-4">
+              {selectedCallerId ? (
+                <div>
+                  <button
+                    onClick={() => {
+                      setSelectedCallerId(null);
+                      setSelectedCallerName(null);
+                    }}
+                    className="inline-flex items-center space-x-1.5 text-xs font-bold text-purple-700 hover:text-purple-900 mb-4 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200 transition cursor-pointer"
+                  >
+                    <span>&larr; Back to all Coldcallers</span>
+                  </button>
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 mb-5 text-xs font-bold text-amber-900 flex items-center justify-between shadow-xs">
+                    <span>
+                      Viewing &amp; Editing Live Desk of:{' '}
+                      <span className="text-amber-950 font-black underline">{selectedCallerName}</span>
+                    </span>
+                    <span className="rounded bg-amber-200/80 px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold text-amber-950">
+                      Owner Superpower Mode
+                    </span>
+                  </div>
+                  <PrintBoothColdcallerDashboard
+                    role="Coldcaller"
+                    memberId={selectedCallerId}
+                    memberName={selectedCallerName || ''}
+                  />
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900 flex items-center space-x-2">
+                        <Users className="w-5 h-5 text-purple-600" />
+                        <span>PrintBooth Coldcallers Roster &amp; Daily Desk</span>
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Click on any individual coldcaller to open, inspect, and edit their daily calls, machines sold &amp; attendance.
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-purple-50 text-purple-800 rounded-full text-xs font-bold font-mono border border-purple-200">
+                      {coldCallersList.length} Active Caller(s)
+                    </span>
+                  </div>
+
+                  {coldCallersList.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center">
+                      <Users className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                      <h4 className="text-xs font-bold text-slate-700">No individual coldcallers registered yet</h4>
+                      <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+                        Open the Super Admin &ldquo;Companies &amp; Members&rdquo; module to add member accounts for PrintBooth.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                      {coldCallersList.map((caller) => (
+                        <button
+                          key={caller.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCallerId(caller.id);
+                            setSelectedCallerName(caller.name);
+                          }}
+                          className="text-left p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-purple-50/50 hover:border-purple-300 transition group shadow-2xs cursor-pointer"
+                        >
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white font-black flex items-center justify-center text-sm shadow-xs group-hover:scale-105 transition">
+                              {caller.name ? caller.name.charAt(0).toUpperCase() : 'C'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-xs font-bold text-slate-900 truncate group-hover:text-purple-900">
+                                {caller.name}
+                              </h4>
+                              <p className="text-[11px] text-slate-500 font-mono truncate">{caller.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 text-[11px] font-semibold text-purple-700">
+                            <span>Open Live Calling Desk</span>
+                            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

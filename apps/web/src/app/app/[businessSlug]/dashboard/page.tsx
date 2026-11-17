@@ -19,32 +19,13 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const divisionParam = searchParams.get('division') || undefined;
   const roleParam = searchParams.get('role') || undefined;
 
-  const [activeRole, setActiveRole] = useState<string | undefined>(() => {
-    if (roleParam) return roleParam;
-    if (typeof window !== 'undefined') {
-      try {
-        const match = document.cookie.match(/homeseva_session=([^;]+)/);
-        if (match && match[1]) {
-          const parts = match[1].split('.');
-          if (parts[0]) {
-            const json = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
-            const payload = JSON.parse(json);
-            return payload.role || undefined;
-          }
-        }
-      } catch {}
-    }
-    return undefined;
-  });
+  const [activeRole, setActiveRole] = useState<string | undefined>(roleParam);
+  const [activeMemberId, setActiveMemberId] = useState<string | undefined>(undefined);
+  const [activeMemberName, setActiveMemberName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (roleParam) {
-      setActiveRole(roleParam);
-      return;
-    }
-    // Fallback: extract authenticated role from secure session cookie
     try {
-      const match = document.cookie.match(/homeseva_session=([^;]+)/);
+      const match = document.cookie.match(/(?:homeseva_user_session|homeseva_session)=([^;]+)/);
       if (match && match[1]) {
         const parts = match[1].split('.');
         if (parts[0]) {
@@ -52,6 +33,12 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
           const payload = JSON.parse(json);
           if (payload.role) {
             setActiveRole(payload.role);
+          }
+          if (payload.memberId || payload.sub) {
+            setActiveMemberId(payload.memberId || payload.sub);
+          }
+          if (payload.memberName || payload.username) {
+            setActiveMemberName(payload.memberName || payload.username);
           }
         }
       }
@@ -90,6 +77,8 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
       branch={branchParam}
       division={divisionParam}
       role={activeRole || roleParam}
+      memberId={activeMemberId}
+      memberName={activeMemberName}
     />
   );
 }

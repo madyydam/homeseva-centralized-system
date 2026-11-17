@@ -55,6 +55,8 @@ const COLD_CALLER_NAV_ITEMS = [
 export function ColdCallerDashboard({
   branch = 'viman-nagar',
   role = 'Cold Caller',
+  memberId,
+  memberName,
 }: BusinessDashboardProps) {
   const BRANCH_LIST = gentleHairWigsConfig.branches!;
 
@@ -490,6 +492,8 @@ export function ColdCallerDashboard({
           {activeTab === 'daily-reporting' ? (
             <DailyReportingView
               branch="all"
+              currentTelecallerId={memberId}
+              currentTelecallerName={memberName}
               onReportUpdated={checkStatus}
             />
           ) : (

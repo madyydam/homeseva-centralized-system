@@ -46,6 +46,8 @@ export interface SessionPayload {
   businessSlug?: string;
   isSuperAdmin?: boolean;
   username?: string;
+  memberId?: string;
+  memberName?: string;
   exp: number; // Unix timestamp in ms
 }
 

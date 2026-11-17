@@ -41,6 +41,8 @@ export interface BusinessDashboardProps {
   branch?: string | undefined;
   division?: string | undefined;
   role?: string | undefined;
+  memberId?: string | undefined;
+  memberName?: string | undefined;
 }
 
 export interface BusinessModule {
