@@ -56,15 +56,10 @@ export async function POST(req: NextRequest) {
     }
 
     let matched = false;
-    const isPrintboothOrAdjs = businessSlug === 'printbooth' || businessSlug === 'adjs';
     if (field === 'password') {
-      matched =
-        cleanVal === dbRole.password?.trim() ||
-        (isPrintboothOrAdjs && (cleanVal === '123456789' || cleanVal === 'Adjs@123'));
+      matched = cleanVal === dbRole.password?.trim();
     } else if (field === 'pin') {
-      matched =
-        cleanVal === dbRole.pin?.trim() ||
-        (isPrintboothOrAdjs && (cleanVal === '1234' || cleanVal === '1003'));
+      matched = !dbRole.pin || cleanVal === dbRole.pin?.trim();
     }
 
     return NextResponse.json({ success: true, matched });

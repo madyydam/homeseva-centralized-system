@@ -306,9 +306,9 @@ INSERT INTO public.super_admin_credentials (id, username, password_hash, pin4_ha
 VALUES (
   'primary',
   'madyydam',
-  '$2b$10$ttdhreMDkbbfWSL1CiOA9uIkS3B65DMwnb782SVnpyLB.VkaWJTD6',
-  '$2b$10$ttdhreMDkbbfWSL1CiOA9uqvzADBd.d0.79Tr/2Aqfhv6dQpGBdFO',
-  '$2b$10$ttdhreMDkbbfWSL1CiOA9uaaxvoe9n1xbC5PJ1UPo8cah/YDcck1K',
+  '$2b$10$2HgmHfakW8PSkI8DynNNT./WnAxuLt7aaf62lZFwFGmoP1ru/KVSC',
+  '$2b$10$XUv/rXecQsoxByDuRsfBwezToPfAnDV2EvpoLX8PliZv3.7OoAzE6',
+  '$2b$10$VNraDf89t3Jrow7iKdmwuOtMySaLEhIpED40efICcuZhMPxYZU7Jq',
   0,
   NULL
 )
@@ -383,13 +383,13 @@ BEGIN
   -- 1. Gentle Hair Wigs (Business 3)
   IF b_gentle IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_gentle, 'Studio Manager', 'Studio Manager', 'Studio operations, staff roster & desk oversight', 'Operations', 'GentleHair@123', '2408'),
-    (b_gentle, 'Cold Caller', 'Cold Caller / Telecaller', 'Dedicated telecalling, follow-ups & monthly lead sheets CRM', 'Telecalling', 'Telecaller@123', '1100'),
-    (b_gentle, 'Senior Wig Specialist & Stylist', 'Senior Wig Specialist & Stylist', 'Custom hair fittings, styling & cutting suites', 'Styling', 'Stylist@123', '3300'),
-    (b_gentle, 'Scalp & Measurement Consultant', 'Scalp & Measurement Consultant', 'Head contouring, base templates & scalp scans', 'Consultation', 'Consultant@123', '4400'),
-    (b_gentle, 'Billing & Front Desk', 'Billing & Front Desk', 'Counter POS, appointments & invoicing register', 'Front Desk', 'Billing@123', '5500'),
-    (b_gentle, 'Inventory Coordinator (Wigs & Patches)', 'Inventory Coordinator (Wigs & Patches)', 'Lace systems, patch stock, tapes & adhesives', 'Inventory', 'Stock@123', '6600'),
-    (b_gentle, 'Studio Partner / Owner', 'Studio Partner / Owner', 'Executive P&L oversight, studio audits & reports', 'Executive', 'Owner@123', '9999')
+    (b_gentle, 'Studio Manager', 'Studio Manager', 'Studio operations, staff roster & desk oversight', 'Operations', '12345678', '1234'),
+    (b_gentle, 'Cold Caller', 'Cold Caller / Telecaller', 'Dedicated telecalling, follow-ups & monthly lead sheets CRM', 'Telecalling', '12345678', '1234'),
+    (b_gentle, 'Senior Wig Specialist & Stylist', 'Senior Wig Specialist & Stylist', 'Custom hair fittings, styling & cutting suites', 'Styling', '12345678', '1234'),
+    (b_gentle, 'Scalp & Measurement Consultant', 'Scalp & Measurement Consultant', 'Head contouring, base templates & scalp scans', 'Consultation', '12345678', '1234'),
+    (b_gentle, 'Billing & Front Desk', 'Billing & Front Desk', 'Counter POS, appointments & invoicing register', 'Front Desk', '12345678', '1234'),
+    (b_gentle, 'Inventory Coordinator (Wigs & Patches)', 'Inventory Coordinator (Wigs & Patches)', 'Lace systems, patch stock, tapes & adhesives', 'Inventory', '12345678', '1234'),
+    (b_gentle, 'Studio Partner / Owner', 'Studio Partner / Owner', 'Executive P&L oversight, studio audits & reports', 'Executive', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label,
       description = EXCLUDED.description,
@@ -410,11 +410,11 @@ BEGIN
   -- 2. HoReCa Essentials (Business 2)
   IF b_horeca IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_horeca, 'General Manager', 'General Manager', 'Overall management of sales supply and crockery rental', 'Management', 'Horeca@123', '2020'),
-    (b_horeca, 'Sales Representative (Essentials)', 'Sales Representative (Essentials)', 'Commercial cutlery, chinaware, glassware & amenities sales', 'Sales', 'Sales@123', '2100'),
-    (b_horeca, 'Rental Logistics Supervisor', 'Rental Logistics Supervisor', 'Banquet and event hire logistics, delivery & return checks', 'Rental', 'Rental@123', '2200'),
-    (b_horeca, 'Inventory & Warehousing Desk', 'Inventory & Warehousing Desk', 'Stock tracking, breakage register, and warehouse audits', 'Inventory', 'Warehouse@123', '2300'),
-    (b_horeca, 'Banquet Billing & Invoicing', 'Banquet Billing & Invoicing', 'Invoicing, advances, security deposits, and settlement register', 'Finance', 'Billing@123', '2400')
+    (b_horeca, 'General Manager', 'General Manager', 'Overall management of sales supply and crockery rental', 'Management', '12345678', '1234'),
+    (b_horeca, 'Sales Representative (Essentials)', 'Sales Representative (Essentials)', 'Commercial cutlery, chinaware, glassware & amenities sales', 'Sales', '12345678', '1234'),
+    (b_horeca, 'Rental Logistics Supervisor', 'Rental Logistics Supervisor', 'Banquet and event hire logistics, delivery & return checks', 'Rental', '12345678', '1234'),
+    (b_horeca, 'Inventory & Warehousing Desk', 'Inventory & Warehousing Desk', 'Stock tracking, breakage register, and warehouse audits', 'Inventory', '12345678', '1234'),
+    (b_horeca, 'Banquet Billing & Invoicing', 'Banquet Billing & Invoicing', 'Invoicing, advances, security deposits, and settlement register', 'Finance', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
 
@@ -429,10 +429,10 @@ BEGIN
   -- 3. Prefab Construction (Business 1)
   IF b_prefab IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_prefab, 'Project Director', 'Project Director', 'Overall oversight of civil and prefab sites', 'Projects', 'Prefab@123', '1010'),
-    (b_prefab, 'Civil Site Engineer', 'Civil Site Engineer', 'Daily site progress, labor supervision and quality control', 'Engineering', 'Engineer@123', '1020'),
-    (b_prefab, 'Procurement & Materials Desk', 'Procurement & Materials Desk', 'Steel, sandwich panels, modular materials and vendor orders', 'Procurement', 'Procure@123', '1030'),
-    (b_prefab, 'Billing & Contract Estimator', 'Billing & Contract Estimator', 'Client milestones, RA bills, and contractor estimates', 'Commercial', 'Billing@123', '1040')
+    (b_prefab, 'Project Director', 'Project Director', 'Overall oversight of civil and prefab sites', 'Projects', '12345678', '1234'),
+    (b_prefab, 'Civil Site Engineer', 'Civil Site Engineer', 'Daily site progress, labor supervision and quality control', 'Engineering', '12345678', '1234'),
+    (b_prefab, 'Procurement & Materials Desk', 'Procurement & Materials Desk', 'Steel, sandwich panels, modular materials and vendor orders', 'Procurement', '12345678', '1234'),
+    (b_prefab, 'Billing & Contract Estimator', 'Billing & Contract Estimator', 'Client milestones, RA bills, and contractor estimates', 'Commercial', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -440,10 +440,10 @@ BEGIN
   -- 4. Ecolab Distribution (Business 4)
   IF b_ecolab IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_ecolab, 'Distribution Manager', 'Distribution Manager', 'Institutional distribution and order dispatch oversight', 'Operations', 'Ecolab@123', '4010'),
-    (b_ecolab, 'Institutional Key Account Executive', 'Key Account Executive', 'Hotel, hospital and catering corporate accounts', 'Sales', 'Accounts@123', '4020'),
-    (b_ecolab, 'Chemical Safety & Stock Auditor', 'Safety & Stock Auditor', 'Hazardous storage compliance, expiration tracking & QA', 'Compliance', 'Auditor@123', '4030'),
-    (b_ecolab, 'Billing & Dispatch Desk', 'Billing & Dispatch Desk', 'Tax invoices, e-way bills, and dispatch manifests', 'Logistics', 'Dispatch@123', '4040')
+    (b_ecolab, 'Distribution Manager', 'Distribution Manager', 'Institutional distribution and order dispatch oversight', 'Operations', '12345678', '1234'),
+    (b_ecolab, 'Institutional Key Account Executive', 'Key Account Executive', 'Hotel, hospital and catering corporate accounts', 'Sales', '12345678', '1234'),
+    (b_ecolab, 'Chemical Safety & Stock Auditor', 'Safety & Stock Auditor', 'Hazardous storage compliance, expiration tracking & QA', 'Compliance', '12345678', '1234'),
+    (b_ecolab, 'Billing & Dispatch Desk', 'Billing & Dispatch Desk', 'Tax invoices, e-way bills, and dispatch manifests', 'Logistics', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -451,9 +451,9 @@ BEGIN
   -- 5. HS Co-working (Business 5)
   IF b_cowork IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_cowork, 'Community Manager', 'Community Manager', 'Member relations, onboarding, hot desks and cabins', 'Community', 'Cowork@123', '5010'),
-    (b_cowork, 'Front Desk Coordinator', 'Front Desk Coordinator', 'Visitor reception, mail handling, and day passes', 'Reception', 'FrontDesk@123', '5020'),
-    (b_cowork, 'Facility & Access Desk', 'Facility & Access Desk', 'Access cards, internet uptime, power backup & facilities', 'Operations', 'Facility@123', '5030')
+    (b_cowork, 'Community Manager', 'Community Manager', 'Member relations, onboarding, hot desks and cabins', 'Community', '12345678', '1234'),
+    (b_cowork, 'Front Desk Coordinator', 'Front Desk Coordinator', 'Visitor reception, mail handling, and day passes', 'Reception', '12345678', '1234'),
+    (b_cowork, 'Facility & Access Desk', 'Facility & Access Desk', 'Access cards, internet uptime, power backup & facilities', 'Operations', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -461,9 +461,9 @@ BEGIN
   -- 6. First Mover Advantage (Business 6)
   IF b_fma IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_fma, 'Product Lead', 'Product Lead', 'Roadmap, feature backlog, and release planning', 'Product', 'Product@123', '6010'),
-    (b_fma, 'DevOps & Platform Desk', 'DevOps & Platform Desk', 'Cloud infrastructure, CI/CD, uptime, and database metrics', 'Engineering', 'Platform@123', '6020'),
-    (b_fma, 'Billing & Accounts', 'Billing & Accounts', 'Subscription billing, invoices, and payment gateways', 'Finance', 'Finance@123', '6030')
+    (b_fma, 'Product Lead', 'Product Lead', 'Roadmap, feature backlog, and release planning', 'Product', '12345678', '1234'),
+    (b_fma, 'DevOps & Platform Desk', 'DevOps & Platform Desk', 'Cloud infrastructure, CI/CD, uptime, and database metrics', 'Engineering', '12345678', '1234'),
+    (b_fma, 'Billing & Accounts', 'Billing & Accounts', 'Subscription billing, invoices, and payment gateways', 'Finance', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -471,22 +471,22 @@ BEGIN
   -- 7. ADJS / Printbooth (Business 7)
   IF b_adjs IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_adjs, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', 'Adjs@123', '1001'),
-    (b_adjs, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', 'Adjs@123', '1002'),
-    (b_adjs, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', 'Adjs@123', '1003'),
-    (b_adjs, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', 'Adjs@123', '1004'),
-    (b_adjs, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', 'Adjs@123', '1005')
+    (b_adjs, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', '12345678', '1234'),
+    (b_adjs, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', '12345678', '1234'),
+    (b_adjs, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', '12345678', '1234'),
+    (b_adjs, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', '12345678', '1234'),
+    (b_adjs, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
 
   IF b_print IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_print, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', 'Adjs@123', '1001'),
-    (b_print, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', 'Adjs@123', '1002'),
-    (b_print, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', 'Adjs@123', '1003'),
-    (b_print, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', 'Adjs@123', '1004'),
-    (b_print, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', 'Adjs@123', '1005')
+    (b_print, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', '12345678', '1234'),
+    (b_print, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', '12345678', '1234'),
+    (b_print, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', '12345678', '1234'),
+    (b_print, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', '12345678', '1234'),
+    (b_print, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -494,9 +494,9 @@ BEGIN
   -- 8. DVR Enterprise (Business 8)
   IF b_dvr IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_dvr, 'Trading Manager', 'Trading Manager', 'Supplier procurement, pricing margins, wholesale orders', 'Trade', 'Trading@123', '8010'),
-    (b_dvr, 'Dispatch Coordinator', 'Dispatch Coordinator', 'Warehouse loading, transporter booking, LR receipts', 'Logistics', 'Dispatch@123', '8020'),
-    (b_dvr, 'Accounts Desk', 'Accounts Desk', 'Vendor ledgers, receivables collections, and reconciliation', 'Finance', 'Accounts@123', '8030')
+    (b_dvr, 'Trading Manager', 'Trading Manager', 'Supplier procurement, pricing margins, wholesale orders', 'Trade', '12345678', '1234'),
+    (b_dvr, 'Dispatch Coordinator', 'Dispatch Coordinator', 'Warehouse loading, transporter booking, LR receipts', 'Logistics', '12345678', '1234'),
+    (b_dvr, 'Accounts Desk', 'Accounts Desk', 'Vendor ledgers, receivables collections, and reconciliation', 'Finance', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -504,9 +504,9 @@ BEGIN
   -- 9. NDA Services (Business 9)
   IF b_nda IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_nda, 'Operations Head', 'Operations Head', 'Client site deployments, shift rosters, and guard training', 'Security', 'Security@123', '9010'),
-    (b_nda, 'Deployment Officer', 'Deployment Officer', 'Field patrols, biometric attendance checks, uniform audits', 'Field', 'Officer@123', '9020'),
-    (b_nda, 'Admin Desk', 'Admin Desk', 'Client agreements, billing, guard muster roll, and compliance', 'Administration', 'Admin@123', '9030')
+    (b_nda, 'Operations Head', 'Operations Head', 'Client site deployments, shift rosters, and guard training', 'Security', '12345678', '1234'),
+    (b_nda, 'Deployment Officer', 'Deployment Officer', 'Field patrols, biometric attendance checks, uniform audits', 'Field', '12345678', '1234'),
+    (b_nda, 'Admin Desk', 'Admin Desk', 'Client agreements, billing, guard muster roll, and compliance', 'Administration', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
@@ -514,9 +514,9 @@ BEGIN
   -- 10. HS Real Estate (Business 10)
   IF b_real IS NOT NULL THEN
     INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-    (b_real, 'Portfolio Lead', 'Portfolio Lead', 'Asset valuation, tenancy overview, yield optimization', 'Portfolio', 'Property@123', '1110'),
-    (b_real, 'Leasing Executive', 'Leasing Executive', 'Site visits, tenant negotiations, lease drafts & renewals', 'Leasing', 'Leasing@123', '1120'),
-    (b_real, 'Accounts & Legal', 'Accounts & Legal', 'Rental receivables, maintenance escrow, registered agreements', 'Legal', 'Legal@123', '1130')
+    (b_real, 'Portfolio Lead', 'Portfolio Lead', 'Asset valuation, tenancy overview, yield optimization', 'Portfolio', '12345678', '1234'),
+    (b_real, 'Leasing Executive', 'Leasing Executive', 'Site visits, tenant negotiations, lease drafts & renewals', 'Leasing', '12345678', '1234'),
+    (b_real, 'Accounts & Legal', 'Accounts & Legal', 'Rental receivables, maintenance escrow, registered agreements', 'Legal', '12345678', '1234')
     ON CONFLICT (business_id, role_id) DO UPDATE SET
       label = EXCLUDED.label, description = EXCLUDED.description, department = EXCLUDED.department, password = EXCLUDED.password, pin = EXCLUDED.pin, updated_at = NOW();
   END IF;
