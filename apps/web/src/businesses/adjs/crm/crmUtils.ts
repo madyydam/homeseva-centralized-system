@@ -151,11 +151,21 @@ export const normalizeDateToYMD = (dateStr?: string | null): string => {
     return trimmed;
   }
 
+  // Handle DD/MM/YYYY or DD-MM-YYYY
   if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(trimmed)) {
     const parts = trimmed.split(/[\/\-]/);
     const day = parts[0]!.padStart(2, '0');
     const month = parts[1]!.padStart(2, '0');
     const year = parts[2]!;
+    return `${year}-${month}-${day}`;
+  }
+
+  // Handle YYYY/MM/DD or YYYY-MM-DD
+  if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(trimmed)) {
+    const parts = trimmed.split(/[\/\-]/);
+    const year = parts[0]!;
+    const month = parts[1]!.padStart(2, '0');
+    const day = parts[2]!.slice(0, 2).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
 
@@ -172,6 +182,19 @@ export const normalizeDateToYMD = (dateStr?: string | null): string => {
   }
 
   return '';
+};
+
+export const formatWhatsAppLink = (phone?: string | null): string => {
+  if (!phone) return '';
+  let digits = String(phone).replace(/\D+/g, '');
+  if (!digits) return '';
+  // Strip leading trunk zero(s)
+  digits = digits.replace(/^0+/, '');
+  // If standard 10-digit Indian mobile, prefix 91
+  if (digits.length === 10) {
+    digits = `91${digits}`;
+  }
+  return `https://wa.me/${digits}`;
 };
 
 export const normalizePhoneNumber = (phone?: string | null): string => {

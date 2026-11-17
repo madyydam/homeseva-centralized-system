@@ -102,13 +102,29 @@ export class AdjsDatabase {
     this.persistLeads();
     this.notifySubscribers();
 
-    // Async sync to PostgreSQL backend
+    // Async sync to PostgreSQL backend with ID reconciliation and rollback
     if (typeof window !== 'undefined') {
       fetch('/api/printbooth/crm-leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(lead),
-      }).catch((err) => console.warn('Failed to sync printbooth lead to backend:', err));
+      })
+        .then((res) => res.json())
+        .then((resData) => {
+          if (resData.success && resData.lead?.id) {
+            const found = this.inMemoryCache.leads.find((l) => l.id === lead.id);
+            if (found) {
+              found.id = resData.lead.id;
+              this.persistLeads();
+            }
+          } else if (!resData.success) {
+            // Rollback local cache if server rejected (e.g. duplicate phone 409)
+            this.inMemoryCache.leads = this.inMemoryCache.leads.filter((l) => l.id !== lead.id);
+            this.persistLeads();
+            this.notifySubscribers();
+          }
+        })
+        .catch((err) => console.warn('Failed to sync printbooth lead to backend:', err));
     }
   }
 

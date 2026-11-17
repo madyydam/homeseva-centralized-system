@@ -181,29 +181,61 @@ export async function POST(req: NextRequest) {
 
     const notesJson = JSON.stringify(body.notesList || ['', '', '', '', '']);
     const leadDate = body.leadDate || new Date().toISOString().slice(0, 10);
+    const isValidUuid = typeof body.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id);
 
-    const rows: any = await prisma.$queryRawUnsafe(
-      `INSERT INTO public.printbooth_crm_leads (
+    let insertQuery: string;
+    let queryParams: any[];
+
+    if (isValidUuid) {
+      insertQuery = `INSERT INTO public.printbooth_crm_leads (
+        id, telecaller_id, telecaller_name, telecaller_email, client_name, phone,
+        shop_name, location_category, status, call_count, notes_list,
+        lead_date, kiosk_model, units_ordered, installation_city
+      ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
+      RETURNING *`;
+      queryParams = [
+        body.id,
+        body.telecallerId || null,
+        body.telecallerName || null,
+        body.telecallerEmail || null,
+        body.clientName || 'Merchant Inquiry',
+        body.phone,
+        body.shopName || null,
+        body.locationCategory || null,
+        body.status || 'Interested',
+        typeof body.callCount === 'number' ? body.callCount : 0,
+        notesJson,
+        leadDate,
+        body.kioskModel || null,
+        body.unitsOrdered || 1,
+        body.installationCity || null,
+      ];
+    } else {
+      insertQuery = `INSERT INTO public.printbooth_crm_leads (
         telecaller_id, telecaller_name, telecaller_email, client_name, phone,
         shop_name, location_category, status, call_count, notes_list,
         lead_date, kiosk_model, units_ordered, installation_city
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14)
-      RETURNING *`,
-      body.telecallerId || null,
-      body.telecallerName || null,
-      body.telecallerEmail || null,
-      body.clientName || 'Merchant Inquiry',
-      body.phone,
-      body.shopName || null,
-      body.locationCategory || null,
-      body.status || 'Interested',
-      typeof body.callCount === 'number' ? body.callCount : 0,
-      notesJson,
-      leadDate,
-      body.kioskModel || null,
-      body.unitsOrdered || 1,
-      body.installationCity || null
-    );
+      RETURNING *`;
+      queryParams = [
+        body.telecallerId || null,
+        body.telecallerName || null,
+        body.telecallerEmail || null,
+        body.clientName || 'Merchant Inquiry',
+        body.phone,
+        body.shopName || null,
+        body.locationCategory || null,
+        body.status || 'Interested',
+        typeof body.callCount === 'number' ? body.callCount : 0,
+        notesJson,
+        leadDate,
+        body.kioskModel || null,
+        body.unitsOrdered || 1,
+        body.installationCity || null,
+      ];
+    }
+
+    const rows: any = await prisma.$queryRawUnsafe(insertQuery, ...queryParams);
 
     return NextResponse.json({
       success: true,
@@ -269,7 +301,7 @@ export async function PATCH(req: NextRequest) {
       setClauses.push(`installation_city = $${params.length}`);
     }
 
-    const query = `UPDATE public.printbooth_crm_leads SET ${setClauses.join(', ')} WHERE id = $1::uuid RETURNING *`;
+    const query = `UPDATE public.printbooth_crm_leads SET ${setClauses.join(', ')} WHERE id::text = $1 RETURNING *`;
     const rows: any = await prisma.$queryRawUnsafe(query, ...params);
 
     if (!rows || rows.length === 0) {
@@ -297,7 +329,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     await prisma.$executeRawUnsafe(
-      `DELETE FROM public.printbooth_crm_leads WHERE id = $1::uuid`,
+      `DELETE FROM public.printbooth_crm_leads WHERE id::text = $1`,
       id
     );
 

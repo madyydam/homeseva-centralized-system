@@ -1572,7 +1572,7 @@ export function ManagerDashboard({
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {displayedCallers.map((caller) => {
                       const callerLeads = (data.crmLeads || []).filter(
-                        (l) => l.telecallerId === caller.id || caller.id === 'demo-caller'
+                        (l) => l.telecallerId === caller.id || (!l.telecallerId && caller.id === 'demo-caller')
                       );
                       const converted = callerLeads.filter((l) => l.status === 'Converted').length;
                       const followups = callerLeads.filter((l) => l.status === 'Follow-up').length;

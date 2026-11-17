@@ -622,3 +622,33 @@ model GentleHairWigsCallLog {
   @@map("gentle_call_logs")
 }
 
+model PrintboothLead {
+  id                 String    @id @default(uuid())
+  businessId         String    @default("adjs") @map("business_id")
+  telecallerId       String?   @map("telecaller_id")
+  telecallerName     String?   @map("telecaller_name")
+  telecallerEmail    String?   @map("telecaller_email")
+  srNo               Int?      @map("sr_no")
+  clientName         String    @default("Merchant Inquiry") @map("client_name")
+  phone              String
+  shopName           String?   @map("shop_name")
+  locationCategory   String?   @map("location_category")
+  city               String?
+  kioskModel         String?   @map("kiosk_model")
+  unitsOrdered       Int?      @default(1) @map("units_ordered")
+  installationCity   String?   @map("installation_city")
+  status             String    @default("Interested")
+  customStatusText   String?   @map("custom_status_text")
+  callCount          Int       @default(0) @map("call_count")
+  notesList          Json      @default("[]") @map("notes_list")
+  leadDate           String?   @map("lead_date")
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([telecallerId])
+  @@index([businessId])
+  @@index([phone])
+  @@map("printbooth_crm_leads")
+}
+

@@ -20,6 +20,7 @@ import {
   getStatusBadgeClass,
   formatDateToDMY,
   normalizeStatus,
+  formatWhatsAppLink,
 } from './crmUtils';
 
 interface CrmTableProps {
@@ -158,8 +159,7 @@ export function CrmTable({
               leads.map((lead, idx) => {
                 const isConverted = lead.status === 'Converted';
                 const notesFilledCount = lead.notesList.filter((n) => n.trim().length > 0).length;
-                const cleanPhone = lead.phone.replace(/\D+/g, '');
-                const waLink = cleanPhone ? `https://wa.me/${cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone}` : '';
+                const waLink = formatWhatsAppLink(lead.phone);
 
                 return (
                   <tr key={lead.id} className="hover:bg-blue-50/30 transition">

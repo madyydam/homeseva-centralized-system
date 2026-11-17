@@ -572,7 +572,7 @@ function EnterpriseDashboard({
                     {displayedCallers.map((caller) => {
                       const allLeads = adjsDb.getCrmLeads();
                       const callerLeads = allLeads.filter(
-                        (l) => l.telecallerId === caller.id || caller.id === 'demo-caller'
+                        (l) => l.telecallerId === caller.id || (!l.telecallerId && caller.id === 'demo-caller')
                       );
                       const converted = callerLeads.filter((l) => l.status === 'Converted').length;
                       const followups = callerLeads.filter((l) => l.status === 'Follow-up').length;

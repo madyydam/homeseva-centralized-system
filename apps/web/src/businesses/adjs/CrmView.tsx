@@ -258,13 +258,24 @@ export function CrmView({
     adjsDb.deleteCrmLead(leadId);
   };
 
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
   const handleCreateLead = (leadData: Omit<PrintboothLeadItem, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newLead: PrintboothLeadItem = {
       ...leadData,
       telecallerId: telecallerId || undefined,
       telecallerName: telecallerName || undefined,
       telecallerEmail: telecallerEmail || undefined,
-      id: `PB-LEAD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: generateUUID(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -272,12 +283,12 @@ export function CrmView({
   };
 
   const handleBatchImport = (importedList: Omit<PrintboothLeadItem, 'id' | 'createdAt' | 'updatedAt'>[]) => {
-    const toInsert: PrintboothLeadItem[] = importedList.map((item, idx) => ({
+    const toInsert: PrintboothLeadItem[] = importedList.map((item) => ({
       ...item,
       telecallerId: telecallerId || undefined,
       telecallerName: telecallerName || undefined,
       telecallerEmail: telecallerEmail || undefined,
-      id: `PB-LEAD-${Date.now()}-${idx}`,
+      id: generateUUID(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }));

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { X, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { PrintboothLeadItem, PrintboothLeadStatusType } from '../types';
-import { ParsedImportLead, findDuplicateLead, normalizePhoneNumber } from './crmUtils';
+import { ParsedImportLead, findDuplicateLead, normalizePhoneNumber, normalizeDateToYMD } from './crmUtils';
 
 interface ImportExcelModalProps {
   isOpen: boolean;
@@ -25,6 +25,7 @@ export function ImportExcelModal({
   const [csvText, setCsvText] = useState('');
   const [parsed, setParsed] = useState<ParsedImportLead[]>([]);
   const [duplicatesCount, setDuplicatesCount] = useState(0);
+  const [skippedRows, setSkippedRows] = useState<{ name: string; phone: string; reason: string }[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
@@ -38,6 +39,7 @@ export function ImportExcelModal({
 
     const lines = csvText.trim().split('\n');
     const results: ParsedImportLead[] = [];
+    const skipped: { name: string; phone: string; reason: string }[] = [];
     let dupes = 0;
 
     for (let i = 0; i < lines.length; i++) {
@@ -55,7 +57,8 @@ export function ImportExcelModal({
       const phone = cols[1] || '';
       const shopName = cols[2] || undefined;
       const rawStatus = cols[3] || 'Interested';
-      const date = cols[4] || `${defaultYear}-${defaultMonth}-01`;
+      const rawDate = cols[4] || '';
+      const date = rawDate ? (normalizeDateToYMD(rawDate) || `${defaultYear}-${defaultMonth}-01`) : `${defaultYear}-${defaultMonth}-01`;
       const note = cols[5] || '';
 
       const validStatus: PrintboothLeadStatusType =
@@ -69,10 +72,27 @@ export function ImportExcelModal({
           ? 'Not Interested'
           : 'Interested';
 
+      const normTarget = normalizePhoneNumber(phone);
+      if (!normTarget || normTarget.length < 8) {
+        skipped.push({ name, phone: phone || '(missing)', reason: 'Invalid phone number' });
+        continue;
+      }
+
       // Check duplicates against existing DB
-      const isDuplicate = findDuplicateLead(phone, existingLeads);
-      if (isDuplicate) {
+      const isDuplicateExisting = findDuplicateLead(normTarget, existingLeads);
+      // Check duplicates against already parsed batch
+      const isDuplicateBatch = results.some((r) => {
+        const normP = normalizePhoneNumber(r.phone);
+        if (normP === normTarget) return true;
+        if (normP.length >= 10 && normTarget.length >= 10) {
+          return normP.slice(-10) === normTarget.slice(-10);
+        }
+        return false;
+      });
+
+      if (isDuplicateExisting || isDuplicateBatch) {
         dupes++;
+        skipped.push({ name, phone, reason: isDuplicateExisting ? 'Already exists in CRM' : 'Duplicate in pasted batch' });
         continue;
       }
 
@@ -90,6 +110,7 @@ export function ImportExcelModal({
 
     setParsed(results);
     setDuplicatesCount(dupes);
+    setSkippedRows(skipped);
   };
 
   const handleConfirmImport = () => {
@@ -148,12 +169,25 @@ export function ImportExcelModal({
             )}
           </div>
 
-          {duplicatesCount > 0 && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-              <span>
-                Skipped <span className="font-bold">{duplicatesCount}</span> duplicate phone numbers already existing in CRM.
-              </span>
+          {skippedRows.length > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="font-semibold">
+                  Skipped <span className="font-bold">{skippedRows.length}</span> invalid or duplicate rows:
+                </span>
+              </div>
+              <div className="max-h-24 overflow-y-auto space-y-1 pl-6 text-[11px] font-mono text-amber-800">
+                {skippedRows.slice(0, 5).map((s, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span>{s.name} ({s.phone})</span>
+                    <span className="text-amber-700 italic">[{s.reason}]</span>
+                  </div>
+                ))}
+                {skippedRows.length > 5 && (
+                  <div className="text-amber-600 italic">...and {skippedRows.length - 5} more skipped</div>
+                )}
+              </div>
             </div>
           )}
 

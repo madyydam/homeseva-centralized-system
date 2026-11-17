@@ -1,7 +1,7 @@
 'use client';
 
 import { Calendar, ChevronRight, TrendingUp, Users, CheckCircle2, BarChart2, Award, Target, ArrowRight } from 'lucide-react';
-import { MONTHS_LIST, AVAILABLE_YEARS } from './crmUtils';
+import { MONTHS_LIST, AVAILABLE_YEARS, normalizeDateToYMD } from './crmUtils';
 import { PrintboothLeadItem } from '../types';
 
 interface CrmMonthsViewProps {
@@ -19,8 +19,8 @@ export function CrmMonthsView({
 }: CrmMonthsViewProps) {
   // Filter leads for the selected year
   const yearLeads = leads.filter((l) => {
-    const parts = (l.leadDate || '').split('-');
-    return parts[0] === selectedYear;
+    const ymd = normalizeDateToYMD(l.leadDate);
+    return ymd ? ymd.startsWith(`${selectedYear}-`) : (l.leadDate || '').startsWith(selectedYear);
   });
 
   const yearTotal = yearLeads.length;
@@ -32,8 +32,8 @@ export function CrmMonthsView({
   // Compute monthly stats for all 12 months
   const monthsData = MONTHS_LIST.map((m) => {
     const monthLeads = yearLeads.filter((l) => {
-      const parts = (l.leadDate || '').split('-');
-      return parts[1] === m.value;
+      const ymd = normalizeDateToYMD(l.leadDate);
+      return ymd ? ymd.slice(5, 7) === m.value : (l.leadDate || '').split('-')[1] === m.value;
     });
 
     const total = monthLeads.length;

@@ -466,11 +466,15 @@ export function DailyReportingView({
       const res = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${queryBranch}&date=${targetDate}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.reports)) {
-        const myReport = data.reports.find((r: any) =>
-          (currentTelecallerId && r.staffId === currentTelecallerId) ||
-          (staffName && r.staffName && r.staffName.toLowerCase() === staffName.toLowerCase()) ||
-          (!currentTelecallerId && (queryBranch === 'all' || r.branch === queryBranch || r.branch === 'central'))
-        );
+        const myReport = data.reports.find((r: any) => {
+          if (currentTelecallerId && currentTelecallerId !== 'all') {
+            return r.staffId === currentTelecallerId;
+          }
+          if (staffName && staffName.trim()) {
+            return r.staffName && r.staffName.trim().toLowerCase() === staffName.trim().toLowerCase();
+          }
+          return false;
+        });
         // Only populate if report actually exists and was submitted by user (not just auto holiday placeholder)
         if (myReport && (myReport.punchInTime || myReport.callsMade > 0 || myReport.workSummary)) {
           setSavedRecord(myReport);
@@ -512,8 +516,9 @@ export function DailyReportingView({
         const myReports = histData.reports
           .filter(
             (r: any) =>
-              ((currentTelecallerId && r.staffId === currentTelecallerId) ||
-                (!currentTelecallerId && (staffName ? r.staffName?.toLowerCase() === staffName.toLowerCase() : true))) &&
+              (currentTelecallerId && currentTelecallerId !== 'all'
+                ? r.staffId === currentTelecallerId
+                : true) &&
               (queryBranch === 'all' || !branch || r.branch === branch || r.branch === 'central') &&
               (r.punchInTime || r.callsMade > 0 || r.workSummary)
           )
