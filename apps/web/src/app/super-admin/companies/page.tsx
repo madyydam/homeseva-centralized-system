@@ -507,9 +507,6 @@ export default function CompaniesPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {selectedCompany ? selectedCompany.businessName : ''} &bull; Authorized Personnel Accounts
-                </p>
               </div>
 
               {selectedRole && (
@@ -522,19 +519,6 @@ export default function CompaniesPage() {
                   <span>Add Member</span>
                 </button>
               )}
-            </div>
-
-            {/* Universal Demo Notice Banner */}
-            <div className="bg-blue-50/70 border-b border-blue-100 px-4 py-2.5 flex items-center justify-between text-xs text-blue-900">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                <span className="font-medium">
-                  Universal Demo Account: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold text-blue-800">abc@xyz.com</code> &bull; Password: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold text-blue-800">12345678</code> &bull; PIN: <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono font-bold text-blue-800">1234</code>
-                </span>
-              </div>
-              <span className="text-[11px] text-blue-600 font-semibold hidden md:inline">
-                Instant DB Sync
-              </span>
             </div>
 
             {/* Members List */}
@@ -565,86 +549,86 @@ export default function CompaniesPage() {
                   return (
                     <div
                       key={m.id}
-                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs transition-all flex items-start justify-between gap-4"
                     >
-                      {/* Member Info */}
-                      <div className="flex items-center space-x-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs flex-shrink-0">
-                          {m.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-xs font-bold text-slate-900 truncate">{m.name}</h3>
+                      {/* Line-by-Line Member Details */}
+                      <div className="space-y-2 min-w-0 flex-1">
+                        {/* Line 1: Name */}
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xs font-semibold text-slate-400 w-14 flex-shrink-0">Name:</span>
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span className="text-xs font-bold text-slate-900">{m.name}</span>
                             <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
                               Active
                             </span>
                           </div>
-                          <div className="flex items-center space-x-1.5 text-xs text-slate-500 mt-0.5">
-                            <Mail className="w-3 h-3 text-slate-400" />
-                            <span className="font-mono text-[11px] truncate">{m.email}</span>
+                        </div>
+
+                        {/* Line 2: Email */}
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xs font-semibold text-slate-400 w-14 flex-shrink-0">Email:</span>
+                          <span className="font-mono text-xs text-slate-700 select-all">{m.email}</span>
+                        </div>
+
+                      {/* Line 3: Password */}
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xs font-semibold text-slate-400 w-14 flex-shrink-0">Pass:</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-50 px-2.5 py-0.5 rounded border border-slate-200">
+                              {showPass ? m.password : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowPassMap((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                              }
+                              className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition cursor-pointer"
+                              title={showPass ? 'Hide Password' : 'Show Password'}
+                            >
+                              {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Line 4: PIN */}
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xs font-semibold text-slate-400 w-14 flex-shrink-0">PIN:</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-50 px-2.5 py-0.5 rounded border border-slate-200">
+                              {showPin ? m.pin : '••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowPinMap((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                              }
+                              className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition cursor-pointer"
+                              title={showPin ? 'Hide PIN' : 'Show PIN'}
+                            >
+                              {showPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
                           </div>
                         </div>
                       </div>
 
-                      {/* Credentials Display & Actions */}
-                      <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-                        {/* Password with eye toggle */}
-                        <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-                          <KeyRound className="w-3 h-3 text-slate-400" />
-                          <span className="text-[11px] text-slate-500 font-medium">Pass:</span>
-                          <span className="font-mono text-xs font-semibold text-slate-800">
-                            {showPass ? m.password : '••••••••'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowPassMap((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
-                            }
-                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer transition"
-                            title={showPass ? 'Hide Password' : 'Show Password'}
-                          >
-                            {showPass ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                          </button>
-                        </div>
-
-                        {/* PIN with toggle */}
-                        <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-                          <Lock className="w-3 h-3 text-slate-400" />
-                          <span className="text-[11px] text-slate-500 font-medium">PIN:</span>
-                          <span className="font-mono text-xs font-semibold text-slate-800">
-                            {showPin ? m.pin : '••••'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowPinMap((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
-                            }
-                            className="p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer transition"
-                            title={showPin ? 'Hide PIN' : 'Show PIN'}
-                          >
-                            {showPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                          </button>
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="flex items-center space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(m)}
-                            className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs cursor-pointer"
-                            title="Edit Member"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMember(m.id, m.name)}
-                            className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition shadow-2xs cursor-pointer"
-                            title="Delete Member"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                      {/* Action buttons */}
+                      <div className="flex items-center space-x-1.5 flex-shrink-0 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(m)}
+                          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition shadow-2xs cursor-pointer"
+                          title="Edit Member"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMember(m.id, m.name)}
+                          className="p-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition shadow-2xs cursor-pointer"
+                          title="Delete Member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   );
