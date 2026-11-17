@@ -12,7 +12,7 @@
     "dev": "node scripts/build.js && electron .",
     "pack": "node scripts/build.js && electron-builder --dir",
     "dist": "node scripts/build.js && electron-builder --win",
-    "build": "node scripts/build.js && electron-builder --win"
+    "build": "node scripts/build.js"
   },
   "dependencies": {
     "electron-log": "^5.2.4",
