@@ -1,6 +1,6 @@
 {
   "name": "@homeseva/desktop",
-  "version": "1.3.0",
+  "version": "1.6.0",
   "description": "HomeSeva Centralized ERP Desktop Application",
   "main": "dist-app/main.js",
   "author": "HomeSeva Technologies",

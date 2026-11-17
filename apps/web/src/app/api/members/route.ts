@@ -9,10 +9,23 @@ export async function GET(req: NextRequest) {
     const session = await getCurrentSuperAdminSession();
     // Allow super admin or authenticated staff/owner viewing role members
     const { searchParams } = new URL(req.url);
-    const businessId = searchParams.get('businessId');
+    let businessId = searchParams.get('businessId');
+    const businessSlug = searchParams.get('businessSlug');
     const roleId = searchParams.get('roleId');
 
     const admin = getAdminClient();
+
+    if (!businessId && businessSlug) {
+      const { data: biz } = await admin
+        .from('businesses')
+        .select('id')
+        .eq('slug', businessSlug)
+        .maybeSingle();
+      if (biz?.id) {
+        businessId = biz.id;
+      }
+    }
+
     let query = admin.from('role_members').select('*').order('created_at', { ascending: true });
     if (businessId) query = query.eq('business_id', businessId);
     if (roleId) query = query.eq('role_id', roleId);

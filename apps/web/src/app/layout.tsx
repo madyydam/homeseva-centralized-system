@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'HomeSeva — Centralized ERP v1.3',
+  title: 'HomeSeva — Centralized ERP v1.6',
   description: 'Single centralized ERP for company group management, strict role-based access, and per-business workspaces.',
 };
 

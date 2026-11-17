@@ -10,6 +10,9 @@ function formatLead(lead: any) {
   return {
     id: lead.id,
     srNo: lead.srNo ?? undefined,
+    telecallerId: lead.telecallerId ?? undefined,
+    telecallerName: lead.telecallerName ?? undefined,
+    telecallerEmail: lead.telecallerEmail ?? undefined,
     studioSlug: lead.studioSlug,
     studioName: lead.studioName,
     clientName: lead.clientName?.trim() || "Don't know",
@@ -40,6 +43,7 @@ export async function GET(req: NextRequest) {
     const studioSlug = searchParams.get('studioSlug');
     const month = searchParams.get('month'); // e.g. "2026-10"
     const since = searchParams.get('since'); // ISO date string, e.g. "2026-10-30T10:00:00.000Z"
+    const telecallerId = searchParams.get('telecallerId') || searchParams.get('memberId');
 
     const where: any = {
       businessId: BUSINESS_ID,
@@ -47,6 +51,10 @@ export async function GET(req: NextRequest) {
 
     if (studioSlug && studioSlug !== 'all') {
       where.studioSlug = studioSlug;
+    }
+
+    if (telecallerId && telecallerId !== 'all') {
+      where.telecallerId = telecallerId;
     }
 
     if (since) {
@@ -137,6 +145,9 @@ export async function POST(req: NextRequest) {
             interestCategory: item.interestCategory ?? null,
             estimatedBudget: item.estimatedBudget != null ? Number(item.estimatedBudget) : null,
             assignedSpecialist: item.assignedSpecialist ?? null,
+            telecallerId: item.telecallerId ?? null,
+            telecallerName: item.telecallerName ?? null,
+            telecallerEmail: item.telecallerEmail ?? null,
             lastContactDate: item.lastContactDate ?? null,
             nextFollowUpDate: item.nextFollowUpDate ?? null,
             notes: item.notes ?? null,
@@ -195,6 +206,9 @@ export async function POST(req: NextRequest) {
         interestCategory: body.interestCategory ?? null,
         estimatedBudget: body.estimatedBudget != null ? Number(body.estimatedBudget) : null,
         assignedSpecialist: body.assignedSpecialist ?? null,
+        telecallerId: body.telecallerId ?? null,
+        telecallerName: body.telecallerName ?? null,
+        telecallerEmail: body.telecallerEmail ?? null,
         lastContactDate: body.lastContactDate ?? null,
         nextFollowUpDate: body.nextFollowUpDate ?? null,
         notes: body.notes ?? null,
@@ -247,6 +261,9 @@ export async function PATCH(req: NextRequest) {
     if (updates.hairLossConcern !== undefined) data.hairLossConcern = updates.hairLossConcern;
     if (updates.interestCategory !== undefined) data.interestCategory = updates.interestCategory;
     if (updates.estimatedBudget !== undefined) data.estimatedBudget = updates.estimatedBudget;
+    if (updates.telecallerId !== undefined) data.telecallerId = updates.telecallerId;
+    if (updates.telecallerName !== undefined) data.telecallerName = updates.telecallerName;
+    if (updates.telecallerEmail !== undefined) data.telecallerEmail = updates.telecallerEmail;
     if (updates.createdAt !== undefined) data.createdAt = new Date(updates.createdAt);
 
     // If ID is a temp ID (e.g. from local optimistic creation before sync), check if exists or create

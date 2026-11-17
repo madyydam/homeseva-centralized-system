@@ -103,7 +103,7 @@ export function DeveloperWorkspace() {
       {/* Top Banner Card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3.5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-sm shrink-0">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm shrink-0">
             <Cpu className="h-6 w-6" />
           </div>
           <div>
@@ -127,7 +127,7 @@ export function DeveloperWorkspace() {
             onClick={() => setActiveTab('simulator')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
               activeTab === 'simulator'
-                ? 'bg-purple-600 text-white shadow-2xs'
+                ? 'bg-blue-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
@@ -137,7 +137,7 @@ export function DeveloperWorkspace() {
             onClick={() => setActiveTab('firmware')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
               activeTab === 'firmware'
-                ? 'bg-purple-600 text-white shadow-2xs'
+                ? 'bg-blue-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
@@ -147,7 +147,7 @@ export function DeveloperWorkspace() {
             onClick={() => setActiveTab('docs')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
               activeTab === 'docs'
-                ? 'bg-purple-600 text-white shadow-2xs'
+                ? 'bg-blue-600 text-white shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
@@ -170,10 +170,10 @@ export function DeveloperWorkspace() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase text-slate-400">CUPS Print Spooler</span>
-            <Printer className="h-4 w-4 text-purple-600" />
+            <Printer className="h-4 w-4 text-indigo-600" />
           </div>
           <span className="text-sm font-extrabold text-slate-900 block mt-1.5">Daemon Ready</span>
-          <span className="text-[10px] font-bold text-purple-700 block mt-0.5">Dual-Tray Auto Detect</span>
+          <span className="text-[10px] font-bold text-indigo-700 block mt-0.5">Dual-Tray Auto Detect</span>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -201,7 +201,7 @@ export function DeveloperWorkspace() {
           {/* Card A: Test Print Job Dispatch */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
             <div className="flex items-center space-x-2">
-              <Printer className="h-5 w-5 text-purple-600" />
+              <Printer className="h-5 w-5 text-blue-600" />
               <div>
                 <h3 className="text-sm font-black text-slate-900">1. Simulate Cloud Print Job Dispatch</h3>
                 <p className="text-[11px] text-slate-500">Test payload injection to kiosk local spooler daemon</p>
@@ -216,7 +216,7 @@ export function DeveloperWorkspace() {
                   required
                   value={simDocName}
                   onChange={(e) => setSimDocName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                 />
               </div>
 
@@ -229,7 +229,7 @@ export function DeveloperWorkspace() {
                     max={200}
                     value={simPages}
                     onChange={(e) => setSimPages(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                   />
                 </div>
                 <div>
@@ -237,7 +237,7 @@ export function DeveloperWorkspace() {
                   <select
                     value={simColor}
                     onChange={(e) => setSimColor(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-bold"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-bold"
                   >
                     <option value="B&W">Black &amp; White (Monochrome)</option>
                     <option value="Color">High Definition Color</option>
@@ -248,7 +248,7 @@ export function DeveloperWorkspace() {
               <button
                 type="submit"
                 disabled={simPrintLoading}
-                className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 py-2.5 font-bold text-white shadow-2xs transition flex items-center justify-center space-x-1.5"
+                className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 font-bold text-white shadow-2xs transition flex items-center justify-center space-x-1.5"
               >
                 {simPrintLoading ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />
@@ -291,7 +291,7 @@ export function DeveloperWorkspace() {
                     required
                     value={simKioskId}
                     onChange={(e) => setSimKioskId(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                   />
                 </div>
                 <div>
@@ -301,7 +301,7 @@ export function DeveloperWorkspace() {
                     required
                     value={simAmount}
                     onChange={(e) => setSimAmount(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                   />
                 </div>
               </div>
@@ -313,7 +313,7 @@ export function DeveloperWorkspace() {
                   required
                   value={simTxnRef}
                   onChange={(e) => setSimTxnRef(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                 />
               </div>
 
@@ -365,7 +365,7 @@ export function DeveloperWorkspace() {
 
             <button
               onClick={() => setShowOtaModal(true)}
-              className="inline-flex items-center space-x-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
+              className="inline-flex items-center space-x-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
             >
               <Cpu className="h-4 w-4" />
               <span>Deploy OTA Firmware Update</span>
@@ -377,7 +377,7 @@ export function DeveloperWorkspace() {
             <div className="divide-y divide-slate-100 text-xs">
               <div className="py-3 flex items-start justify-between">
                 <div>
-                  <span className="font-mono font-bold text-purple-700">v3.4.2-LTS</span>
+                  <span className="font-mono font-bold text-blue-700">v3.4.2-LTS</span>
                   <p className="text-slate-600 mt-0.5">Optimized thermal cutter responsiveness and added dual-tray auto fallback.</p>
                   <span className="text-[10px] text-slate-400 mt-1 block">Released 2026-10-15 · Active on all kiosks</span>
                 </div>
@@ -407,7 +407,7 @@ export function DeveloperWorkspace() {
           <div className="space-y-4 text-xs font-mono">
             <div className="rounded-xl border border-slate-200 p-4 bg-slate-50 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-purple-900">POST /api/v1/kiosk/print-job</span>
+                <span className="font-bold text-blue-900">POST /api/v1/kiosk/print-job</span>
                 <button
                   onClick={() => handleCopy('POST /api/v1/kiosk/print-job', 'Endpoint 1')}
                   className="text-[11px] text-slate-500 hover:text-slate-900 font-sans"
@@ -473,7 +473,7 @@ export function DeveloperWorkspace() {
                     required
                     value={otaVersion}
                     onChange={(e) => setOtaVersion(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                   />
                 </div>
 
@@ -482,7 +482,7 @@ export function DeveloperWorkspace() {
                   <select
                     value={otaChannel}
                     onChange={(e) => setOtaChannel(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-bold"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-bold"
                   >
                     <option value="Stable">Production Stable (All Active Turnkey Kiosks)</option>
                     <option value="Beta">Canary / Staging Kiosks Only</option>
@@ -495,7 +495,7 @@ export function DeveloperWorkspace() {
                     rows={3}
                     value={otaNotes}
                     onChange={(e) => setOtaNotes(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
@@ -509,7 +509,7 @@ export function DeveloperWorkspace() {
                   </button>
                   <button
                     type="submit"
-                    className="rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 font-bold text-white shadow-sm"
+                    className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 font-bold text-white shadow-sm"
                   >
                     Deploy to Kiosks
                   </button>

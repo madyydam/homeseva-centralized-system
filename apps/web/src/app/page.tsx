@@ -165,7 +165,7 @@ export default function HomePage() {
               HomeSeva
             </span>
             <span className="rounded-md bg-white/10 border border-white/20 px-2 py-0.5 text-[10px] font-bold text-slate-100 uppercase tracking-wider">
-              ERP v1.3
+              ERP v1.6
             </span>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function HomePage() {
             Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300">HomeSeva</span>
           </h1>
           <p className="mt-1.5 text-sm sm:text-base md:text-lg text-slate-200 font-bold tracking-wide drop-shadow-[0_1px_6px_rgba(0,0,0,0.85)]">
-            Centralized ERP v1.3
+            Centralized ERP v1.6
           </p>
         </section>
 

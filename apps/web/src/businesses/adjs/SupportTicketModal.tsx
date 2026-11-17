@@ -48,7 +48,7 @@ export function SupportTicketModal({
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 text-slate-900 font-sans">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center space-x-2">
-            <HelpCircle className="h-5 w-5 text-purple-600" />
+            <HelpCircle className="h-5 w-5 text-blue-600" />
             <h3 className="text-base font-extrabold text-slate-900">Log Merchant Support Ticket</h3>
           </div>
           <button
@@ -68,7 +68,7 @@ export function SupportTicketModal({
               value={merchantName}
               onChange={(e) => setMerchantName(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
             />
           </div>
 
@@ -80,7 +80,7 @@ export function SupportTicketModal({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
             />
           </div>
 
@@ -89,7 +89,7 @@ export function SupportTicketModal({
             <select
               value={issueType}
               onChange={(e) => setIssueType(e.target.value as PrintboothSupportTicket['issueType'])}
-              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-bold"
+              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-bold"
             >
               <option value="Setup & Wi-Fi">Setup &amp; Wi-Fi Pairing</option>
               <option value="Payment Gateway">Payment Gateway &amp; UPI QR</option>
@@ -105,7 +105,7 @@ export function SupportTicketModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
             />
           </div>
 
@@ -119,7 +119,7 @@ export function SupportTicketModal({
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 font-bold text-white shadow-sm transition"
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 font-bold text-white shadow-sm transition"
             >
               Log Ticket
             </button>

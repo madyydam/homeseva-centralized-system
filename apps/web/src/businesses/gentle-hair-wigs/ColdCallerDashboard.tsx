@@ -57,6 +57,7 @@ export function ColdCallerDashboard({
   role = 'Cold Caller',
   memberId,
   memberName,
+  memberEmail,
 }: BusinessDashboardProps) {
   const BRANCH_LIST = gentleHairWigsConfig.branches!;
 
@@ -187,7 +188,18 @@ export function ColdCallerDashboard({
               })}
             </nav>
 
-            <div className="pt-3 border-t border-slate-100">
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
+              <div className="px-1 text-left space-y-0.5">
+                <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
+                  {role || 'Cold Caller'}
+                </span>
+                <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
+                  {memberName || 'Active Caller'}
+                </span>
+                <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
+                  {memberEmail || 'caller@homeseva.com'}
+                </span>
+              </div>
               <Link
                 href="/signin/gentle-hair-wigs"
                 className="w-full flex items-center justify-center space-x-1.5 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
@@ -372,16 +384,19 @@ export function ColdCallerDashboard({
         <div className="p-3 border-t border-slate-200/80 bg-slate-50/80 shrink-0">
           {!isSidebarCollapsed ? (
             <>
-              <div className="flex items-center space-x-2.5 mb-2.5 px-0.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-black text-white shrink-0 shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 shadow-amber-500/20">
+              <div className="flex items-start space-x-2.5 mb-2.5 px-0.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-black text-white shrink-0 shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 shadow-amber-500/20 mt-0.5">
                   CC
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 space-y-0.5">
                   <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
                     {role || 'Cold Caller'}
                   </span>
-                  <span className="block text-[10px] font-semibold truncate leading-tight text-slate-500">
-                    Central Calling Desk · All Studios
+                  <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
+                    {memberName || 'Active Caller'}
+                  </span>
+                  <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
+                    {memberEmail || 'caller@homeseva.com'}
                   </span>
                 </div>
               </div>
@@ -400,7 +415,7 @@ export function ColdCallerDashboard({
             <div className="flex flex-col items-center space-y-2">
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-black text-white shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500"
-                title={`User Role: ${role}`}
+                title={`${role || 'Cold Caller'} • ${memberName || ''} (${memberEmail || ''})`}
               >
                 CC
               </div>
@@ -499,6 +514,9 @@ export function ColdCallerDashboard({
           ) : (
             <CrmView
               branch="all"
+              telecallerId={memberId}
+              telecallerName={memberName}
+              telecallerEmail={memberEmail}
               initialViewMode={activeTab === 'annual' ? 'month-selector' : 'month-sheet'}
               initialStatusFilter={
                 activeTab === 'follow-up'

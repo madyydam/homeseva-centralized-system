@@ -36,6 +36,9 @@ interface CrmViewProps {
   branch: string;
   crmLeads?: CrmLeadItem[];
   callLogs?: ClientCallLogItem[];
+  telecallerId?: string | undefined;
+  telecallerName?: string | undefined;
+  telecallerEmail?: string | undefined;
   onRefresh?: () => void;
   onConvertToOrder?: (clientName: string, phone: string) => void;
   initialViewMode?: 'month-selector' | 'month-sheet';
@@ -45,19 +48,22 @@ interface CrmViewProps {
 export function CrmView({
   branch,
   crmLeads: _propLeads = [],
+  telecallerId,
+  telecallerName,
+  telecallerEmail,
   onRefresh,
   initialViewMode = 'month-sheet',
   initialStatusFilter = 'all',
 }: CrmViewProps) {
-  // Centralized Leads state
-  const [leads, setLeads] = useState<CrmLeadItem[]>(() => gentleHairWigsDb.getCentralCrmLeads());
+  // Centralized Leads state (Scoped to caller if telecallerId provided)
+  const [leads, setLeads] = useState<CrmLeadItem[]>(() => gentleHairWigsDb.getCentralCrmLeads(telecallerId));
   const [studios, setStudios] = useState<StudioInfoItem[]>(() => gentleHairWigsDb.getStudiosList());
 
   const refreshCentralData = useCallback(() => {
-    setLeads([...gentleHairWigsDb.getCentralCrmLeads()]);
+    setLeads([...gentleHairWigsDb.getCentralCrmLeads(telecallerId)]);
     setStudios([...gentleHairWigsDb.getStudiosList()]);
     if (onRefresh) onRefresh();
-  }, [onRefresh]);
+  }, [telecallerId, onRefresh]);
 
   useEffect(() => {
     refreshCentralData();
@@ -522,6 +528,9 @@ export function CrmView({
       callCount: newCallCount,
       notesList: notesArr,
       nextFollowUpDate: newStatus === 'Follow-up' && newFollowUpDate ? newFollowUpDate : undefined,
+      telecallerId: telecallerId || undefined,
+      telecallerName: telecallerName || undefined,
+      telecallerEmail: telecallerEmail || undefined,
       createdAt: leadDate,
       updatedAt: leadDate,
     });
@@ -535,7 +544,7 @@ export function CrmView({
     setNewFollowUpDate('');
     setNewNotesList(['', '', '', '', '']);
     setNotificationMsg('Lead added successfully!');
-  }, [newClientName, newPhone, newNotesList, newStatus, newStudioSlug, studios, newLeadDate, newCallCount, newFollowUpDate, leads]);
+  }, [newClientName, newPhone, newNotesList, newStatus, newStudioSlug, studios, newLeadDate, newCallCount, newFollowUpDate, leads, telecallerId, telecallerName, telecallerEmail]);
 
   const handleExportExcel = useCallback(async () => {
     const XLSX = await import('xlsx');
@@ -872,6 +881,9 @@ export function CrmView({
         callCount: lead.callCount,
         notesList: lead.notesList,
         nextFollowUpDate: lead.status === 'Follow-up' && lead.nextFollowUpDate ? lead.nextFollowUpDate : undefined,
+        telecallerId: telecallerId || undefined,
+        telecallerName: telecallerName || undefined,
+        telecallerEmail: telecallerEmail || undefined,
         createdAt: finalCreatedAt,
         updatedAt: finalUpdatedAt,
       };
@@ -908,7 +920,7 @@ export function CrmView({
     } else {
       setNotificationMsg(`Successfully imported ${uniqueBatch.length} leads with dates & activity logs!`);
     }
-  }, [importPreview, studios, branch, selectedYear, selectedMonth, leads]);
+  }, [importPreview, studios, branch, selectedYear, selectedMonth, leads, telecallerId, telecallerName, telecallerEmail]);
 
   return (
     <div className="space-y-3.5">

@@ -638,9 +638,12 @@ export class GentleHairWigsDatabase {
   }
 
   // --- Centralized Client CRM & Leads (Multi-Studio Sync with PostgreSQL) ---
-  getCentralCrmLeads(): CrmLeadItem[] {
+  getCentralCrmLeads(telecallerId?: string): CrmLeadItem[] {
     if (!this.isHydrated && typeof window !== 'undefined') {
       this.hydrateFromStorage();
+    }
+    if (telecallerId && telecallerId !== 'all') {
+      return this.centralCrmLeads.filter((l) => l.telecallerId === telecallerId);
     }
     return [...this.centralCrmLeads];
   }
@@ -740,6 +743,9 @@ export class GentleHairWigsDatabase {
     const newLead: CrmLeadItem = {
       id: localId,
       srNo: this.centralCrmLeads.length + 1,
+      telecallerId: lead.telecallerId || undefined,
+      telecallerName: lead.telecallerName || undefined,
+      telecallerEmail: lead.telecallerEmail || undefined,
       studioSlug: targetStudio.slug,
       studioName: targetStudio.name,
       clientName: lead.clientName?.trim() || "Don't know",
@@ -820,6 +826,9 @@ export class GentleHairWigsDatabase {
       const newLead: CrmLeadItem = {
         id: lead.id || `lead_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
         srNo: 0,
+        telecallerId: lead.telecallerId || undefined,
+        telecallerName: lead.telecallerName || undefined,
+        telecallerEmail: lead.telecallerEmail || undefined,
         studioSlug: targetStudio.slug,
         studioName: targetStudio.name,
         clientName: lead.clientName?.trim() || "Don't know",

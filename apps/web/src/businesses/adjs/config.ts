@@ -6,7 +6,7 @@ export const adjsConfig: BusinessConfig = {
   slug: 'adjs',
   subtitle: 'Smart Self-Service Printing Kiosks',
   description: 'Direct B2B Sales of Smart Self-Service Printing Kiosks, Cloud Print Software & Merchant Solutions',
-  themeColor: 'purple',
+  themeColor: 'blue',
   divisions: [
     {
       slug: 'printbooth',

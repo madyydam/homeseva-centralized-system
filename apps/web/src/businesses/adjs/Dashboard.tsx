@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -21,6 +21,10 @@ import {
   ShieldCheck,
   Code2,
   FileText,
+  ArrowLeft,
+  ChevronLeft,
+  CalendarRange,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { BusinessDashboardProps } from '../types';
 import { adjsConfig } from './config';
@@ -77,6 +81,60 @@ function EnterpriseDashboard({
     return () => unsub();
   }, []);
 
+  // Cold Caller Inspection State for Owner / Manager
+  const [inspectingCaller, setInspectingCaller] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [callerSubTab, setCallerSubTab] = useState<'annual' | 'sheet' | 'follow-up' | 'converted'>('annual');
+  const [coldCallersList, setColdCallersList] = useState<Array<{ id: string; name: string; email: string }>>([]);
+
+  useEffect(() => {
+    fetch('/api/members?businessSlug=adjs')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && Array.isArray(resData.members)) {
+          const callers = resData.members.filter((m: any) => {
+            const r = (m.role_id || '').toLowerCase();
+            return r.includes('caller') || r.includes('telecaller');
+          });
+          if (callers.length > 0) {
+            setColdCallersList(
+              callers.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                email: c.email,
+              }))
+            );
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const displayedCallers = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; email: string }>();
+    coldCallersList.forEach((c) => map.set(c.id, c));
+
+    // Also pick up any caller IDs present in leads
+    adjsDb.getCrmLeads().forEach((l: any) => {
+      if (l.telecallerId && !map.has(l.telecallerId)) {
+        map.set(l.telecallerId, {
+          id: l.telecallerId,
+          name: l.telecallerName || 'Cold Caller',
+          email: l.telecallerEmail || 'caller@printbooth.in',
+        });
+      }
+    });
+
+    if (map.size === 0) {
+      map.set('demo-caller', {
+        id: 'demo-caller',
+        name: 'Demo Caller',
+        email: 'abc@xyz.com',
+      });
+    }
+
+    return Array.from(map.values());
+  }, [coldCallersList]);
+
   const totalMachineRevenue = orders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
   const activeDispatches = orders.filter((o) => o.stage === 'Dispatched' || o.stage === 'Assembled & Tested').length;
 
@@ -111,20 +169,20 @@ function EnterpriseDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row text-slate-900 font-sans selection:bg-purple-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
       {/* Sidebar */}
       <aside className="w-full lg:w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 lg:h-screen lg:sticky lg:top-0 z-30">
         <div>
           {/* Logo & Company Title */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200">
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-200">
                 <Printer className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1">
                   <span>ADJS</span>
-                  <span className="text-[10px] text-purple-700 font-bold">· PRINTBOOTH™</span>
+                  <span className="text-[10px] text-blue-700 font-bold">· PRINTBOOTH™</span>
                 </h1>
                 <p className="text-[10px] font-semibold text-slate-500 truncate">Think It. Print It.</p>
               </div>
@@ -143,11 +201,11 @@ function EnterpriseDashboard({
                     onClick={() => setActiveTab('overview')}
                     className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
                       activeTab === 'overview'
-                        ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
+                        ? 'bg-blue-50/90 text-blue-900 border border-blue-200/90 font-bold shadow-2xs'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <LayoutDashboard className="h-4 w-4 text-purple-600" />
+                    <LayoutDashboard className="h-4 w-4 text-blue-600" />
                     <span>Overview</span>
                   </button>
                 )}
@@ -157,13 +215,13 @@ function EnterpriseDashboard({
                     onClick={() => setActiveTab('crm')}
                     className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
                       activeTab === 'crm'
-                        ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
+                        ? 'bg-blue-50/90 text-blue-900 border border-blue-200/90 font-bold shadow-2xs'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <Users className="h-4 w-4 text-purple-600" />
+                    <Users className="h-4 w-4 text-blue-600" />
                     <span>Centralized CRM</span>
-                    <span className="ml-auto rounded-full bg-purple-100 text-purple-800 px-1.5 text-[10px] font-mono font-bold">
+                    <span className="ml-auto rounded-full bg-blue-100 text-blue-800 px-1.5 text-[10px] font-mono font-bold">
                       {leadsCount}
                     </span>
                   </button>
@@ -174,11 +232,11 @@ function EnterpriseDashboard({
                     onClick={() => setActiveTab('orders')}
                     className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
                       activeTab === 'orders'
-                        ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
+                        ? 'bg-blue-50/90 text-blue-900 border border-blue-200/90 font-bold shadow-2xs'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <Package className="h-4 w-4 text-purple-600" />
+                    <Package className="h-4 w-4 text-blue-600" />
                     <span>Machine Orders &amp; Dispatch</span>
                     <span className="ml-auto rounded-full bg-slate-100 text-slate-700 px-1.5 text-[10px] font-mono font-bold">
                       {orders.length}
@@ -191,11 +249,11 @@ function EnterpriseDashboard({
                     onClick={() => setActiveTab('software')}
                     className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
                       activeTab === 'software'
-                        ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
+                        ? 'bg-blue-50/90 text-blue-900 border border-blue-200/90 font-bold shadow-2xs'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <Cpu className="h-4 w-4 text-purple-600" />
+                    <Cpu className="h-4 w-4 text-blue-600" />
                     <span>Kiosk OS &amp; Cloud Print API</span>
                   </button>
                 )}
@@ -205,11 +263,11 @@ function EnterpriseDashboard({
                     onClick={() => setActiveTab('support')}
                     className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
                       activeTab === 'support'
-                        ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
+                        ? 'bg-blue-50/90 text-blue-900 border border-blue-200/90 font-bold shadow-2xs'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <HelpCircle className="h-4 w-4 text-purple-600" />
+                    <HelpCircle className="h-4 w-4 text-blue-600" />
                     <span>Merchant Helpdesk &amp; Challans</span>
                     {tickets.length > 0 && (
                       <span className="ml-auto rounded-full bg-amber-100 text-amber-800 px-1.5 text-[10px] font-mono font-bold">
@@ -226,14 +284,14 @@ function EnterpriseDashboard({
         {/* User Session Footer */}
         <div className="p-3 border-t border-slate-200 bg-slate-50">
           <div className="flex items-center space-x-2.5 mb-2 px-1">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-xs font-black text-white shrink-0 shadow-2xs">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-xs font-black text-white shrink-0 shadow-2xs">
               PB
             </div>
             <div className="min-w-0 flex-1">
               <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
                 ADJS · PRINTBOOTH™
               </span>
-              <span className="block text-[10px] text-purple-700 font-semibold truncate leading-tight">
+              <span className="block text-[10px] text-blue-700 font-semibold truncate leading-tight">
                 Role: {role}
               </span>
             </div>
@@ -257,7 +315,7 @@ function EnterpriseDashboard({
               <span className="text-sm font-extrabold text-slate-900">
                 ADJS · PRINTBOOTH™
               </span>
-              <span className="rounded-md bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
+              <span className="rounded-md bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 text-[10px] font-bold">
                 Smart Self-Service Printing Kiosks
               </span>
             </div>
@@ -270,7 +328,7 @@ function EnterpriseDashboard({
             {activeTab === 'orders' && (
               <button
                 onClick={() => setShowOrderModal(true)}
-                className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition"
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Record Machine Sale</span>
@@ -291,11 +349,11 @@ function EnterpriseDashboard({
                     <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
                       Machine Sales Volume
                     </span>
-                    <Package className="h-4 w-4 text-purple-600" />
+                    <Package className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="mt-2 flex items-baseline justify-between">
                     <span className="text-2xl font-black font-mono text-slate-900">{orders.length}</span>
-                    <span className="text-xs font-bold text-purple-700">Kiosks Sold</span>
+                    <span className="text-xs font-bold text-blue-700">Kiosks Sold</span>
                   </div>
                 </div>
 
@@ -344,9 +402,9 @@ function EnterpriseDashboard({
               </div>
 
               {/* Business Model Summary Card */}
-              <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/70 via-white to-purple-50/30 p-6 shadow-xs">
+              <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/70 via-white to-indigo-50/40 p-6 shadow-xs">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-sm shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-sm shrink-0">
                     <Printer className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -359,21 +417,21 @@ function EnterpriseDashboard({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-purple-100 text-xs">
-                  <div className="rounded-xl bg-white p-3 border border-purple-100">
-                    <span className="block font-bold text-purple-900">1. Instant Self-Service</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-blue-100 text-xs">
+                  <div className="rounded-xl bg-white p-3 border border-blue-100">
+                    <span className="block font-bold text-blue-900">1. Instant Self-Service</span>
                     <span className="text-[11px] text-slate-500">Print, Copy, Scan &amp; Cloud Docs</span>
                   </div>
-                  <div className="rounded-xl bg-white p-3 border border-purple-100">
-                    <span className="block font-bold text-purple-900">2. Compact Kiosk Unit</span>
+                  <div className="rounded-xl bg-white p-3 border border-blue-100">
+                    <span className="block font-bold text-blue-900">2. Compact Kiosk Unit</span>
                     <span className="text-[11px] text-slate-500">Malls, colleges &amp; transit hubs</span>
                   </div>
-                  <div className="rounded-xl bg-white p-3 border border-purple-100">
-                    <span className="block font-bold text-purple-900">3. Direct Machine Sales</span>
+                  <div className="rounded-xl bg-white p-3 border border-blue-100">
+                    <span className="block font-bold text-blue-900">3. Direct Machine Sales</span>
                     <span className="text-[11px] text-slate-500">Turnkey B2B merchant purchase</span>
                   </div>
-                  <div className="rounded-xl bg-white p-3 border border-purple-100">
-                    <span className="block font-bold text-purple-900">4. Autonomous OS</span>
+                  <div className="rounded-xl bg-white p-3 border border-blue-100">
+                    <span className="block font-bold text-blue-900">4. Autonomous OS</span>
                     <span className="text-[11px] text-slate-500">Cloud Print engine &amp; QR UPI</span>
                   </div>
                 </div>
@@ -387,7 +445,7 @@ function EnterpriseDashboard({
                 </div>
                 <button
                   onClick={() => setActiveTab('crm')}
-                  className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
+                  className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
                 >
                   <span>Open CRM Sheet</span>
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -396,10 +454,182 @@ function EnterpriseDashboard({
             </div>
           )}
 
-          {/* 2. DEDICATED CENTRALIZED CRM TAB */}
+          {/* 2. DEDICATED CALLERS DIRECTORY & INSPECTION TAB */}
           {activeTab === 'crm' && (
-            <div className="bg-transparent">
-              <CrmView onRefresh={refreshData} />
+            <div>
+              {inspectingCaller ? (
+                <div>
+                  {/* Inspection Top Navigation Bar */}
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => setInspectingCaller(null)}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 hover:text-slate-900 transition shadow-2xs cursor-pointer group"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5 text-slate-500 group-hover:-translate-x-0.5 transition-transform" />
+                        <span>Back to All Cold Callers</span>
+                      </button>
+                      <div className="h-4 w-[1px] bg-slate-200" />
+                      <div className="flex items-center space-x-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-xs font-black text-white shadow-2xs">
+                          CC
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-black text-slate-900">{inspectingCaller.name}</span>
+                            <span className="text-[11px] font-mono text-slate-500">({inspectingCaller.email})</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-blue-700">Dedicated Calling Workspace Inspection</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-900">
+                      <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                      Owner Inspection Mode
+                    </span>
+                  </div>
+
+                  {/* Caller Inspection Sub-Navigation Tabs */}
+                  <div className="mb-4 flex flex-wrap items-center gap-2 bg-white border border-slate-200/90 rounded-2xl p-2 shadow-xs">
+                    {[
+                      { id: 'annual', label: '12-Month Folders & Overview', sub: 'All months at a glance', icon: CalendarRange },
+                      { id: 'sheet', label: 'Monthly Leads Sheet', sub: 'Merchant inquiries & call notes', icon: FileSpreadsheet },
+                      { id: 'follow-up', label: 'Scheduled Follow-ups', sub: 'Pending callback pipeline', icon: Clock },
+                      { id: 'converted', label: 'Converted Machines (Sold)', sub: 'Closed kiosk sales', icon: CheckCircle2 },
+                    ].map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = callerSubTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setCallerSubTab(tab.id as typeof callerSubTab)}
+                          className={`inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-blue-50/70 border border-transparent'
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-blue-700'}`} />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <CrmView
+                    telecallerId={inspectingCaller.id}
+                    telecallerName={inspectingCaller.name}
+                    telecallerEmail={inspectingCaller.email}
+                    initialViewMode={callerSubTab === 'sheet' ? 'month-sheet' : 'month-selector'}
+                    initialStatusFilter={
+                      callerSubTab === 'follow-up'
+                        ? 'followup'
+                        : callerSubTab === 'converted'
+                        ? 'converted'
+                        : 'all'
+                    }
+                    onRefresh={refreshData}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Callers Directory Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-800 font-bold text-xs">
+                          CC
+                        </div>
+                        <h2 className="text-base font-black text-slate-900 tracking-tight">
+                          Cold Callers Directory &amp; Inspection Desk
+                        </h2>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Select an individual cold caller to open their dedicated calling sheet, 12-month folders, and conversion trajectory.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInspectingCaller({
+                          id: 'all',
+                          name: 'All Cold Callers (Consolidated)',
+                          email: 'all@printbooth.in',
+                        });
+                        setCallerSubTab('annual');
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-blue-300 bg-blue-50 hover:bg-blue-100 text-xs font-bold text-blue-900 transition shadow-2xs cursor-pointer"
+                    >
+                      <span>View All Callers Consolidated</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Cold Callers Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {displayedCallers.map((caller) => {
+                      const allLeads = adjsDb.getCrmLeads();
+                      const callerLeads = allLeads.filter(
+                        (l) => l.telecallerId === caller.id || caller.id === 'demo-caller'
+                      );
+                      const converted = callerLeads.filter((l) => l.status === 'Converted').length;
+                      const followups = callerLeads.filter((l) => l.status === 'Follow-up').length;
+
+                      return (
+                        <div
+                          key={caller.id}
+                          onClick={() => {
+                            setInspectingCaller(caller);
+                            setCallerSubTab('annual');
+                          }}
+                          className="group relative bg-white border border-slate-200/90 hover:border-blue-400 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
+                                  CC
+                                </div>
+                                <div className="min-w-0">
+                                  <h3 className="text-sm font-black text-slate-900 truncate group-hover:text-blue-800 transition-colors">
+                                    {caller.name}
+                                  </h3>
+                                  <p className="text-[11px] font-mono text-slate-500 truncate">{caller.email}</p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                Active Caller
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-slate-100 text-center">
+                              <div className="bg-slate-50 rounded-lg p-2">
+                                <span className="block text-xs font-black text-slate-900">{callerLeads.length}</span>
+                                <span className="block text-[9.5px] font-medium text-slate-500">Leads</span>
+                              </div>
+                              <div className="bg-emerald-50 rounded-lg p-2">
+                                <span className="block text-xs font-black text-emerald-800">{converted}</span>
+                                <span className="block text-[9.5px] font-medium text-emerald-700">Converted</span>
+                              </div>
+                              <div className="bg-blue-50 rounded-lg p-2">
+                                <span className="block text-xs font-black text-blue-800">{followups}</span>
+                                <span className="block text-[9.5px] font-medium text-blue-700">Follow-ups</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700 group-hover:text-blue-900">
+                            <span>Inspect Monthly Sheets</span>
+                            <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -413,7 +643,7 @@ function EnterpriseDashboard({
                 </div>
                 <button
                   onClick={() => setShowOrderModal(true)}
-                  className="text-xs font-bold text-purple-700 hover:text-purple-800"
+                  className="text-xs font-bold text-blue-700 hover:text-blue-800"
                 >
                   + Record Machine Sale
                 </button>
@@ -445,7 +675,7 @@ function EnterpriseDashboard({
                     <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                       {orders.map((o) => (
                         <tr key={o.id} className="hover:bg-slate-50/70 transition">
-                          <td className="py-3 px-3 font-mono font-bold text-purple-700">{o.orderNumber}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-blue-700">{o.orderNumber}</td>
                           <td className="py-3 px-3">
                             <span className="font-bold text-slate-900 block">{o.merchantName}</span>
                             <span className="text-[11px] text-slate-500">{o.shopName} · {o.city}</span>
@@ -457,7 +687,7 @@ function EnterpriseDashboard({
                             ₹ {o.totalAmount.toLocaleString('en-IN')}
                           </td>
                           <td className="py-3 px-3">
-                            <span className="rounded bg-purple-50 text-purple-800 px-2 py-0.5 text-[10px] font-bold border border-purple-200">
+                            <span className="rounded bg-blue-50 text-blue-800 px-2 py-0.5 text-[10px] font-bold border border-blue-200">
                               {o.stage}
                             </span>
                           </td>
@@ -467,7 +697,7 @@ function EnterpriseDashboard({
                                 onClick={() => setActiveChallanOrder(o)}
                                 className="inline-flex items-center space-x-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-700 transition cursor-pointer"
                               >
-                                <FileText className="h-3 w-3 text-purple-600" />
+                                <FileText className="h-3 w-3 text-blue-600" />
                                 <span>Challan</span>
                               </button>
                               {o.stage !== 'Delivered' ? (
@@ -476,7 +706,7 @@ function EnterpriseDashboard({
                                     adjsDb.advanceOrderStage(o.id);
                                     refreshData();
                                   }}
-                                  className="inline-flex items-center space-x-1 rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 px-2 py-1 text-[11px] font-bold text-purple-900 transition cursor-pointer"
+                                  className="inline-flex items-center space-x-1 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 px-2 py-1 text-[11px] font-bold text-blue-900 transition cursor-pointer"
                                 >
                                   <span>Advance Stage</span>
                                   <ChevronRight className="h-3 w-3" />
@@ -510,7 +740,7 @@ function EnterpriseDashboard({
                 </div>
                 <button
                   onClick={() => setShowTicketModal(true)}
-                  className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
+                  className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>+ Raise Support Ticket</span>
@@ -539,7 +769,7 @@ function EnterpriseDashboard({
                     <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                       {tickets.map((t) => (
                         <tr key={t.id} className="hover:bg-slate-50/70 transition">
-                          <td className="py-3 px-3 font-mono font-bold text-purple-700">{t.ticketNumber}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-blue-700">{t.ticketNumber}</td>
                           <td className="py-3 px-3 font-bold text-slate-900">{t.merchantName}</td>
                           <td className="py-3 px-3 font-mono">{t.phone}</td>
                           <td className="py-3 px-3 text-slate-800">{t.issueType}</td>
@@ -596,7 +826,7 @@ function EnterpriseDashboard({
                   value={orderMerchant}
                   onChange={(e) => setOrderMerchant(e.target.value)}
                   placeholder=""
-                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
@@ -609,7 +839,7 @@ function EnterpriseDashboard({
                     value={orderPhone}
                     onChange={(e) => setOrderPhone(e.target.value)}
                     placeholder=""
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -619,7 +849,7 @@ function EnterpriseDashboard({
                     value={orderShop}
                     onChange={(e) => setOrderShop(e.target.value)}
                     placeholder=""
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -629,7 +859,7 @@ function EnterpriseDashboard({
                 <select
                   value={orderModel}
                   onChange={(e) => setOrderModel(e.target.value as KioskModelType)}
-                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-bold"
+                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-bold"
                 >
                   {KIOSK_MODELS.map((m) => (
                     <option key={m} value={m}>
@@ -647,7 +877,7 @@ function EnterpriseDashboard({
                     min={1}
                     value={orderUnits}
                     onChange={(e) => setOrderUnits(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono font-bold"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono font-bold"
                   />
                 </div>
                 <div>
@@ -656,7 +886,7 @@ function EnterpriseDashboard({
                     type="number"
                     value={orderPrice}
                     onChange={(e) => setOrderPrice(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none font-mono"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none font-mono"
                   />
                 </div>
                 <div>
@@ -667,7 +897,7 @@ function EnterpriseDashboard({
                     value={orderCity}
                     onChange={(e) => setOrderCity(e.target.value)}
                     placeholder=""
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-purple-600 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -682,7 +912,7 @@ function EnterpriseDashboard({
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 font-bold text-white shadow-sm"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 font-bold text-white shadow-sm"
                 >
                   Save Machine Order
                 </button>

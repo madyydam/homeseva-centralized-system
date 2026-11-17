@@ -82,7 +82,7 @@ export function CrmMonthsView({
                 onClick={() => setSelectedYear(yr)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
                   selectedYear === yr
-                    ? 'bg-purple-600 text-white shadow-2xs'
+                    ? 'bg-blue-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
                 }`}
               >
@@ -99,7 +99,7 @@ export function CrmMonthsView({
           <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider">
             {selectedYear} Monthly Workspaces (Click a month to open sheet)
           </h3>
-          <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
             12 Months
           </span>
         </div>
@@ -112,19 +112,19 @@ export function CrmMonthsView({
               <div
                 key={m.value}
                 onClick={() => onSelectMonth(m.value)}
-                className={`group rounded-2xl border bg-white p-5 shadow-xs hover:border-purple-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer flex flex-col justify-between ${
-                  isCurrentMonth ? 'border-purple-400 ring-2 ring-purple-400/20' : 'border-slate-200'
+                className={`group rounded-2xl border bg-white p-5 shadow-xs hover:border-blue-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+                  isCurrentMonth ? 'border-blue-400 ring-2 ring-blue-400/20' : 'border-slate-200'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h4 className="text-base font-black text-slate-900 group-hover:text-purple-700 transition">
+                        <h4 className="text-base font-black text-slate-900 group-hover:text-blue-700 transition">
                           {m.name}
                         </h4>
                         {isCurrentMonth && (
-                          <span className="text-[9px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
                             Current
                           </span>
                         )}
@@ -133,7 +133,7 @@ export function CrmMonthsView({
                     </div>
 
                     <div className="flex flex-col items-end space-y-1">
-                      <span className="rounded-full bg-purple-50 text-purple-800 border border-purple-200/80 px-2 py-0.5 text-[10px] font-mono font-bold">
+                      <span className="rounded-full bg-blue-50 text-blue-800 border border-blue-200/80 px-2 py-0.5 text-[10px] font-mono font-bold">
                         {m.total} Inquiries
                       </span>
                       <span className="text-[9px] font-bold text-slate-500 font-mono">
@@ -146,11 +146,11 @@ export function CrmMonthsView({
                   <div className="my-2 bg-slate-50 border border-slate-100 rounded-lg p-2">
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 mb-1">
                       <span>Conversion</span>
-                      <span className="font-mono text-purple-700">{m.converted}/{m.total} Sold</span>
+                      <span className="font-mono text-blue-700">{m.converted}/{m.total} Sold</span>
                     </div>
                     <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-purple-600 to-emerald-500 rounded-full transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-300"
                         style={{
                           width: `${Math.min(100, Math.max(m.converted > 0 ? 8 : 0, m.rate))}%`,
                         }}
@@ -160,16 +160,16 @@ export function CrmMonthsView({
 
                   {/* Stats Mini Breakdown */}
                   <div className="grid grid-cols-3 gap-1.5 mt-3 pt-2.5 border-t border-slate-100 text-center">
-                    <div className="rounded-xl bg-purple-50/60 p-2">
-                      <span className="block text-sm font-black text-purple-700 font-mono">
+                    <div className="rounded-xl bg-blue-50/60 p-2">
+                      <span className="block text-sm font-black text-blue-700 font-mono">
                         {m.converted}
                       </span>
                       <span className="text-[9.5px] font-bold text-slate-500 uppercase">
                         Sold
                       </span>
                     </div>
-                    <div className="rounded-xl bg-blue-50/60 p-2">
-                      <span className="block text-sm font-black text-blue-700 font-mono">
+                    <div className="rounded-xl bg-indigo-50/60 p-2">
+                      <span className="block text-sm font-black text-indigo-700 font-mono">
                         {m.interested}
                       </span>
                       <span className="text-[9.5px] font-bold text-slate-500 uppercase">
@@ -187,7 +187,7 @@ export function CrmMonthsView({
                   </div>
                 </div>
 
-                <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black text-purple-600 group-hover:text-purple-700">
+                <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black text-blue-600 group-hover:text-blue-700">
                   <span>Open {m.short} Sheet</span>
                   <ArrowRight className="h-3.5 w-3.5 transform group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -202,7 +202,7 @@ export function CrmMonthsView({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
               <BarChart2 className="h-5 w-5" />
             </div>
             <div>
@@ -210,7 +210,7 @@ export function CrmMonthsView({
                 <h3 className="text-base font-black text-slate-900 tracking-tight">
                   {selectedYear} Annual Performance &amp; Conversion Trajectory
                 </h3>
-                <span className="text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
                   Annual Benchmark
                 </span>
               </div>
@@ -221,15 +221,15 @@ export function CrmMonthsView({
           </div>
 
           {/* Annual Conversion Rate Badge */}
-          <div className="flex items-center space-x-2.5 bg-purple-50 border border-purple-200 rounded-2xl px-4 py-2 self-start sm:self-auto">
-            <Award className="h-4.5 w-4.5 text-purple-600 shrink-0" />
+          <div className="flex items-center space-x-2.5 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-2 self-start sm:self-auto">
+            <Award className="h-4.5 w-4.5 text-blue-600 shrink-0" />
             <div>
-              <span className="text-[10px] font-bold text-purple-600 block uppercase tracking-wider leading-none">
+              <span className="text-[10px] font-bold text-blue-600 block uppercase tracking-wider leading-none">
                 Annual Conversion Rate
               </span>
-              <span className="text-base font-black text-purple-900 leading-tight">
+              <span className="text-base font-black text-blue-900 leading-tight">
                 {annualConvRate}%
-                <span className="text-xs font-semibold text-purple-700 ml-1.5 font-mono">
+                <span className="text-xs font-semibold text-blue-700 ml-1.5 font-mono">
                   ({yearConverted}/{yearTotal} machines)
                 </span>
               </span>
@@ -258,19 +258,19 @@ export function CrmMonthsView({
           </div>
 
           {/* Card 2: Annual Converted */}
-          <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4 flex items-center justify-between">
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 block leading-tight">
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 block leading-tight">
                 Machines Sold
               </span>
-              <span className="text-2xl font-black text-purple-800 leading-tight font-mono">
+              <span className="text-2xl font-black text-indigo-800 leading-tight font-mono">
                 {yearConverted}
               </span>
-              <span className="text-[10px] font-bold text-purple-600/80 block mt-0.5">
+              <span className="text-[10px] font-bold text-indigo-600/80 block mt-0.5">
                 Direct kiosk sales closed
               </span>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-2xs shrink-0">
               <CheckCircle2 className="h-5 w-5" />
             </div>
           </div>
@@ -327,7 +327,7 @@ export function CrmMonthsView({
             {/* Legend */}
             <div className="flex items-center space-x-3 text-[11px] font-bold text-slate-600">
               <div className="flex items-center space-x-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-gradient-to-t from-purple-600 to-purple-400" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-gradient-to-t from-blue-600 to-indigo-500" />
                 <span>Total Inquiries</span>
               </div>
               <div className="flex items-center space-x-1.5">
@@ -391,7 +391,7 @@ export function CrmMonthsView({
                       <div
                         className={`w-3 sm:w-5 rounded-t-sm transition-all duration-300 ${
                           m.total > 0
-                            ? 'bg-gradient-to-t from-purple-600 to-purple-400 group-hover:from-purple-700 shadow-2xs'
+                            ? 'bg-gradient-to-t from-blue-600 to-indigo-500 group-hover:from-blue-700 shadow-2xs'
                             : 'bg-slate-200/70'
                         }`}
                         style={{ height: `${totalHeight}px` }}
@@ -409,7 +409,7 @@ export function CrmMonthsView({
                     </div>
 
                     {/* Month Label */}
-                    <span className="mt-2 text-[10px] font-bold text-slate-500 group-hover:text-purple-700 group-hover:font-black transition">
+                    <span className="mt-2 text-[10px] font-bold text-slate-500 group-hover:text-blue-700 group-hover:font-black transition">
                       {m.short}
                     </span>
                   </div>

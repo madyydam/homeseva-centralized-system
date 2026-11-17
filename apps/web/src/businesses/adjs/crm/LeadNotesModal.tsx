@@ -68,7 +68,7 @@ export function LeadNotesModal({
                 </span>
               )}
               {isConverted && lead.kioskModel && (
-                <span className="flex items-center gap-1 rounded bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.2 font-mono font-bold text-[10px]">
+                <span className="flex items-center gap-1 rounded bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.2 font-mono font-bold text-[10px]">
                   <Package className="h-3 w-3" />
                   <span>{lead.kioskModel}</span>
                 </span>
@@ -86,9 +86,9 @@ export function LeadNotesModal({
         {/* 5 Distinct Notes */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3.5 text-xs">
           {[0, 1, 2, 3, 4].map((idx) => (
-            <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5 focus-within:border-purple-500 focus-within:bg-white transition">
+            <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 space-y-1.5 focus-within:border-blue-500 focus-within:bg-white transition">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                <span className="flex items-center gap-1.5 text-purple-700">
+                <span className="flex items-center gap-1.5 text-blue-700">
                   <MessageSquare className="h-3.5 w-3.5" />
                   <span>Note {idx + 1}</span>
                 </span>
@@ -121,7 +121,7 @@ export function LeadNotesModal({
             </button>
             <button
               onClick={handleSave}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 font-bold text-white shadow-sm transition text-xs"
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 font-bold text-white shadow-sm transition text-xs"
             >
               <Save className="h-3.5 w-3.5" />
               <span>Save Notes</span>

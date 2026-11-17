@@ -24,6 +24,9 @@ export type KioskModelType =
 
 export interface PrintboothLeadItem {
   id: string;
+  telecallerId?: string | undefined;
+  telecallerName?: string | undefined;
+  telecallerEmail?: string | undefined;
   clientName: string; // Merchant / Contact Name (Optional, defaults to "Don't know")
   phone: string; // Unique primary phone number
   shopName?: string | undefined; // Business / Store name (e.g. Apex Xerox Corner)

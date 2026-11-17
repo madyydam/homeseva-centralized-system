@@ -34,29 +34,36 @@ export * from './crm/crmUtils';
 interface CrmViewProps {
   initialViewMode?: 'month-selector' | 'month-sheet';
   initialStatusFilter?: string;
+  telecallerId?: string | undefined;
+  telecallerName?: string | undefined;
+  telecallerEmail?: string | undefined;
   onRefresh?: () => void;
 }
 
 export function CrmView({
   initialViewMode = 'month-sheet',
   initialStatusFilter = 'all',
+  telecallerId,
+  telecallerName,
+  telecallerEmail,
   onRefresh,
 }: CrmViewProps) {
-  // Centralized Leads state
-  const [leads, setLeads] = useState<PrintboothLeadItem[]>(() => adjsDb.getCrmLeads());
+  // Centralized Leads state (Scoped to caller if telecallerId provided)
+  const [leads, setLeads] = useState<PrintboothLeadItem[]>(() => adjsDb.getCrmLeads(telecallerId));
 
   const refreshCentralData = useCallback(() => {
-    setLeads([...adjsDb.getCrmLeads()]);
+    setLeads([...adjsDb.getCrmLeads(telecallerId)]);
     if (onRefresh) onRefresh();
-  }, [onRefresh]);
+  }, [telecallerId, onRefresh]);
 
   useEffect(() => {
     refreshCentralData();
+    adjsDb.syncFromBackend(telecallerId);
     const unsubscribe = adjsDb.subscribe(() => {
       refreshCentralData();
     });
     return () => unsubscribe();
-  }, [refreshCentralData]);
+  }, [refreshCentralData, telecallerId]);
 
   // NAVIGATION / VIEW MODE: 'month-selector' vs 'month-sheet'
   const [viewMode, setViewMode] = useState<'month-selector' | 'month-sheet'>(initialViewMode);
@@ -254,6 +261,9 @@ export function CrmView({
   const handleCreateLead = (leadData: Omit<PrintboothLeadItem, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newLead: PrintboothLeadItem = {
       ...leadData,
+      telecallerId: telecallerId || undefined,
+      telecallerName: telecallerName || undefined,
+      telecallerEmail: telecallerEmail || undefined,
       id: `PB-LEAD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -264,6 +274,9 @@ export function CrmView({
   const handleBatchImport = (importedList: Omit<PrintboothLeadItem, 'id' | 'createdAt' | 'updatedAt'>[]) => {
     const toInsert: PrintboothLeadItem[] = importedList.map((item, idx) => ({
       ...item,
+      telecallerId: telecallerId || undefined,
+      telecallerName: telecallerName || undefined,
+      telecallerEmail: telecallerEmail || undefined,
       id: `PB-LEAD-${Date.now()}-${idx}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -372,7 +385,7 @@ export function CrmView({
                 onClick={() => setShowImportModal(true)}
                 className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition shadow-2xs"
               >
-                <FileSpreadsheet className="h-3.5 w-3.5 text-purple-600" />
+                <FileSpreadsheet className="h-3.5 w-3.5 text-blue-600" />
                 <span>Import Excel</span>
               </button>
 
@@ -387,7 +400,7 @@ export function CrmView({
 
               <button
                 onClick={() => setShowAddLeadModal(true)}
-                className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition shrink-0"
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition shrink-0"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>+ Add New Lead</span>

@@ -22,6 +22,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const [activeRole, setActiveRole] = useState<string | undefined>(roleParam);
   const [activeMemberId, setActiveMemberId] = useState<string | undefined>(undefined);
   const [activeMemberName, setActiveMemberName] = useState<string | undefined>(undefined);
+  const [activeMemberEmail, setActiveMemberEmail] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     try {
@@ -39,6 +40,9 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
           }
           if (payload.memberName || payload.username) {
             setActiveMemberName(payload.memberName || payload.username);
+          }
+          if (payload.email) {
+            setActiveMemberEmail(payload.email);
           }
         }
       }
@@ -64,7 +68,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
           className="mt-5 inline-flex items-center space-x-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-bold shadow-sm transition"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Return to Central ERP v1.3</span>
+          <span>Return to Central ERP v1.6</span>
         </Link>
       </div>
     );
@@ -79,6 +83,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
       role={activeRole || roleParam}
       memberId={activeMemberId}
       memberName={activeMemberName}
+      memberEmail={activeMemberEmail}
     />
   );
 }

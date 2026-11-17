@@ -793,6 +793,7 @@ VALUES
   ('25cdeb20-99cb-43da-91cb-3d25b1280231', 'Community Manager', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('25cdeb20-99cb-43da-91cb-3d25b1280231', 'Front Desk Coordinator', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('3', 'Cold Caller', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
+  ('3', 'Cold Caller', 'Caller 2 (Pooja)', 'pooja@gentlehairwigs.com', '12345678', '1234'),
   ('3', 'Scalp & Measurement Consultant', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('3', 'Senior Wig Specialist & Stylist', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('3', 'Studio Manager', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
@@ -811,6 +812,7 @@ VALUES
   ('6b285697-bb63-4782-a3d5-930ce59e33d0', 'Developer', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('6b285697-bb63-4782-a3d5-930ce59e33d0', 'Owner', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('6b285697-bb63-4782-a3d5-930ce59e33d0', 'Coldcaller', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
+  ('6b285697-bb63-4782-a3d5-930ce59e33d0', 'Coldcaller', 'Caller 2 (Aakash)', 'aakash@printbooth.in', '12345678', '1234'),
   ('f9d7e763-d4b9-451e-b173-d8edec97e752', 'Accounts Desk', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('f9d7e763-d4b9-451e-b173-d8edec97e752', 'Dispatch Coordinator', 'Demo User', 'abc@xyz.com', '12345678', '1234'),
   ('f9d7e763-d4b9-451e-b173-d8edec97e752', 'Trading Manager', 'Demo User', 'abc@xyz.com', '12345678', '1234')
@@ -821,3 +823,68 @@ ON CONFLICT (business_id, role_id, email) DO UPDATE SET
   role_id = EXCLUDED.role_id,
   is_active = true,
   updated_at = NOW();
+
+-- -----------------------------------------------------------------------------
+-- 18. COLD CALLER LEADS DATA ISOLATION (GENTLE HAIR WIGS & PRINTBOOTH)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.gentle_crm_leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL DEFAULT '3',
+  telecaller_id TEXT,
+  telecaller_name TEXT,
+  telecaller_email TEXT,
+  sr_no INT,
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  studio_name TEXT NOT NULL DEFAULT 'Studio of Viman Nagar',
+  client_name TEXT NOT NULL DEFAULT 'Inquiry',
+  phone TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Interested',
+  custom_status_text TEXT,
+  call_count INT NOT NULL DEFAULT 0,
+  notes_list JSONB NOT NULL DEFAULT '[]'::jsonb,
+  city TEXT,
+  source TEXT,
+  stage TEXT,
+  hair_loss_concern TEXT,
+  interest_category TEXT,
+  estimated_budget NUMERIC(12, 2),
+  assigned_specialist TEXT,
+  last_contact_date TEXT,
+  next_follow_up_date TEXT,
+  notes TEXT,
+  priority TEXT DEFAULT 'Normal',
+  lead_date TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gentle_crm_leads_caller ON public.gentle_crm_leads(telecaller_id);
+CREATE INDEX IF NOT EXISTS idx_gentle_crm_leads_business ON public.gentle_crm_leads(business_id);
+CREATE INDEX IF NOT EXISTS idx_gentle_crm_leads_phone ON public.gentle_crm_leads(phone);
+
+CREATE TABLE IF NOT EXISTS public.printbooth_crm_leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL DEFAULT 'adjs',
+  telecaller_id TEXT,
+  telecaller_name TEXT,
+  telecaller_email TEXT,
+  sr_no INT,
+  client_name TEXT NOT NULL DEFAULT 'Merchant Inquiry',
+  phone TEXT NOT NULL,
+  business_name TEXT,
+  city TEXT,
+  kiosk_model TEXT,
+  status TEXT NOT NULL DEFAULT 'Interested',
+  custom_status_text TEXT,
+  call_count INT NOT NULL DEFAULT 0,
+  notes_list JSONB NOT NULL DEFAULT '[]'::jsonb,
+  follow_up_date TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_printbooth_crm_leads_caller ON public.printbooth_crm_leads(telecaller_id);
+CREATE INDEX IF NOT EXISTS idx_printbooth_crm_leads_business ON public.printbooth_crm_leads(business_id);
+CREATE INDEX IF NOT EXISTS idx_printbooth_crm_leads_phone ON public.printbooth_crm_leads(phone);
+

@@ -292,17 +292,9 @@ export default function CompaniesPage() {
               <Building2 className="w-4 h-4" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-base font-bold text-slate-900 leading-tight">
-                  Companies &amp; Multi-Member Management
-                </h1>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                  Live Supabase
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Select a company to browse operational roles and manage authorized individual personnel accounts.
-              </p>
+              <h1 className="text-base font-bold text-slate-900 leading-tight">
+                Companies &amp; Multi-Member Management
+              </h1>
             </div>
           </div>
 

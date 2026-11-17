@@ -48,6 +48,7 @@ export interface SessionPayload {
   username?: string;
   memberId?: string;
   memberName?: string;
+  email?: string;
   exp: number; // Unix timestamp in ms
 }
 

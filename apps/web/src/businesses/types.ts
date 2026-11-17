@@ -43,6 +43,7 @@ export interface BusinessDashboardProps {
   role?: string | undefined;
   memberId?: string | undefined;
   memberName?: string | undefined;
+  memberEmail?: string | undefined;
 }
 
 export interface BusinessModule {

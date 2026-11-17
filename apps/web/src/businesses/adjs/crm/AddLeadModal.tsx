@@ -110,7 +110,7 @@ export function AddLeadModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-slate-900 max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-gradient-to-r from-purple-50/70 to-slate-50">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-gradient-to-r from-blue-50/70 to-slate-50">
           <div>
             <h2 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span>+ Add New Kiosk Lead in {selectedMonthName} {selectedYear}</span>
@@ -143,7 +143,7 @@ export function AddLeadModal({
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder=""
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
             </div>
@@ -163,7 +163,7 @@ export function AddLeadModal({
                   className={`w-full rounded-xl border bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 ${
                     duplicateLead
                       ? 'border-rose-400 focus:border-rose-600 focus:ring-rose-500/20 bg-rose-50/30'
-                      : 'border-slate-300 focus:border-purple-600 focus:ring-purple-500/20'
+                      : 'border-slate-300 focus:border-blue-600 focus:ring-blue-500/20'
                   }`}
                 />
               </div>
@@ -202,7 +202,7 @@ export function AddLeadModal({
                 value={shopName}
                 onChange={(e) => setShopName(e.target.value)}
                 placeholder=""
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
@@ -214,7 +214,7 @@ export function AddLeadModal({
                 id={`${formId}-category`}
                 value={locationCategory}
                 onChange={(e) => setLocationCategory(e.target.value as LocationCategoryType)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
               >
                 {LOCATION_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -235,7 +235,7 @@ export function AddLeadModal({
                 id={`${formId}-status`}
                 value={status}
                 onChange={(e) => setStatus(e.target.value as PrintboothLeadStatusType)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
               >
                 <option value="Interested">Interested</option>
                 <option value="Follow-up">Follow-up</option>
@@ -254,7 +254,7 @@ export function AddLeadModal({
                 id={`${formId}-calls`}
                 value={callCount}
                 onChange={(e) => setCallCount(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
               >
                 <option value={0}>0 Calls</option>
                 <option value={1}>1 Call</option>
@@ -268,21 +268,21 @@ export function AddLeadModal({
 
           {/* Converted Fields: STRICTLY SHOWN ONLY IF STATUS IS CONVERTED */}
           {status === 'Converted' && (
-            <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4 space-y-3 animate-in fade-in-down duration-150">
-              <div className="flex items-center gap-1.5 text-purple-900 font-extrabold text-xs">
-                <Package className="h-4 w-4 text-purple-700" />
+            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-3 animate-in fade-in-down duration-150">
+              <div className="flex items-center gap-1.5 text-blue-900 font-extrabold text-xs">
+                <Package className="h-4 w-4 text-blue-700" />
                 <span>Converted Machine Sale Details *</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
-                  <label htmlFor={`${formId}-model`} className="block font-bold text-purple-950 uppercase tracking-wider text-[10px] mb-1">
+                  <label htmlFor={`${formId}-model`} className="block font-bold text-blue-950 uppercase tracking-wider text-[10px] mb-1">
                     Kiosk Model Purchased *
                   </label>
                   <select
                     id={`${formId}-model`}
                     value={kioskModel}
                     onChange={(e) => setKioskModel(e.target.value as KioskModelType)}
-                    className="w-full rounded-xl border border-purple-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {KIOSK_MODELS.map((m) => (
                       <option key={m} value={m}>
@@ -292,7 +292,7 @@ export function AddLeadModal({
                   </select>
                 </div>
                 <div>
-                  <label htmlFor={`${formId}-city`} className="block font-bold text-purple-950 uppercase tracking-wider text-[10px] mb-1">
+                  <label htmlFor={`${formId}-city`} className="block font-bold text-blue-950 uppercase tracking-wider text-[10px] mb-1">
                     Installation City *
                   </label>
                   <input
@@ -302,7 +302,7 @@ export function AddLeadModal({
                     value={installationCity}
                     onChange={(e) => setInstallationCity(e.target.value)}
                     placeholder=""
-                    className="w-full rounded-xl border border-purple-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -324,7 +324,7 @@ export function AddLeadModal({
               type="date"
               value={leadDate}
               onChange={(e) => setLeadDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -338,21 +338,21 @@ export function AddLeadModal({
               value={note1}
               onChange={(e) => setNote1(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-purple-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
             />
             <input
               type="text"
               value={note2}
               onChange={(e) => setNote2(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-purple-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
             />
             <input
               type="text"
               value={note3}
               onChange={(e) => setNote3(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-purple-500 focus:outline-none"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
             />
           </div>
 
@@ -375,7 +375,7 @@ export function AddLeadModal({
                 className={`rounded-xl px-5 py-2 font-bold text-white shadow-sm transition ${
                   duplicateLead
                     ? 'bg-slate-400 cursor-not-allowed opacity-60'
-                    : 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
                 {duplicateLead ? 'Duplicate Exists' : '+ Save Lead'}

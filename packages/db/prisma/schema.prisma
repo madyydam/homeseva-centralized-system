@@ -403,6 +403,9 @@ model GentleHairWigsLead {
   interestCategory   String?
   estimatedBudget    Decimal?  @db.Decimal(12, 2)
   assignedSpecialist String?
+  telecallerId       String?
+  telecallerName     String?
+  telecallerEmail    String?
   lastContactDate    String?
   nextFollowUpDate   String?
   notes              String?
@@ -414,6 +417,7 @@ model GentleHairWigsLead {
   @@index([businessId, studioSlug])
   @@index([businessId, status])
   @@index([businessId, leadDate])
+  @@index([businessId, telecallerId])
   @@index([businessId, createdAt(sort: Desc)])
   @@index([businessId, updatedAt(sort: Desc)])
   @@map("gentle_leads")

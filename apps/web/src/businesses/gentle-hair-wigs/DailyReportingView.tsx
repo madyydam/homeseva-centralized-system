@@ -505,12 +505,18 @@ export function DailyReportingView({
         }
       }
 
-      // Fetch history for this telecaller (Centralized across all studios)
+      // Fetch history for this telecaller (Centralized across all studios, isolated to active caller)
       const histRes = await fetch(`/api/gentle-hair-wigs/daily-reports?branch=${queryBranch}&allDates=true`);
       const histData = await histRes.json();
       if (histData.success && Array.isArray(histData.reports)) {
         const myReports = histData.reports
-          .filter((r: any) => (queryBranch === 'all' || !branch || r.branch === branch || r.branch === 'central') && (r.punchInTime || r.callsMade > 0 || r.workSummary))
+          .filter(
+            (r: any) =>
+              ((currentTelecallerId && r.staffId === currentTelecallerId) ||
+                (!currentTelecallerId && (staffName ? r.staffName?.toLowerCase() === staffName.toLowerCase() : true))) &&
+              (queryBranch === 'all' || !branch || r.branch === branch || r.branch === 'central') &&
+              (r.punchInTime || r.callsMade > 0 || r.workSummary)
+          )
           .sort((a: any, b: any) => (b.reportDate || '').localeCompare(a.reportDate || ''));
         setHistoryList(myReports);
       }

@@ -139,7 +139,7 @@ function createWindow() {
     height: 860,
     minWidth: 1024,
     minHeight: 680,
-    title: 'HomeSeva ERP v1.3',
+    title: 'HomeSeva ERP v1.6',
     backgroundColor: '#050609',
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../assets/icon.png'),
@@ -380,7 +380,7 @@ function checkUpdates(userInitiated = false) {
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'HomeSeva ERP',
-        message: 'HomeSeva ERP v1.3 is up to date.',
+        message: 'HomeSeva ERP v1.6 is up to date.',
       });
     }
     return;

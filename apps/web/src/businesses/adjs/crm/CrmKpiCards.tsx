@@ -41,9 +41,9 @@ export function CrmKpiCards({
       count: stats.total,
       sublabel: 'ALL ACTIVE',
       icon: Users,
-      color: 'purple',
-      badgeClass: 'border-purple-200 bg-purple-50 text-purple-900',
-      activeRing: 'ring-2 ring-purple-600',
+      color: 'blue',
+      badgeClass: 'border-blue-200 bg-blue-50 text-blue-900',
+      activeRing: 'ring-2 ring-blue-600',
     },
     {
       id: 'converted',

@@ -86,7 +86,7 @@ export const getStatusBadgeClass = (status: PrintboothLeadStatusType | string) =
     case 'negotiation':
       return 'bg-indigo-50 text-indigo-700 border-indigo-200';
     case 'converted':
-      return 'bg-purple-50 text-purple-700 border-purple-200';
+      return 'bg-blue-100 text-blue-800 border-blue-300';
     case 'notinterested':
       return 'bg-rose-50 text-rose-700 border-rose-200';
     case 'notpicked':

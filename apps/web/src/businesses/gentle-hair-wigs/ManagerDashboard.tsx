@@ -32,6 +32,9 @@ import {
   PanelLeftOpen,
   ChevronLeft,
   PhoneCall,
+  ArrowLeft,
+  CalendarRange,
+  Clock,
 } from 'lucide-react';
 import { BusinessDashboardProps } from '../types';
 import { gentleHairWigsConfig } from './config';
@@ -49,6 +52,16 @@ const CrmView = dynamic(() => import('./CrmView').then((m) => m.CrmView), {
     <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3 bg-white rounded-xl border border-slate-200/80 p-8 shadow-xs">
       <div className="w-8 h-8 rounded-full border-2 border-amber-600 border-t-transparent animate-spin" />
       <span className="text-xs font-bold text-slate-500">Loading Client CRM & Monthly Sheets...</span>
+    </div>
+  ),
+  ssr: true,
+});
+
+const DailyReportingView = dynamic(() => import('./DailyReportingView').then((m) => m.DailyReportingView), {
+  loading: () => (
+    <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3 bg-white rounded-xl border border-slate-200/80 p-8 shadow-xs">
+      <div className="w-8 h-8 rounded-full border-2 border-amber-600 border-t-transparent animate-spin" />
+      <span className="text-xs font-bold text-slate-500">Loading Daily Reporting...</span>
     </div>
   ),
   ssr: true,
@@ -155,6 +168,9 @@ const ALL_MANAGER_NAV_ITEMS = [
 export function ManagerDashboard({
   branch = 'viman-nagar',
   role = 'Studio Manager',
+  memberId,
+  memberName,
+  memberEmail,
 }: BusinessDashboardProps) {
   const BRANCH_LIST = gentleHairWigsConfig.branches!;
 
@@ -225,6 +241,60 @@ export function ManagerDashboard({
     });
     return () => unsubscribe();
   }, [refreshData]);
+
+  // Cold Caller Inspection State for Owner / Manager
+  const [inspectingCaller, setInspectingCaller] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [callerSubTab, setCallerSubTab] = useState<'annual' | 'sheet' | 'follow-up' | 'converted' | 'daily-reporting'>('annual');
+  const [coldCallersList, setColdCallersList] = useState<Array<{ id: string; name: string; email: string }>>([]);
+
+  useEffect(() => {
+    fetch('/api/members?businessSlug=gentle-hair-wigs')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && Array.isArray(resData.members)) {
+          const callers = resData.members.filter((m: any) => {
+            const r = (m.role_id || '').toLowerCase();
+            return r.includes('caller') || r.includes('telecaller');
+          });
+          if (callers.length > 0) {
+            setColdCallersList(
+              callers.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                email: c.email,
+              }))
+            );
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const displayedCallers = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; email: string }>();
+    coldCallersList.forEach((c) => map.set(c.id, c));
+
+    // Also pick up any caller IDs present in leads
+    (data.crmLeads || []).forEach((l: any) => {
+      if (l.telecallerId && !map.has(l.telecallerId)) {
+        map.set(l.telecallerId, {
+          id: l.telecallerId,
+          name: l.telecallerName || 'Cold Caller',
+          email: l.telecallerEmail || 'caller@gentlehairwigs.com',
+        });
+      }
+    });
+
+    if (map.size === 0) {
+      map.set('demo-caller', {
+        id: 'demo-caller',
+        name: 'Demo Caller',
+        email: 'abc@xyz.com',
+      });
+    }
+
+    return Array.from(map.values());
+  }, [coldCallersList, data.crmLeads]);
 
   // Modals state
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -641,18 +711,21 @@ export function ManagerDashboard({
         <div className="p-2.5 border-t border-slate-200/80 bg-slate-50/80 shrink-0">
           {!isSidebarCollapsed ? (
             <>
-              <div className="flex items-center space-x-2 mb-2 px-0.5">
+              <div className="flex items-start space-x-2 mb-2 px-0.5">
                 <div
-                  className="flex h-7.5 w-7.5 items-center justify-center rounded-lg text-[11px] font-black text-white shrink-0 shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 shadow-amber-500/20"
+                  className="flex h-7.5 w-7.5 items-center justify-center rounded-lg text-[11px] font-black text-white shrink-0 shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 shadow-amber-500/20 mt-0.5"
                 >
                   {isColdCaller ? 'CC' : 'SM'}
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 space-y-0.5">
                   <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
-                    {userRole}
+                    {userRole || 'Studio Manager'}
                   </span>
-                  <span className="block text-[10px] font-semibold truncate leading-tight text-slate-500">
-                    {currentBranchInfo.shortName} Studio
+                  <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
+                    {memberName || 'Active Manager'}
+                  </span>
+                  <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
+                    {memberEmail || 'manager@homeseva.com'}
                   </span>
                 </div>
               </div>
@@ -1363,19 +1436,201 @@ export function ManagerDashboard({
             </div>
           )}
 
-          {/* TAB: CLIENT CRM & LEADS (Centralized for all 3 studios) */}
+          {/* TAB: CLIENT CRM & LEADS (Cold Callers Directory & Inspection Desk) */}
           {activeTab === 'crm' && (
-            <CrmView
-              branch="all"
-              crmLeads={data.crmLeads || []}
-              callLogs={data.callLogs || []}
-              onRefresh={refreshData}
-              onConvertToOrder={(clientName, phone) => {
-                setClientNameInput(clientName?.trim() || "Don't know");
-                setPhoneInput(phone);
-                setShowOrderModal(true);
-              }}
-            />
+            <div>
+              {inspectingCaller ? (
+                <div>
+                  {/* Inspection Top Navigation Bar */}
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => setInspectingCaller(null)}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 hover:text-slate-900 transition shadow-2xs cursor-pointer group"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5 text-slate-500 group-hover:-translate-x-0.5 transition-transform" />
+                        <span>Back to All Cold Callers</span>
+                      </button>
+                      <div className="h-4 w-[1px] bg-slate-200" />
+                      <div className="flex items-center space-x-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 text-xs font-black text-white shadow-2xs">
+                          CC
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-black text-slate-900">{inspectingCaller.name}</span>
+                            <span className="text-[11px] font-mono text-slate-500">({inspectingCaller.email})</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-amber-700">Dedicated Calling Workspace Inspection</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900">
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                      Owner Inspection Mode
+                    </span>
+                  </div>
+
+                  {/* Caller Inspection Sub-Navigation Tabs */}
+                  <div className="mb-4 flex flex-wrap items-center gap-2 bg-white border border-slate-200/90 rounded-2xl p-2 shadow-xs">
+                    {[
+                      { id: 'annual', label: '12-Month Folders & Trajectory', sub: 'All months at a glance', icon: CalendarRange },
+                      { id: 'sheet', label: 'Monthly Leads Sheet', sub: 'Spreadsheet & call notes', icon: FileSpreadsheet },
+                      { id: 'follow-up', label: 'Scheduled Follow-ups', sub: 'Due callback pipeline', icon: Clock },
+                      { id: 'converted', label: 'Converted Clients', sub: 'Studio order handoffs', icon: CheckCircle2 },
+                      { id: 'daily-reporting', label: 'Daily Reporting', sub: 'Punch in/out & attendance', icon: ClipboardCheck },
+                    ].map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = callerSubTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setCallerSubTab(tab.id as typeof callerSubTab)}
+                          className={`inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                            isActive
+                              ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/30'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-amber-50/70 border border-transparent'
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-amber-700'}`} />
+                          <span>{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Render Tab Content Scoped to Inspecting Caller */}
+                  {callerSubTab === 'daily-reporting' ? (
+                    <DailyReportingView
+                      branch="all"
+                      currentTelecallerId={inspectingCaller.id}
+                      currentTelecallerName={inspectingCaller.name}
+                      onReportUpdated={refreshData}
+                    />
+                  ) : (
+                    <CrmView
+                      branch="all"
+                      telecallerId={inspectingCaller.id}
+                      telecallerName={inspectingCaller.name}
+                      telecallerEmail={inspectingCaller.email}
+                      initialViewMode={callerSubTab === 'sheet' ? 'month-sheet' : 'month-selector'}
+                      initialStatusFilter={
+                        callerSubTab === 'follow-up'
+                          ? 'Follow-up'
+                          : callerSubTab === 'converted'
+                          ? 'Converted'
+                          : 'all'
+                      }
+                      crmLeads={data.crmLeads || []}
+                      callLogs={data.callLogs || []}
+                      onRefresh={refreshData}
+                      onConvertToOrder={(clientName, phone) => {
+                        setClientNameInput(clientName?.trim() || "Don't know");
+                        setPhoneInput(phone);
+                        setShowOrderModal(true);
+                      }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Callers Directory Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 font-bold text-xs">
+                          CC
+                        </div>
+                        <h2 className="text-base font-black text-slate-900 tracking-tight">
+                          Cold Callers Directory &amp; Inspection Desk
+                        </h2>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Select an individual cold caller to open their dedicated calling sheet, 12-month folders, and conversion trajectory.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInspectingCaller({
+                          id: 'all',
+                          name: 'All Cold Callers (Consolidated)',
+                          email: 'all@gentlehairwigs.com',
+                        });
+                        setCallerSubTab('annual');
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 transition shadow-2xs cursor-pointer"
+                    >
+                      <span>View All Callers Consolidated</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Cold Callers Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {displayedCallers.map((caller) => {
+                      const callerLeads = (data.crmLeads || []).filter(
+                        (l) => l.telecallerId === caller.id || caller.id === 'demo-caller'
+                      );
+                      const converted = callerLeads.filter((l) => l.status === 'Converted').length;
+                      const followups = callerLeads.filter((l) => l.status === 'Follow-up').length;
+
+                      return (
+                        <div
+                          key={caller.id}
+                          onClick={() => {
+                            setInspectingCaller(caller);
+                            setCallerSubTab('annual');
+                          }}
+                          className="group relative bg-white border border-slate-200/90 hover:border-amber-400 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
+                                  CC
+                                </div>
+                                <div className="min-w-0">
+                                  <h3 className="text-sm font-black text-slate-900 truncate group-hover:text-amber-800 transition-colors">
+                                    {caller.name}
+                                  </h3>
+                                  <p className="text-[11px] font-mono text-slate-500 truncate">{caller.email}</p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                Active Caller
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-slate-100 text-center">
+                              <div className="bg-slate-50 rounded-lg p-2">
+                                <span className="block text-xs font-black text-slate-900">{callerLeads.length}</span>
+                                <span className="block text-[9.5px] font-medium text-slate-500">Leads</span>
+                              </div>
+                              <div className="bg-emerald-50 rounded-lg p-2">
+                                <span className="block text-xs font-black text-emerald-800">{converted}</span>
+                                <span className="block text-[9.5px] font-medium text-emerald-700">Converted</span>
+                              </div>
+                              <div className="bg-amber-50 rounded-lg p-2">
+                                <span className="block text-xs font-black text-amber-800">{followups}</span>
+                                <span className="block text-[9.5px] font-medium text-amber-700">Follow-ups</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-800 group-hover:text-amber-900">
+                            <span>Inspect Monthly Sheets</span>
+                            <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* TAB: TEAM ATTENDANCE & DAILY REPORTING (Centralized for all 3 studios) */}

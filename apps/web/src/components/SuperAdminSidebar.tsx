@@ -70,12 +70,7 @@ export function SuperAdminSidebar({ activeTab }: SuperAdminSidebarProps) {
             </div>
             {!isCollapsed && (
               <div className="min-w-0">
-                <div className="flex items-center space-x-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
-                    Root
-                  </span>
-                </div>
-                <h1 className="text-sm font-bold text-slate-900 leading-tight mt-0.5 truncate">
+                <h1 className="text-sm font-bold text-slate-900 leading-tight truncate">
                   Super Admin
                 </h1>
               </div>

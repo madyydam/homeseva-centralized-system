@@ -90,7 +90,10 @@ export class AdjsDatabase {
   }
 
   // --- CRM LEADS API ---
-  getCrmLeads(): PrintboothLeadItem[] {
+  getCrmLeads(telecallerId?: string): PrintboothLeadItem[] {
+    if (telecallerId && telecallerId !== 'all') {
+      return this.inMemoryCache.leads.filter((l) => l.telecallerId === telecallerId);
+    }
     return [...this.inMemoryCache.leads];
   }
 
@@ -98,6 +101,15 @@ export class AdjsDatabase {
     this.inMemoryCache.leads.unshift(lead);
     this.persistLeads();
     this.notifySubscribers();
+
+    // Async sync to PostgreSQL backend
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/crm-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lead),
+      }).catch((err) => console.warn('Failed to sync printbooth lead to backend:', err));
+    }
   }
 
   updateCrmLead(id: string, updates: Partial<PrintboothLeadItem>) {
@@ -106,12 +118,28 @@ export class AdjsDatabase {
     );
     this.persistLeads();
     this.notifySubscribers();
+
+    // Async sync to PostgreSQL backend
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/crm-leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      }).catch((err) => console.warn('Failed to sync update to backend:', err));
+    }
   }
 
   deleteCrmLead(id: string) {
     this.inMemoryCache.leads = this.inMemoryCache.leads.filter((l) => l.id !== id);
     this.persistLeads();
     this.notifySubscribers();
+
+    // Async sync to PostgreSQL backend
+    if (typeof window !== 'undefined') {
+      fetch(`/api/printbooth/crm-leads?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch((err) => console.warn('Failed to sync delete to backend:', err));
+    }
   }
 
   updateLeadNotes(id: string, notesList: [string, string, string, string, string]) {
@@ -120,12 +148,55 @@ export class AdjsDatabase {
     );
     this.persistLeads();
     this.notifySubscribers();
+
+    // Async sync to backend
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/crm-leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, notesList }),
+      }).catch((err) => console.warn('Failed to sync notes to backend:', err));
+    }
   }
 
   batchAddCrmLeads(newLeads: PrintboothLeadItem[]) {
     this.inMemoryCache.leads = [...newLeads, ...this.inMemoryCache.leads];
     this.persistLeads();
     this.notifySubscribers();
+
+    // Async sync to backend
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/crm-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leads: newLeads }),
+      }).catch((err) => console.warn('Failed to sync batch to backend:', err));
+    }
+  }
+
+  async syncFromBackend(telecallerId?: string): Promise<PrintboothLeadItem[]> {
+    if (typeof window === 'undefined') return this.getCrmLeads(telecallerId);
+    try {
+      const url = telecallerId && telecallerId !== 'all'
+        ? `/api/printbooth/crm-leads?telecallerId=${encodeURIComponent(telecallerId)}`
+        : '/api/printbooth/crm-leads';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.leads)) {
+        if (telecallerId && telecallerId !== 'all') {
+          const otherLeads = this.inMemoryCache.leads.filter((l) => l.telecallerId !== telecallerId);
+          this.inMemoryCache.leads = [...data.leads, ...otherLeads];
+        } else {
+          this.inMemoryCache.leads = data.leads;
+        }
+        this.persistLeads();
+        this.notifySubscribers();
+        return this.getCrmLeads(telecallerId);
+      }
+    } catch (err) {
+      console.warn('Failed to sync printbooth leads from backend:', err);
+    }
+    return this.getCrmLeads(telecallerId);
   }
 
   // --- ORDERS API ---

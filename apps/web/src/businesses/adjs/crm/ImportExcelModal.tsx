@@ -101,11 +101,11 @@ export function ImportExcelModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-slate-900 max-h-[90vh] flex flex-col font-sans">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-purple-50">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-blue-50">
           <div className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-purple-700" />
+            <FileSpreadsheet className="h-5 w-5 text-blue-700" />
             <div>
-              <h3 className="text-base font-extrabold text-purple-950">
+              <h3 className="text-base font-extrabold text-blue-950">
                 Import Kiosk Leads from Excel / CSV
               </h3>
               <p className="text-xs text-slate-500 font-medium">
@@ -128,7 +128,7 @@ export function ImportExcelModal({
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               placeholder=""
-              className="w-full rounded-xl border border-slate-300 p-3 font-mono text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              className="w-full rounded-xl border border-slate-300 p-3 font-mono text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
@@ -179,7 +179,7 @@ export function ImportExcelModal({
                       <td className="p-2 font-mono">{p.phone}</td>
                       <td className="p-2">{p.shopName || '—'}</td>
                       <td className="p-2">
-                        <span className="rounded bg-purple-50 text-purple-800 px-1.5 py-0.5 text-[10px] font-bold">
+                        <span className="rounded bg-blue-50 text-blue-800 px-1.5 py-0.5 text-[10px] font-bold">
                           {p.status}
                         </span>
                       </td>
@@ -206,7 +206,7 @@ export function ImportExcelModal({
           <button
             onClick={handleConfirmImport}
             disabled={parsed.length === 0}
-            className="rounded-xl bg-purple-600 hover:bg-purple-700 px-5 py-2 font-bold text-white shadow-sm disabled:opacity-50"
+            className="rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 font-bold text-white shadow-sm disabled:opacity-50"
           >
             Import {parsed.length} Leads
           </button>

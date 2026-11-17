@@ -110,6 +110,9 @@ export interface StudioInfoItem {
 export interface CrmLeadItem {
   id: string;
   srNo?: number | undefined;
+  telecallerId?: string | undefined;
+  telecallerName?: string | undefined;
+  telecallerEmail?: string | undefined;
   studioSlug: string;
   studioName: string;
   clientName: string;

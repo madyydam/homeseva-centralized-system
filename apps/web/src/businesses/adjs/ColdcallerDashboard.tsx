@@ -45,21 +45,24 @@ const COLD_CALLER_TABS = [
 
 export function ColdcallerDashboard({
   role = 'Coldcaller',
+  memberId,
+  memberName,
+  memberEmail,
 }: BusinessDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted'>('sheet');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-900 font-sans selection:bg-purple-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
       {/* Mobile Top Navigation */}
       <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-white shadow-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-200">
             <Printer className="h-4 w-4" />
           </div>
           <div>
             <span className="block text-xs font-black text-slate-900 leading-tight">ADJS · PRINTBOOTH™</span>
-            <span className="block text-[10px] font-bold text-purple-700">Telecalling Desk</span>
+            <span className="block text-[10px] font-bold text-blue-700">Telecalling Desk</span>
           </div>
         </div>
         <button
@@ -85,11 +88,11 @@ export function ColdcallerDashboard({
                 }}
                 className={`w-full flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition ${
                   isActive
-                    ? 'bg-purple-50 text-purple-900 border border-purple-200'
+                    ? 'bg-blue-50 text-blue-900 border border-blue-200'
                     : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                <Icon className="h-4 w-4 text-purple-600" />
+                <Icon className="h-4 w-4 text-blue-600" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -112,12 +115,12 @@ export function ColdcallerDashboard({
           {/* Header Brand */}
           <div className="h-16 flex items-center px-4 border-b border-slate-200">
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-200">
                 <Printer className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-xs font-black text-slate-900 tracking-tight">ADJS · PRINTBOOTH™</h1>
-                <p className="text-[10px] font-bold text-purple-700">Dedicated Calling Desk</p>
+                <p className="text-[10px] font-bold text-blue-700">Dedicated Calling Desk</p>
               </div>
             </div>
           </div>
@@ -137,11 +140,11 @@ export function ColdcallerDashboard({
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-start space-x-2.5 rounded-xl px-3 py-2.5 text-left transition ${
                       isActive
-                        ? 'bg-purple-50 text-purple-900 border border-purple-200 shadow-2xs'
+                        ? 'bg-blue-50/90 text-blue-900 border border-blue-200 shadow-2xs font-bold'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${isActive ? 'text-purple-700' : 'text-slate-400'}`} />
+                    <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${isActive ? 'text-blue-700' : 'text-slate-400'}`} />
                     <div className="min-w-0">
                       <span className="block text-xs font-bold leading-tight">{tab.label}</span>
                       <span className="block text-[10px] text-slate-400 font-medium truncate mt-0.5">
@@ -157,16 +160,19 @@ export function ColdcallerDashboard({
 
         {/* User Session Footer (Role: Coldcaller - Strictly Sandboxed) */}
         <div className="p-3 border-t border-slate-200 bg-slate-50">
-          <div className="flex items-center space-x-2.5 mb-2.5 px-1">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-xs font-black text-white shrink-0 shadow-2xs">
+          <div className="flex items-start space-x-2.5 mb-2.5 px-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-xs font-black text-white shrink-0 shadow-2xs mt-0.5">
               CC
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 space-y-0.5">
               <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
                 {role || 'Coldcaller'}
               </span>
-              <span className="block text-[10px] text-purple-700 font-semibold truncate leading-tight">
-                B2B Telecalling Desk
+              <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
+                {memberName || 'Active Caller'}
+              </span>
+              <span className="block text-[10px] text-blue-700 font-mono truncate leading-tight">
+                {memberEmail || 'caller@printbooth.in'}
               </span>
             </div>
           </div>
@@ -194,19 +200,43 @@ export function ColdcallerDashboard({
         {/* Body Canvas */}
         <div className="p-6 max-w-7xl">
           {activeTab === 'sheet' && (
-            <CrmView initialViewMode="month-sheet" initialStatusFilter="all" />
+            <CrmView
+              telecallerId={memberId}
+              telecallerName={memberName}
+              telecallerEmail={memberEmail}
+              initialViewMode="month-sheet"
+              initialStatusFilter="all"
+            />
           )}
 
           {activeTab === 'annual' && (
-            <CrmView initialViewMode="month-selector" initialStatusFilter="all" />
+            <CrmView
+              telecallerId={memberId}
+              telecallerName={memberName}
+              telecallerEmail={memberEmail}
+              initialViewMode="month-selector"
+              initialStatusFilter="all"
+            />
           )}
 
           {activeTab === 'follow-up' && (
-            <CrmView initialViewMode="month-sheet" initialStatusFilter="followup" />
+            <CrmView
+              telecallerId={memberId}
+              telecallerName={memberName}
+              telecallerEmail={memberEmail}
+              initialViewMode="month-sheet"
+              initialStatusFilter="followup"
+            />
           )}
 
           {activeTab === 'converted' && (
-            <CrmView initialViewMode="month-sheet" initialStatusFilter="converted" />
+            <CrmView
+              telecallerId={memberId}
+              telecallerName={memberName}
+              telecallerEmail={memberEmail}
+              initialViewMode="month-sheet"
+              initialStatusFilter="converted"
+            />
           )}
         </div>
       </main>

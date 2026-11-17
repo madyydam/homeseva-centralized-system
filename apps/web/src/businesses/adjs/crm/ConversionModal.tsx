@@ -34,10 +34,10 @@ export function ConversionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 bg-purple-50">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 bg-blue-50">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-purple-700" />
-            <h3 className="text-sm font-extrabold text-purple-950">Confirm Kiosk Sale (Converted)</h3>
+            <CheckCircle2 className="h-5 w-5 text-blue-700" />
+            <h3 className="text-sm font-extrabold text-blue-950">Confirm Kiosk Sale (Converted)</h3>
           </div>
           <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-200">
             <X className="h-4 w-4" />
@@ -58,7 +58,7 @@ export function ConversionModal({
             <select
               value={kioskModel}
               onChange={(e) => setKioskModel(e.target.value as KioskModelType)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {KIOSK_MODELS.map((m) => (
                 <option key={m} value={m}>
@@ -79,7 +79,7 @@ export function ConversionModal({
                 value={installationCity}
                 onChange={(e) => setInstallationCity(e.target.value)}
                 placeholder=""
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -92,7 +92,7 @@ export function ConversionModal({
                 min={1}
                 value={unitsOrdered}
                 onChange={(e) => setUnitsOrdered(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -107,7 +107,7 @@ export function ConversionModal({
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 font-bold text-white shadow-sm"
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 font-bold text-white shadow-sm"
             >
               Confirm Sale
             </button>

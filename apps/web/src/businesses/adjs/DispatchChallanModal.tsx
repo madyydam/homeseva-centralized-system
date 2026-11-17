@@ -24,13 +24,13 @@ export function DispatchChallanModal({ order, onClose }: DispatchChallanModalPro
         {/* Top Controls */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 print:hidden">
           <div className="flex items-center space-x-2">
-            <FileText className="h-5 w-5 text-purple-600" />
+            <FileText className="h-5 w-5 text-blue-600" />
             <h3 className="text-sm font-black text-slate-900">Official Machine Dispatch Challan</h3>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrint}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition"
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition"
             >
               <Printer className="h-3.5 w-3.5" />
               <span>Print Slip</span>
@@ -50,12 +50,12 @@ export function DispatchChallanModal({ order, onClose }: DispatchChallanModalPro
           <div className="flex items-start justify-between border-b border-slate-200 pb-5">
             <div>
               <div className="flex items-center space-x-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-600 text-white font-black">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black">
                   <Printer className="h-4.5 w-4.5" />
                 </div>
                 <div>
                   <h1 className="text-base font-black text-slate-900 tracking-tight">ADJS · PRINTBOOTH™</h1>
-                  <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
+                  <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
                     Smart Self-Service Printing Kiosks
                   </p>
                 </div>
@@ -66,11 +66,11 @@ export function DispatchChallanModal({ order, onClose }: DispatchChallanModalPro
             </div>
 
             <div className="text-right">
-              <span className="block text-xs font-black font-mono text-purple-900">{challanNo}</span>
+              <span className="block text-xs font-black font-mono text-blue-900">{challanNo}</span>
               <span className="block text-[11px] text-slate-500 font-medium">
                 Date: {order.orderDate || new Date().toISOString().split('T')[0]}
               </span>
-              <span className="inline-block mt-1 rounded bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 text-[10px] font-bold">
+              <span className="inline-block mt-1 rounded bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 text-[10px] font-bold">
                 Stage: {order.stage}
               </span>
             </div>
@@ -92,7 +92,7 @@ export function DispatchChallanModal({ order, onClose }: DispatchChallanModalPro
               <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">
                 Order &amp; Machine Serial
               </span>
-              <span className="font-mono font-bold text-purple-700 block">Order: {order.orderNumber}</span>
+              <span className="font-mono font-bold text-blue-700 block">Order: {order.orderNumber}</span>
               <span className="font-mono font-bold text-slate-800 block mt-0.5">Serial: {serialNo}</span>
               <span className="text-slate-500 block mt-0.5">Dispatch Mode: Dedicated Freight Logistics</span>
               <span className="text-emerald-700 font-semibold block mt-0.5">✓ Factory Pre-Tested &amp; Sealed</span>

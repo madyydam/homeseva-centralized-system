@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
       username: targetMember.name,
       memberId: targetMember.id,
       memberName: targetMember.name,
+      email: targetMember.email,
     }, LIFETIME_SECONDS);
 
     const isHttps = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';
@@ -147,6 +148,7 @@ export async function POST(req: NextRequest) {
       role: targetMember.role_id,
       memberId: targetMember.id,
       memberName: targetMember.name,
+      email: targetMember.email,
     });
 
     response.cookies.set(USER_SESSION_COOKIE, token, cookieOptions);
