@@ -224,6 +224,25 @@ export class AdjsDatabase {
     this.inMemoryCache.orders.unshift(order);
     this.persistOrders();
     this.notifySubscribers();
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.order?.id) {
+            const found = this.inMemoryCache.orders.find((o) => o.id === order.id);
+            if (found) {
+              found.id = data.order.id;
+              this.persistOrders();
+            }
+          }
+        })
+        .catch((err) => console.warn('Failed to sync order to backend:', err));
+    }
   }
 
   advanceOrderStage(orderId: string) {
@@ -234,14 +253,39 @@ export class AdjsDatabase {
       'Dispatched',
       'Delivered',
     ];
+    let nextStage: PrintboothMachineOrder['stage'] | undefined;
     this.inMemoryCache.orders = this.inMemoryCache.orders.map((o) => {
       if (o.id !== orderId) return o;
       const idx = STAGES.indexOf(o.stage);
-      const nextStage = idx < STAGES.length - 1 ? STAGES[idx + 1]! : o.stage;
+      nextStage = idx < STAGES.length - 1 ? STAGES[idx + 1]! : o.stage;
       return { ...o, stage: nextStage };
     });
     this.persistOrders();
     this.notifySubscribers();
+
+    if (typeof window !== 'undefined' && nextStage) {
+      fetch('/api/printbooth/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, stage: nextStage }),
+      }).catch((err) => console.warn('Failed to advance order stage on backend:', err));
+    }
+  }
+
+  async syncOrdersFromBackend(): Promise<PrintboothMachineOrder[]> {
+    if (typeof window === 'undefined') return this.getOrders();
+    try {
+      const res = await fetch('/api/printbooth/orders');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        this.inMemoryCache.orders = data.orders;
+        this.persistOrders();
+        this.notifySubscribers();
+      }
+    } catch (err) {
+      console.warn('Failed to sync orders from backend:', err);
+    }
+    return this.getOrders();
   }
 
   // --- SUPPORT TICKETS API ---
@@ -253,20 +297,64 @@ export class AdjsDatabase {
     this.inMemoryCache.tickets.unshift(ticket);
     this.persistTickets();
     this.notifySubscribers();
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ticket),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.ticket?.id) {
+            const found = this.inMemoryCache.tickets.find((t) => t.id === ticket.id);
+            if (found) {
+              found.id = data.ticket.id;
+              this.persistTickets();
+            }
+          }
+        })
+        .catch((err) => console.warn('Failed to sync ticket to backend:', err));
+    }
   }
 
   resolveTicket(ticketId: string, resolutionNotes?: string) {
+    const finalNotes = resolutionNotes || 'Issue addressed by support staff';
     this.inMemoryCache.tickets = this.inMemoryCache.tickets.map((t) =>
       t.id === ticketId
         ? {
             ...t,
             status: 'Resolved' as const,
-            resolutionNotes: resolutionNotes || 'Issue addressed by support staff',
+            resolutionNotes: finalNotes,
           }
         : t
     );
     this.persistTickets();
     this.notifySubscribers();
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/printbooth/tickets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ticketId, status: 'Resolved', resolutionNotes: finalNotes }),
+      }).catch((err) => console.warn('Failed to resolve ticket on backend:', err));
+    }
+  }
+
+  async syncTicketsFromBackend(): Promise<PrintboothSupportTicket[]> {
+    if (typeof window === 'undefined') return this.getTickets();
+    try {
+      const res = await fetch('/api/printbooth/tickets');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tickets)) {
+        this.inMemoryCache.tickets = data.tickets;
+        this.persistTickets();
+        this.notifySubscribers();
+      }
+    } catch (err) {
+      console.warn('Failed to sync tickets from backend:', err);
+    }
+    return this.getTickets();
   }
 }
 

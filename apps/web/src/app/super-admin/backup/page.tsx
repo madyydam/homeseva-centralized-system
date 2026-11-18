@@ -6,21 +6,13 @@ import { useRouter } from 'next/navigation';
 import {
   HardDrive,
   Download,
-  RotateCcw,
-  Clock,
   CheckCircle2,
   Play,
-  Settings2,
-  Calendar,
-  Lock,
-  Search,
-  CheckSquare,
-  Square,
-  FileCheck,
   Building2,
   RefreshCw,
-  Check,
   X,
+  CheckSquare,
+  Square,
   AlertTriangle,
 } from 'lucide-react';
 import { SuperAdminSidebar } from '@/components/SuperAdminSidebar';
@@ -35,36 +27,35 @@ interface BusinessBackup {
   size: string;
   sha256: string;
   schemaVersion: string;
+  recordsCount?: number;
 }
-
-const INITIAL_BUSINESSES: BusinessBackup[] = [
-  { id: 'b1', name: 'Prefab Construction Solutions', category: 'Civil & Modular Sites', slug: 'prefab-construction', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '12.4 MB', sha256: '8c22...f901', schemaVersion: 'v1.2.0' },
-  { id: 'b2', name: 'HoReCa Essentials & Crockery Rental', category: 'Essentials Sales & Crockery Rental', slug: 'horeca-essentials', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '2.4 MB', sha256: '9f83...a210', schemaVersion: 'v1.2.0' },
-  { id: 'b3', name: 'Gentle Hair Wigs Studio', category: 'Hair Wigs & Aesthetics', slug: 'gentle-hair-wigs', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '3.1 MB', sha256: '4b71...e582', schemaVersion: 'v1.2.0' },
-  { id: 'b4', name: 'Ecolab Institutional Distribution', category: 'Hygiene & Chemical Solutions', slug: 'ecolab-distribution', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '4.8 MB', sha256: '1a90...d334', schemaVersion: 'v1.2.0' },
-  { id: 'b5', name: 'HS Co-working Spaces', category: 'Flexible Desks & Workspaces', slug: 'hs-coworking', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '2.8 MB', sha256: '3e41...c819', schemaVersion: 'v1.2.0' },
-  { id: 'b6', name: 'First Mover Advantage', category: 'App SaaS Platform', slug: 'first-mover-advantage', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '1.8 MB', sha256: '7f62...a441', schemaVersion: 'v1.2.0' },
-  { id: 'b7', name: 'ADJS - PRINTBOOTH™', category: 'Smart Self-Service Printing Kiosks', slug: 'adjs', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '3.4 MB', sha256: '5d19...b760', schemaVersion: 'v1.2.0' },
-  { id: 'b8', name: 'DVR Enterprise', category: 'Commercial Trading & Supplies', slug: 'dvr-enterprise', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '5.2 MB', sha256: '2c88...e993', schemaVersion: 'v1.2.0' },
-  { id: 'b9', name: 'NDA Security & Facility Care', category: 'Security & Facility Care', slug: 'nda-services', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '3.0 MB', sha256: '6a44...d112', schemaVersion: 'v1.2.0' },
-  { id: 'b10', name: 'HS Real Estate & Assets', category: 'Property Leasing & Assets', slug: 'hs-real-estate', lastBackup: 'Today, 02:00 AM', status: 'HEALTHY', size: '6.7 MB', sha256: '0e33...f557', schemaVersion: 'v1.2.0' },
-];
 
 export default function SuperAdminBackupPage() {
   const router = useRouter();
-  const [businesses, setBusinesses] = useState(INITIAL_BUSINESSES);
-  const [selectedIds, setSelectedIds] = useState<string[]>(INITIAL_BUSINESSES.map((b) => b.id));
+  const [businesses, setBusinesses] = useState<BusinessBackup[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  const timer1Ref = useRef<NodeJS.Timeout | null>(null);
-  const timer2Ref = useRef<NodeJS.Timeout | null>(null);
+  const fetchBackupStats = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/admin/backup');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.stats)) {
+        setBusinesses(data.stats);
+        setSelectedIds(data.stats.map((b: BusinessBackup) => b.id));
+      }
+    } catch (err) {
+      console.error('Failed to load backup stats:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    return () => {
-      if (timer1Ref.current) clearTimeout(timer1Ref.current);
-      if (timer2Ref.current) clearTimeout(timer2Ref.current);
-    };
+    fetchBackupStats();
   }, []);
 
   const toggleSelectAll = () => {
@@ -83,19 +74,44 @@ export default function SuperAdminBackupPage() {
     }
   };
 
-  const handleTakeBackup = () => {
+  const handleTakeBackup = async () => {
     if (selectedIds.length === 0) return;
     setIsProcessing(true);
-    setNotification(`Packaging ${selectedIds.length} business backup(s) in background...`);
+    setNotification(`Packaging ${selectedIds.length} live database backup(s)...`);
 
-    if (timer1Ref.current) clearTimeout(timer1Ref.current);
-    if (timer2Ref.current) clearTimeout(timer2Ref.current);
+    try {
+      const res = await fetch('/api/admin/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessIds: selectedIds }),
+      });
+      const data = await res.json();
 
-    timer1Ref.current = setTimeout(() => {
+      if (data.success) {
+        setNotification(`Successfully created & verified ${data.packages?.length || selectedIds.length} backup packages!`);
+      } else {
+        setNotification(`Backup warning: ${data.error || 'Check server logs'}`);
+      }
+    } catch (err: any) {
+      setNotification(`Failed to complete backup: ${err.message || 'Network error'}`);
+    } finally {
       setIsProcessing(false);
-      setNotification(`Successfully created and encrypted ${selectedIds.length} package(s) into S3 storage!`);
-      timer2Ref.current = setTimeout(() => setNotification(null), 4000);
-    }, 1500);
+      setTimeout(() => setNotification(null), 5000);
+      fetchBackupStats();
+    }
+  };
+
+  const handleDownload = (slug: string, name: string) => {
+    const downloadUrl = `/api/admin/backup?download=${encodeURIComponent(slug)}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `homeseva_backup_${slug}_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    setNotification(`Initiated download for "${name}" snapshot.`);
+    setTimeout(() => setNotification(null), 4000);
   };
 
   return (
@@ -121,12 +137,21 @@ export default function SuperAdminBackupPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Generate cryptographic snapshots, export SQL dumps, and restore business schemas.
+                Generate cryptographic snapshots, export SQL/JSON dumps, and preserve business data.
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={fetchBackupStats}
+              disabled={isLoading}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Refresh Stats</span>
+            </button>
             <Link
               href="/super-admin/companies"
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
@@ -154,9 +179,11 @@ export default function SuperAdminBackupPage() {
             {/* Action Bar */}
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">10 Isolated Business Workspaces</h2>
+                <h2 className="text-sm font-bold text-slate-900">
+                  {businesses.length} Isolated Business Workspaces
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Select businesses to create an immediate backup bundle.
+                  Select businesses to create an immediate encrypted backup archive.
                 </p>
               </div>
 
@@ -188,7 +215,7 @@ export default function SuperAdminBackupPage() {
                     <tr>
                       <th className="p-4 w-10">
                         <button type="button" onClick={toggleSelectAll} className="cursor-pointer">
-                          {selectedIds.length === businesses.length ? (
+                          {selectedIds.length > 0 && selectedIds.length === businesses.length ? (
                             <CheckSquare className="w-4 h-4 text-indigo-600" />
                           ) : (
                             <Square className="w-4 h-4 text-slate-400" />
@@ -197,51 +224,65 @@ export default function SuperAdminBackupPage() {
                       </th>
                       <th className="p-4">Business Workspace</th>
                       <th className="p-4">Category</th>
-                      <th className="p-4">Last Snapshot</th>
-                      <th className="p-4">Size</th>
+                      <th className="p-4">Live Records</th>
+                      <th className="p-4">Estimated Size</th>
                       <th className="p-4">Status</th>
                       <th className="p-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {businesses.map((b) => {
-                      const isChecked = selectedIds.includes(b.id);
-                      return (
-                        <tr key={b.id} className="hover:bg-slate-50/60 transition">
-                          <td className="p-4">
-                            <button type="button" onClick={() => toggleSelect(b.id)} className="cursor-pointer">
-                              {isChecked ? (
-                                <CheckSquare className="w-4 h-4 text-indigo-600" />
-                              ) : (
-                                <Square className="w-4 h-4 text-slate-300" />
-                              )}
-                            </button>
-                          </td>
-                          <td className="p-4 font-semibold text-slate-900">{b.name}</td>
-                          <td className="p-4 text-slate-500">{b.category}</td>
-                          <td className="p-4 text-slate-500 font-mono text-[11px]">{b.lastBackup}</td>
-                          <td className="p-4 text-slate-600 font-mono">{b.size}</td>
-                          <td className="p-4">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {b.status}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNotification(`Downloaded snapshot package for "${b.name}"`);
-                                setTimeout(() => setNotification(null), 3000);
-                              }}
-                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11px] font-semibold transition shadow-2xs cursor-pointer"
-                            >
-                              <Download className="w-3 h-3 text-slate-400" />
-                              <span>Download</span>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                          <span>Connecting to PostgreSQL and fetching business stats...</span>
+                        </td>
+                      </tr>
+                    ) : businesses.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400">
+                          <span>No businesses registered yet.</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      businesses.map((b) => {
+                        const isChecked = selectedIds.includes(b.id);
+                        return (
+                          <tr key={b.id} className="hover:bg-slate-50/60 transition">
+                            <td className="p-4">
+                              <button type="button" onClick={() => toggleSelect(b.id)} className="cursor-pointer">
+                                {isChecked ? (
+                                  <CheckSquare className="w-4 h-4 text-indigo-600" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-300" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="p-4 font-semibold text-slate-900">{b.name}</td>
+                            <td className="p-4 text-slate-500">{b.category}</td>
+                            <td className="p-4 font-mono text-[11px] text-slate-600">
+                              {b.recordsCount ?? 0} rows
+                            </td>
+                            <td className="p-4 text-slate-600 font-mono">{b.size}</td>
+                            <td className="p-4">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {b.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleDownload(b.slug, b.name)}
+                                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11px] font-semibold transition shadow-2xs cursor-pointer"
+                              >
+                                <Download className="w-3 h-3 text-slate-400" />
+                                <span>Download</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

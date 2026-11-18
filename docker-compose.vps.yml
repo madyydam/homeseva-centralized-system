@@ -42,10 +42,27 @@ services:
     restart: always
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-homeseva}:${POSTGRES_PASSWORD:-homeseva_pass}@postgres:5432/${POSTGRES_DB:-homeseva_db}
-      JWT_SECRET: ${JWT_SECRET:-your_super_secure_jwt_secret_change_in_production}
-      SUPER_ADMIN_TEMP_PASSWORD: ${SUPER_ADMIN_TEMP_PASSWORD:-ChangeMe@123}
       PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-homeseva}:${POSTGRES_PASSWORD:-homeseva_pass}@postgres:5432/${POSTGRES_DB:-homeseva_db}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-homeseva}:${POSTGRES_PASSWORD:-homeseva_pass}@postgres:5432/${POSTGRES_DB:-homeseva_db}
+      JWT_SECRET: ${JWT_SECRET:-your_super_secure_jwt_secret_change_in_production}
+      AUTH_SECRET: ${AUTH_SECRET:-your_super_secure_random_64_char_auth_secret_key_here}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-homeseva_user_session}
+      AUTH_SESSION_MAX_AGE_SECONDS: ${AUTH_SESSION_MAX_AGE_SECONDS:-604800}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-madyydam}
+      SUPER_ADMIN_TEMP_PASSWORD: ${SUPER_ADMIN_TEMP_PASSWORD:-ChangeMe@123}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://erphomeseva.vercel.app}
+      # Automated SMTP Email Credentials
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-"HomeSeva ERP <madhurdhadve7@gmail.com>"}
+      # Cloud Database Fallback (Optional)
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,4 +88,3 @@ volumes:
     driver: local
   redis_data:
     driver: local
-

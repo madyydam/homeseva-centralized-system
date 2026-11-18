@@ -652,3 +652,43 @@ model PrintboothLead {
   @@map("printbooth_crm_leads")
 }
 
+model PrintboothMachineOrder {
+  id             String   @id @default(uuid())
+  businessId     String   @default("adjs") @map("business_id")
+  orderNumber    String   @map("order_number")
+  merchantName   String   @map("merchant_name")
+  phone          String
+  shopName       String?  @map("shop_name")
+  kioskModel     String   @map("kiosk_model")
+  units          Int      @default(1)
+  unitPrice      Decimal  @default(0) @db.Decimal(12, 2) @map("unit_price")
+  totalAmount    Decimal  @default(0) @db.Decimal(12, 2) @map("total_amount")
+  stage          String   @default("Order Booked")
+  city           String
+  orderDate      String   @map("order_date")
+  trackingNumber String?  @map("tracking_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([phone])
+  @@map("printbooth_machine_orders")
+}
+
+model PrintboothSupportTicket {
+  id              String   @id @default(uuid())
+  businessId      String   @default("adjs") @map("business_id")
+  ticketNumber    String   @map("ticket_number")
+  merchantName    String   @map("merchant_name")
+  phone           String
+  issueType       String   @map("issue_type")
+  status          String   @default("Open")
+  resolutionNotes String?  @map("resolution_notes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([phone])
+  @@map("printbooth_support_tickets")
+}
+

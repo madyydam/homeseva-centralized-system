@@ -79,6 +79,10 @@ function EnterpriseDashboard({
   useEffect(() => {
     refreshData();
     const unsub = adjsDb.subscribe(refreshData);
+    // Auto-sync all records from PostgreSQL database
+    adjsDb.syncFromBackend();
+    adjsDb.syncOrdersFromBackend();
+    adjsDb.syncTicketsFromBackend();
     return () => unsub();
   }, []);
 

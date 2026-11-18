@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { prisma } from '@homeseva/db';
 import { PrintboothLeadItem } from '@/businesses/adjs/types';
 
@@ -181,59 +182,35 @@ export async function POST(req: NextRequest) {
 
     const notesJson = JSON.stringify(body.notesList || ['', '', '', '', '']);
     const leadDate = body.leadDate || new Date().toISOString().slice(0, 10);
-    const isValidUuid = typeof body.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id);
+    const assignedId = (typeof body.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id))
+      ? body.id
+      : crypto.randomUUID();
 
-    let insertQuery: string;
-    let queryParams: any[];
+    const insertQuery = `INSERT INTO public.printbooth_crm_leads (
+      id, business_id, telecaller_id, telecaller_name, telecaller_email, client_name, phone,
+      shop_name, location_category, status, call_count, notes_list,
+      lead_date, kiosk_model, units_ordered, installation_city
+    ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, $16)
+    RETURNING *`;
 
-    if (isValidUuid) {
-      insertQuery = `INSERT INTO public.printbooth_crm_leads (
-        id, telecaller_id, telecaller_name, telecaller_email, client_name, phone,
-        shop_name, location_category, status, call_count, notes_list,
-        lead_date, kiosk_model, units_ordered, installation_city
-      ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
-      RETURNING *`;
-      queryParams = [
-        body.id,
-        body.telecallerId || null,
-        body.telecallerName || null,
-        body.telecallerEmail || null,
-        body.clientName || 'Merchant Inquiry',
-        body.phone,
-        body.shopName || null,
-        body.locationCategory || null,
-        body.status || 'Interested',
-        typeof body.callCount === 'number' ? body.callCount : 0,
-        notesJson,
-        leadDate,
-        body.kioskModel || null,
-        body.unitsOrdered || 1,
-        body.installationCity || null,
-      ];
-    } else {
-      insertQuery = `INSERT INTO public.printbooth_crm_leads (
-        telecaller_id, telecaller_name, telecaller_email, client_name, phone,
-        shop_name, location_category, status, call_count, notes_list,
-        lead_date, kiosk_model, units_ordered, installation_city
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14)
-      RETURNING *`;
-      queryParams = [
-        body.telecallerId || null,
-        body.telecallerName || null,
-        body.telecallerEmail || null,
-        body.clientName || 'Merchant Inquiry',
-        body.phone,
-        body.shopName || null,
-        body.locationCategory || null,
-        body.status || 'Interested',
-        typeof body.callCount === 'number' ? body.callCount : 0,
-        notesJson,
-        leadDate,
-        body.kioskModel || null,
-        body.unitsOrdered || 1,
-        body.installationCity || null,
-      ];
-    }
+    const queryParams = [
+      assignedId,
+      'adjs',
+      body.telecallerId || null,
+      body.telecallerName || null,
+      body.telecallerEmail || null,
+      body.clientName || 'Merchant Inquiry',
+      body.phone,
+      body.shopName || null,
+      body.locationCategory || null,
+      body.status || 'Interested',
+      typeof body.callCount === 'number' ? body.callCount : 0,
+      notesJson,
+      leadDate,
+      body.kioskModel || null,
+      body.unitsOrdered || 1,
+      body.installationCity || null,
+    ];
 
     const rows: any = await prisma.$queryRawUnsafe(insertQuery, ...queryParams);
 

@@ -888,3 +888,528 @@ CREATE INDEX IF NOT EXISTS idx_printbooth_crm_leads_caller ON public.printbooth_
 CREATE INDEX IF NOT EXISTS idx_printbooth_crm_leads_business ON public.printbooth_crm_leads(business_id);
 CREATE INDEX IF NOT EXISTS idx_printbooth_crm_leads_phone ON public.printbooth_crm_leads(phone);
 
+
+
+-- =============================================================================
+-- 19. GENTLE HAIR WIGS OPERATIONAL & STUDIO SCHEMA (PRISMA + SUPABASE HARMONIZED)
+-- =============================================================================
+
+-- Ensure gentle_leads table exists for Prisma ORM compatibility
+CREATE TABLE IF NOT EXISTS public.gentle_leads (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  sr_no INT,
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  studio_name TEXT NOT NULL DEFAULT 'Studio of Viman Nagar',
+  client_name TEXT NOT NULL DEFAULT 'Inquiry',
+  phone TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Interested',
+  custom_status_text TEXT,
+  call_count INT NOT NULL DEFAULT 0,
+  notes_list TEXT[] DEFAULT '{}',
+  city TEXT,
+  source TEXT,
+  stage TEXT,
+  hair_loss_concern TEXT,
+  interest_category TEXT,
+  estimated_budget NUMERIC(12, 2),
+  assigned_specialist TEXT,
+  telecaller_id TEXT,
+  telecaller_name TEXT,
+  telecaller_email TEXT,
+  last_contact_date TEXT,
+  next_follow_up_date TEXT,
+  notes TEXT,
+  priority TEXT DEFAULT 'Normal',
+  lead_date TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- CamelCase column support if created via Prisma migration
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "srNo" INT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "studioName" TEXT DEFAULT 'Studio of Viman Nagar';
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "clientName" TEXT DEFAULT 'Inquiry';
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "customStatusText" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "callCount" INT DEFAULT 0;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "notesList" TEXT[] DEFAULT '{}';
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "hairLossConcern" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "interestCategory" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "estimatedBudget" NUMERIC(12, 2);
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "assignedSpecialist" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "telecallerId" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "telecallerName" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "telecallerEmail" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "lastContactDate" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "nextFollowUpDate" TEXT;
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "leadDate" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_leads ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_gentle_leads_biz_studio ON public.gentle_leads(business_id, studio_slug);
+CREATE INDEX IF NOT EXISTS idx_gentle_leads_phone ON public.gentle_leads(phone);
+CREATE INDEX IF NOT EXISTS idx_gentle_leads_telecaller ON public.gentle_leads(telecaller_id);
+
+-- Harmonize gentle_crm_leads and gentle_leads
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'gentle_crm_leads') AND
+     NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'gentle_crm_leads') THEN
+    CREATE VIEW public.gentle_crm_leads AS SELECT * FROM public.gentle_leads;
+  END IF;
+END $$;
+
+-- Gentle Hair Wigs Orders
+CREATE TABLE IF NOT EXISTS public.gentle_orders (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  client_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  wig_type TEXT NOT NULL,
+  density TEXT NOT NULL,
+  hair_length TEXT NOT NULL,
+  hair_shade TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  advance_paid NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  fitting_date TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'Measurements Recorded',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- CamelCase Prisma support
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "clientName" TEXT;
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "wigType" TEXT;
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "hairLength" TEXT;
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "hairShade" TEXT;
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "advancePaid" NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "fittingDate" TEXT;
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_orders ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_gentle_orders_biz_studio ON public.gentle_orders(business_id, studio_slug);
+
+-- Gentle Hair Wigs Measurements
+CREATE TABLE IF NOT EXISTS public.gentle_measurements (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  client_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  hair_loss_type TEXT NOT NULL,
+  circumference TEXT NOT NULL,
+  front_to_nape TEXT NOT NULL,
+  ear_to_ear TEXT NOT NULL,
+  temple_to_temple TEXT NOT NULL,
+  base_size TEXT NOT NULL,
+  base_material TEXT NOT NULL,
+  attachment_method TEXT NOT NULL,
+  notes TEXT,
+  recorded_at TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "clientName" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "hairLossType" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "frontToNape" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "earToEar" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "templeToTemple" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "baseSize" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "baseMaterial" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "attachmentMethod" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "recordedAt" TEXT;
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_measurements ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_gentle_measurements_biz_studio ON public.gentle_measurements(business_id, studio_slug);
+
+-- Gentle Hair Wigs Appointments
+CREATE TABLE IF NOT EXISTS public.gentle_appointments (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  client_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  service_type TEXT NOT NULL,
+  suite TEXT NOT NULL,
+  stylist_name TEXT NOT NULL,
+  appointment_date TEXT NOT NULL,
+  time_slot TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Scheduled',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "clientName" TEXT;
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "serviceType" TEXT;
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "stylistName" TEXT;
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "appointmentDate" TEXT;
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "timeSlot" TEXT;
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_appointments ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_gentle_appointments_biz_studio ON public.gentle_appointments(business_id, studio_slug);
+
+-- Gentle Hair Wigs Inventory
+CREATE TABLE IF NOT EXISTS public.gentle_inventory (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  sku TEXT NOT NULL,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  stock_quantity INT NOT NULL DEFAULT 0,
+  reorder_level INT NOT NULL DEFAULT 0,
+  unit_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  unit TEXT NOT NULL DEFAULT 'Units',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "stockQuantity" INT DEFAULT 0;
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "reorderLevel" INT DEFAULT 0;
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "unitPrice" NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_inventory ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_gentle_inventory_biz_studio ON public.gentle_inventory(business_id, studio_slug);
+
+-- Gentle Hair Wigs Invoices
+CREATE TABLE IF NOT EXISTS public.gentle_invoices (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  invoice_number TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  items_summary TEXT NOT NULL,
+  subtotal NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  gst_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  payment_mode TEXT NOT NULL DEFAULT 'UPI / QR Pay',
+  payment_status TEXT NOT NULL DEFAULT 'Paid',
+  invoice_date TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "invoiceNumber" TEXT;
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "clientName" TEXT;
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "itemsSummary" TEXT;
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "gstAmount" NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "totalAmount" NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "paymentMode" TEXT DEFAULT 'UPI / QR Pay';
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT DEFAULT 'Paid';
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "invoiceDate" TEXT;
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_invoices ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_gentle_invoices_biz_studio ON public.gentle_invoices(business_id, studio_slug);
+
+-- Gentle Hair Wigs Studios
+CREATE TABLE IF NOT EXISTS public.gentle_studios (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  slug TEXT NOT NULL,
+  name TEXT NOT NULL,
+  short_name TEXT NOT NULL,
+  address TEXT,
+  is_custom BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(business_id, slug)
+);
+
+ALTER TABLE public.gentle_studios ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_studios ADD COLUMN IF NOT EXISTS "shortName" TEXT;
+ALTER TABLE public.gentle_studios ADD COLUMN IF NOT EXISTS "isCustom" BOOLEAN DEFAULT false;
+ALTER TABLE public.gentle_studios ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_studios ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+
+-- Seed Default Studios for Gentle Hair Wigs
+INSERT INTO public.gentle_studios (business_id, slug, name, short_name, address)
+VALUES
+  ('3', 'viman-nagar', 'Studio of Viman Nagar', 'Viman Nagar', 'Phoenix Marketcity Area, Viman Nagar, Pune'),
+  ('3', 'koregaon-park', 'Studio of Koregaon Park', 'Koregaon Park', 'North Main Road, Koregaon Park, Pune'),
+  ('3', 'baner', 'Studio of Baner', 'Baner', 'High Street, Baner, Pune'),
+  ('3', 'fc-road', 'Studio of FC Road', 'FC Road', 'Fergusson College Road, Shivajinagar, Pune'),
+  ('3', 'wakad', 'Studio of Wakad', 'Wakad', 'Dutt Mandir Road, Wakad, Pune')
+ON CONFLICT (business_id, slug) DO UPDATE SET
+  name = EXCLUDED.name,
+  short_name = EXCLUDED.short_name,
+  address = EXCLUDED.address;
+
+-- Gentle Hair Wigs Finance Transactions
+CREATE TABLE IF NOT EXISTS public.gentle_finance_transactions (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  type TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  date TEXT NOT NULL,
+  month TEXT NOT NULL,
+  payment_mode TEXT NOT NULL DEFAULT 'UPI / QR Pay',
+  recorded_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_finance_transactions ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_finance_transactions ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_finance_transactions ADD COLUMN IF NOT EXISTS "paymentMode" TEXT DEFAULT 'UPI / QR Pay';
+ALTER TABLE public.gentle_finance_transactions ADD COLUMN IF NOT EXISTS "recordedBy" TEXT;
+ALTER TABLE public.gentle_finance_transactions ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_finance_transactions ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE INDEX IF NOT EXISTS idx_gentle_finance_biz_month ON public.gentle_finance_transactions(business_id, month);
+
+-- Gentle Hair Wigs Assets
+CREATE TABLE IF NOT EXISTS public.gentle_assets (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
+  condition TEXT NOT NULL DEFAULT 'Good',
+  purchase_cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  location TEXT NOT NULL,
+  last_service_date TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_assets ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_assets ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_assets ADD COLUMN IF NOT EXISTS "purchaseCost" NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.gentle_assets ADD COLUMN IF NOT EXISTS "lastServiceDate" TEXT;
+ALTER TABLE public.gentle_assets ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_assets ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+
+-- Gentle Hair Wigs Daily Tasks
+CREATE TABLE IF NOT EXISTS public.gentle_daily_tasks (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  task_title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  assigned_to TEXT NOT NULL,
+  time_slot TEXT NOT NULL,
+  completed BOOLEAN NOT NULL DEFAULT false,
+  completed_at TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "taskTitle" TEXT;
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "assignedTo" TEXT;
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "timeSlot" TEXT;
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "completedAt" TEXT;
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_daily_tasks ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+
+-- Gentle Hair Wigs Call Logs
+CREATE TABLE IF NOT EXISTS public.gentle_call_logs (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT '3',
+  studio_slug TEXT NOT NULL DEFAULT 'viman-nagar',
+  client_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  call_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  notes TEXT NOT NULL,
+  date TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.gentle_call_logs ADD COLUMN IF NOT EXISTS "businessId" TEXT DEFAULT '3';
+ALTER TABLE public.gentle_call_logs ADD COLUMN IF NOT EXISTS "studioSlug" TEXT DEFAULT 'viman-nagar';
+ALTER TABLE public.gentle_call_logs ADD COLUMN IF NOT EXISTS "clientName" TEXT;
+ALTER TABLE public.gentle_call_logs ADD COLUMN IF NOT EXISTS "callType" TEXT;
+ALTER TABLE public.gentle_call_logs ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.gentle_call_logs ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+
+-- =============================================================================
+-- 20. PRINTBOOTH MACHINE ORDERS & SUPPORT TICKETS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.printbooth_machine_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL DEFAULT 'adjs',
+  order_number TEXT NOT NULL,
+  merchant_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  shop_name TEXT,
+  kiosk_model TEXT NOT NULL,
+  units INT NOT NULL DEFAULT 1,
+  unit_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  stage TEXT NOT NULL DEFAULT 'Order Booked',
+  city TEXT NOT NULL,
+  order_date TEXT NOT NULL,
+  tracking_number TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_printbooth_orders_biz ON public.printbooth_machine_orders(business_id);
+CREATE INDEX IF NOT EXISTS idx_printbooth_orders_phone ON public.printbooth_machine_orders(phone);
+
+CREATE TABLE IF NOT EXISTS public.printbooth_support_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL DEFAULT 'adjs',
+  ticket_number TEXT NOT NULL,
+  merchant_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  issue_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Open',
+  resolution_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_printbooth_tickets_biz ON public.printbooth_support_tickets(business_id);
+CREATE INDEX IF NOT EXISTS idx_printbooth_tickets_phone ON public.printbooth_support_tickets(phone);
+
+-- =============================================================================
+-- 21. ENTERPRISE DATABASE BACKUP & RESTORE PACKAGES
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.backup_jobs (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  triggered_by TEXT NOT NULL,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.backup_packages (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  job_id TEXT NOT NULL REFERENCES public.backup_jobs(id) ON DELETE CASCADE,
+  business_id TEXT NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  business_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  file_path TEXT,
+  file_size_bytes BIGINT,
+  checksum TEXT,
+  encrypted_at TIMESTAMPTZ,
+  schema_version TEXT DEFAULT '1.0.0',
+  downloaded_at TIMESTAMPTZ,
+  restored_at TIMESTAMPTZ,
+  retention_rule TEXT,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_backup_packages_job ON public.backup_packages(job_id);
+CREATE INDEX IF NOT EXISTS idx_backup_packages_biz ON public.backup_packages(business_id);
+
+-- =============================================================================
+-- 22. ENTERPRISE EMPLOYEES, FINANCE ENTRIES & MONTHLY SUMMARIES
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.employees (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  employee_code TEXT UNIQUE NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  department TEXT,
+  designation TEXT,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  joining_date DATE,
+  leaving_date DATE,
+  reporting_manager TEXT,
+  business_id TEXT NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  user_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_employees_biz ON public.employees(business_id);
+
+CREATE TABLE IF NOT EXISTS public.finance_entries (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  type TEXT NOT NULL,
+  amount NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'INR',
+  category TEXT NOT NULL,
+  description TEXT,
+  entry_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  reference TEXT,
+  attachment_url TEXT,
+  is_locked BOOLEAN NOT NULL DEFAULT false,
+  business_id TEXT NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  created_by_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_finance_entries_biz_date ON public.finance_entries(business_id, entry_date);
+
+CREATE TABLE IF NOT EXISTS public.monthly_summaries (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  year INT NOT NULL,
+  month INT NOT NULL,
+  total_sales NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  total_expenses NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  net_profit NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  salary_cost NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  is_closed BOOLEAN NOT NULL DEFAULT false,
+  closed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(business_id, year, month)
+);
+
+CREATE TABLE IF NOT EXISTS public.sheet_links (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  google_sheet_url TEXT NOT NULL,
+  tab_id TEXT NOT NULL,
+  business_id TEXT NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =============================================================================
+-- 23. COMPATIBILITY VIEWS & SYNONYMS FOR CROCKERY RENTAL ENGINE
+-- =============================================================================
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'items') THEN
+    CREATE OR REPLACE VIEW public.crockery_items AS SELECT * FROM public.items;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'customers') THEN
+    CREATE OR REPLACE VIEW public.crockery_customers AS SELECT * FROM public.customers;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'bookings') THEN
+    CREATE OR REPLACE VIEW public.crockery_bookings AS SELECT * FROM public.bookings;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'booking_items') THEN
+    CREATE OR REPLACE VIEW public.crockery_booking_items AS SELECT * FROM public.booking_items;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stock_ledger') THEN
+    CREATE OR REPLACE VIEW public.crockery_stock_ledger AS SELECT * FROM public.stock_ledger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'invoices') THEN
+    CREATE OR REPLACE VIEW public.crockery_invoices AS SELECT * FROM public.invoices;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payments') THEN
+    CREATE OR REPLACE VIEW public.crockery_payments AS SELECT * FROM public.payments;
+  END IF;
+END $$;
+

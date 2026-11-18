@@ -41,16 +41,20 @@ docker compose -f docker-compose.vps.yml up -d
 
 # 4. Wait for Healthcheck
 echo "⏳ Waiting for PostgreSQL and Next.js services to become healthy..."
-sleep 10
+sleep 12
 
 # 5. Verify Database Tables
-echo "🔍 Checking database connectivity..."
-docker compose -f docker-compose.vps.yml exec -T postgres psql -U homeseva -d homeseva_db -c "\dt"
+echo "🔍 Checking database connectivity and tables..."
+docker compose -f docker-compose.vps.yml exec -T postgres psql -U ${POSTGRES_USER:-homeseva} -d ${POSTGRES_DB:-homeseva_db} -c "\dt"
+
+# 6. Verify System Health Endpoint
+echo "🔍 Verifying Web Application response..."
+curl -s -f http://127.0.0.1:3000/manifest.webmanifest > /dev/null && echo "✅ Web Manifest & PWA verified" || echo "⚠️ Manifest check"
 
 echo ""
 echo "=============================================================================="
 echo "✅ HomeSeva Enterprise deployed successfully on VPS!"
 echo "🌐 Web Portal running on port 80 / 443 via Nginx Reverse Proxy."
 echo "🗄️ PostgreSQL Database active with zero mock data and complete schema."
+echo "✉️ Automated SMTP Email Dispatch enabled via Google SMTP."
 echo "=============================================================================="
-
