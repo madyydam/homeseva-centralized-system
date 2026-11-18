@@ -279,6 +279,26 @@ async function run() {
     }
   });
 
+  // 18. Auth Logout Cookie Expiration
+  await test('Auth Logout Clears & Expires Cookies (max-age=0 / expires in past)', async () => {
+    const res = await fetch(`${BASE_URL}/api/auth/logout`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const setCookie = (res.headers.get('set-cookie') || '').toLowerCase();
+    if (!setCookie.includes('homeseva_user_session') || (!setCookie.includes('max-age=0') && !setCookie.includes('expires='))) {
+      throw new Error('Logout failed to expire homeseva_user_session cookie');
+    }
+  });
+
+  // 19. Auth Session Me Endpoint Unauthenticated Without Cookie
+  await test('Auth Session /api/auth/me returns 401 when no session cookie present', async () => {
+    const res = await fetch(`${BASE_URL}/api/auth/me`);
+    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+    const data = await res.json();
+    if (data.authenticated !== false) {
+      throw new Error('Expected authenticated: false');
+    }
+  });
+
   console.log('\n================================================================');
   console.log(`📊 TEST SUITE SUMMARY: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================');

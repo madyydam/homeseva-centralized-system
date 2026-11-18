@@ -47,6 +47,7 @@ import {
   InvoiceItem,
   GentleHairWigsStudioData,
 } from './types';
+import { logoutUser } from '@/lib/clientAuth';
 const CrmView = dynamic(() => import('./CrmView').then((m) => m.CrmView), {
   loading: () => (
     <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3 bg-white rounded-xl border border-slate-200/80 p-8 shadow-xs">
@@ -724,13 +725,13 @@ export function ManagerDashboard({
 
               {/* Exit / Switch User */}
               <div>
-                <Link
-                  href="/signin/gentle-hair-wigs"
+                <button
+                  onClick={() => logoutUser('gentle-hair-wigs')}
                   className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 py-1.5 text-[10px] font-bold text-slate-600 hover:text-slate-900 transition-all duration-150 shadow-2xs cursor-pointer group"
                 >
                   <LogOut className="h-2.5 w-2.5 text-slate-400 group-hover:text-rose-600 transition-transform" />
                   <span>Sign In As Another User / Exit</span>
-                </Link>
+                </button>
               </div>
             </>
           ) : (
@@ -741,13 +742,13 @@ export function ManagerDashboard({
               >
                 {isColdCaller ? 'CC' : 'SM'}
               </div>
-              <Link
-                href="/signin/gentle-hair-wigs"
+              <button
+                onClick={() => logoutUser('gentle-hair-wigs')}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-slate-200 transition cursor-pointer"
                 title="Sign In As Another User / Exit"
               >
                 <LogOut className="h-3.5 w-3.5" />
-              </Link>
+              </button>
             </div>
           )}
         </div>

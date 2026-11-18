@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { BusinessDashboardProps } from '../types';
 import { CrmView } from './CrmView';
+import { logoutUser } from '@/lib/clientAuth';
 
 const COLD_CALLER_TABS = [
   {
@@ -158,13 +159,13 @@ export function ColdcallerDashboard({
             );
           })}
           <div className="pt-2 border-t border-slate-100">
-            <Link
-              href="/signin/adjs"
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+            <button
+              onClick={() => logoutUser('adjs')}
+              className="w-full flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
             >
               <LogOut className="h-4 w-4 text-slate-400" />
               <span>Sign Out / Exit</span>
-            </Link>
+            </button>
           </div>
         </div>
       )}
@@ -238,13 +239,13 @@ export function ColdcallerDashboard({
               ) : null}
             </div>
           </div>
-          <Link
-            href="/signin/adjs"
-            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs"
+          <button
+            onClick={() => logoutUser('adjs')}
+            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs cursor-pointer"
           >
             <LogOut className="h-3 w-3" />
             <span>Sign Out / Exit</span>
-          </Link>
+          </button>
         </div>
       </aside>
 

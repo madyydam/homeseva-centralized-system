@@ -20,6 +20,7 @@ import {
   normalizeStatus,
   formatDateToDMY,
   normalizeDateToYMD,
+  downloadPrintboothSampleExcel,
 } from './crm/crmUtils';
 import { CrmKpiCards, MonthKpiStats } from './crm/CrmKpiCards';
 import { CrmTable } from './crm/CrmTable';
@@ -82,6 +83,20 @@ export function CrmView({
   const [showImportModal, setShowImportModal] = useState(false);
   const [activeNotesLead, setActiveNotesLead] = useState<PrintboothLeadItem | null>(null);
   const [conversionModalLead, setConversionModalLead] = useState<PrintboothLeadItem | null>(null);
+
+  const [isDownloadingSample, setIsDownloadingSample] = useState(false);
+
+  const handleDownloadSampleExcel = useCallback(async () => {
+    try {
+      setIsDownloadingSample(true);
+      await downloadPrintboothSampleExcel();
+    } catch (err: any) {
+      console.error('Failed to download sample Excel:', err);
+      alert('Failed to download sample Excel template: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsDownloadingSample(false);
+    }
+  }, []);
 
   const activeMonthObj = useMemo(() => {
     return MONTHS_LIST.find((m) => m.value === selectedMonth) || MONTHS_LIST[9]!;
@@ -394,10 +409,26 @@ export function CrmView({
 
               <button
                 onClick={() => setShowImportModal(true)}
-                className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition shadow-2xs"
+                className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition shadow-2xs cursor-pointer"
+                title="Import Leads from Excel Sheet (.xlsx, .xls, .csv)"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 text-blue-600" />
                 <span>Import Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadSampleExcel}
+                disabled={isDownloadingSample}
+                className="inline-flex items-center space-x-1.5 rounded-xl border border-blue-200 bg-blue-50/90 hover:bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                title="Download Sample Pre-Formatted Excel Template (.xlsx)"
+              >
+                {isDownloadingSample ? (
+                  <div className="h-3.5 w-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5 text-blue-600" />
+                )}
+                <span>Download Sample Excel</span>
               </button>
 
               <button

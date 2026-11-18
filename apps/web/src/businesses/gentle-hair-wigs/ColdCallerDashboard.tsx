@@ -18,6 +18,7 @@ import { BusinessDashboardProps } from '../types';
 import { gentleHairWigsConfig } from './config';
 import { CrmView } from './CrmView';
 import { DailyReportingView } from './DailyReportingView';
+import { logoutUser } from '@/lib/clientAuth';
 
 const COLD_CALLER_NAV_ITEMS = [
   {
@@ -259,13 +260,13 @@ export function ColdCallerDashboard({
                   </span>
                 ) : null}
               </div>
-              <Link
-                href="/signin/gentle-hair-wigs"
-                className="w-full flex items-center justify-center space-x-1.5 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+              <button
+                onClick={() => logoutUser('gentle-hair-wigs')}
+                className="w-full flex items-center justify-center space-x-1.5 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
               >
                 <LogOut className="h-3 w-3" />
                 <span>Sign In As Another User / Exit</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -463,13 +464,13 @@ export function ColdCallerDashboard({
               </div>
 
               <div>
-                <Link
-                  href="/signin/gentle-hair-wigs"
+                <button
+                  onClick={() => logoutUser('gentle-hair-wigs')}
                   className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 py-1.5 text-[10.5px] font-bold text-slate-600 hover:text-slate-900 transition-all duration-150 shadow-2xs cursor-pointer group"
                 >
                   <LogOut className="h-3 w-3 text-slate-400 group-hover:text-rose-600 transition-transform" />
                   <span>Sign In As Another User / Exit</span>
-                </Link>
+                </button>
               </div>
             </>
           ) : (
@@ -480,13 +481,13 @@ export function ColdCallerDashboard({
               >
                 {initials}
               </div>
-              <Link
-                href="/signin/gentle-hair-wigs"
+              <button
+                onClick={() => logoutUser('gentle-hair-wigs')}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-slate-200 transition cursor-pointer"
                 title="Sign In As Another User / Exit"
               >
                 <LogOut className="h-4 w-4" />
-              </Link>
+              </button>
             </div>
           )}
         </div>

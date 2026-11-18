@@ -18,6 +18,7 @@ import {
   normalizePhoneNumber,
   normalizeDateToYMD,
   getStatusBadgeClass,
+  downloadPrintboothSampleExcel,
 } from './crmUtils';
 
 interface ImportExcelModalProps {
@@ -53,115 +54,7 @@ export function ImportExcelModal({
   const handleDownloadSampleExcel = useCallback(async () => {
     try {
       setIsDownloading(true);
-      const XLSX = await import('xlsx');
-
-      const headers = [
-        'Merchant Name',
-        'Phone Number',
-        'Shop / Store Name',
-        'Location Category',
-        'Status',
-        'Date (DD/MM/YYYY)',
-        'Calls (0-5)',
-        'Note 1',
-        'Note 2',
-        'Note 3',
-        'Note 4',
-        'Note 5',
-      ];
-
-      const sampleRows = [
-        [
-          'Rahul Sharma',
-          '9822114455',
-          'Apex Xerox & Stationery',
-          'Stationery & Xerox',
-          'Interested',
-          '25/10/2026',
-          2,
-          'Inquired about compact kiosk for college entrance',
-          'Requested brochure and pricing details on WhatsApp',
-          '',
-          '',
-          '',
-        ],
-        [
-          'Amit Patel',
-          '9890123456',
-          'Campus Cyber Cafe',
-          'College / University',
-          'Follow-up',
-          '26/10/2026',
-          1,
-          'Needs dual-tray high speed unit for semester exams',
-          'Requested callback on Friday morning',
-          '',
-          '',
-          '',
-        ],
-        [
-          'Suresh Kulkarni',
-          '9881778899',
-          'City Tech Hub',
-          'Office & IT Park',
-          'Converted',
-          '18/10/2026',
-          4,
-          'Looking for self-service print machine for IT cafeteria',
-          'Approved purchase for 2 Compact units',
-          'Advance booking deposit received',
-          '',
-          '',
-        ],
-        [
-          'Mahesh Patil',
-          '9764556677',
-          'Om Xerox Corner',
-          'Stationery & Xerox',
-          'Not Picked',
-          '22/10/2026',
-          1,
-          'Attempted call at 11 AM; phone ringing not answered',
-          'Follow up planned tomorrow',
-          '',
-          '',
-          '',
-        ],
-        [
-          'Vijay Shinde',
-          '9422334455',
-          'Metro Print Station',
-          'Public Space & Transit',
-          'Not Interested',
-          '20/10/2026',
-          3,
-          'Inquired about kiosk lease model',
-          'Prefers manual color laser printer for now',
-          '',
-          '',
-          '',
-        ],
-      ];
-
-      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
-      worksheet['!cols'] = [
-        { wch: 22 }, // Merchant Name
-        { wch: 16 }, // Phone Number
-        { wch: 26 }, // Shop Name
-        { wch: 24 }, // Category
-        { wch: 16 }, // Status
-        { wch: 20 }, // Date
-        { wch: 12 }, // Calls
-        { wch: 34 }, // Note 1
-        { wch: 34 }, // Note 2
-        { wch: 30 }, // Note 3
-        { wch: 30 }, // Note 4
-        { wch: 30 }, // Note 5
-      ];
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sample Kiosk Leads');
-      XLSX.writeFile(workbook, 'ADJS_Printbooth_CRM_Sample_Template.xlsx');
+      await downloadPrintboothSampleExcel();
     } catch (err: any) {
       console.error('Failed to generate sample Excel:', err);
       setErrorMsg('Failed to generate sample Excel template: ' + (err?.message || 'Error'));
@@ -454,9 +347,20 @@ export function ImportExcelModal({
           {/* Tab 2: Paste CSV Text */}
           {activeTab === 'paste' && (
             <div className="space-y-2">
-              <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10.5px]">
-                PASTE CSV / TAB-SEPARATED DATA
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10.5px]">
+                  PASTE CSV / TAB-SEPARATED DATA
+                </label>
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleExcel}
+                  disabled={isDownloading}
+                  className="inline-flex items-center space-x-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 underline transition cursor-pointer"
+                >
+                  <Download className="h-3 w-3" />
+                  <span>Download Sample Template (.xlsx)</span>
+                </button>
+              </div>
               <textarea
                 rows={5}
                 value={csvText}

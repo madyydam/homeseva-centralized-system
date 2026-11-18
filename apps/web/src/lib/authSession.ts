@@ -52,12 +52,14 @@ export interface SessionPayload {
   exp: number; // Unix timestamp in ms
 }
 
+export const PERMANENT_SESSION_LIFETIME = 3153600000; // 100 years (Permanent until explicit logout)
+
 /**
  * Signs a session payload and returns a tamper-proof JWT-like token: base64(payload).base64(signature)
  */
 export async function signSession(
   payload: Omit<SessionPayload, 'exp'>,
-  expiresInSeconds: number = 28800 // 8 hours default
+  expiresInSeconds: number = PERMANENT_SESSION_LIFETIME
 ): Promise<string> {
   const key = await getCryptoKey();
   const fullPayload: SessionPayload = {

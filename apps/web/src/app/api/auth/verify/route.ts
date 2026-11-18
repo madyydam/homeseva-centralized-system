@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getAdminClient } from '../../../../lib/supabase/admin';
-import { signSession, USER_SESSION_COOKIE } from '../../../../lib/authSession';
+import { signSession, USER_SESSION_COOKIE, PERMANENT_SESSION_LIFETIME } from '../../../../lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,13 +108,13 @@ export async function POST(req: NextRequest) {
         .update({ failed_attempts: 0, locked_until: null })
         .eq('id', targetRole.id);
 
-      // Set cookie via authSession
+      // Set permanent cookie via authSession (until explicit logout)
       const token = await signSession({
         sub: roleId,
         role: roleId,
         businessSlug: slug,
         isSuperAdmin: false,
-      }, 43200);
+      }, PERMANENT_SESSION_LIFETIME);
 
       const isHttps = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';
       const cookieOptions = {
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         secure: isHttps,
         sameSite: 'lax' as const,
         path: '/',
-        maxAge: 43200,
+        maxAge: PERMANENT_SESSION_LIFETIME,
       };
 
       cookies().set(USER_SESSION_COOKIE, token, cookieOptions);
@@ -149,6 +149,13 @@ export async function POST(req: NextRequest) {
       });
 
       response.cookies.set(USER_SESSION_COOKIE, token, cookieOptions);
+      response.cookies.set('homeseva_last_slug', slug, {
+        httpOnly: false,
+        secure: isHttps,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: PERMANENT_SESSION_LIFETIME,
+      });
       return response;
     }
 

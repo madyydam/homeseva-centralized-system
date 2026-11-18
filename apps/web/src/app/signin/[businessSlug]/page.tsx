@@ -29,6 +29,7 @@ import {
   Laptop,
 } from 'lucide-react';
 import WaveBackground from '../../../components/WaveBackground';
+import { saveActiveSubcompany } from '@/lib/clientAuth';
 
 interface SignInPageProps {
   params: {
@@ -219,6 +220,28 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const [isDoorAscending, setIsDoorAscending] = useState(false);
   const typingTimerRef = useRef<{ password?: NodeJS.Timeout; pin?: NodeJS.Timeout }>({});
 
+  // If user already has an active session for this business, smoothly advance straight into dashboard
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (isMounted && data && data.authenticated && data.businessSlug === businessSlug) {
+          let target = `/app/${businessSlug}/dashboard?role=${encodeURIComponent(data.role || '')}`;
+          if (isGentleHairWigs && selectedBranch) {
+            target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(data.role || '')}`;
+          } else if (isHorecaEssentials && selectedDivision) {
+            target = `/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(data.role || '')}`;
+          }
+          window.location.replace(target);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [businessSlug, isGentleHairWigs, isHorecaEssentials, selectedBranch, selectedDivision]);
+
   // Real-time synchronization refs to completely eliminate closure latency & stale data bugs
   const latestPasswordRef = useRef(password);
   latestPasswordRef.current = password;
@@ -335,6 +358,12 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             };
             localStorage.setItem(`homeseva_session_${businessSlug}`, JSON.stringify(userProfile));
             localStorage.setItem('homeseva_current_user', JSON.stringify(userProfile));
+            saveActiveSubcompany({
+              slug: businessSlug,
+              role: data.role || rRole,
+              branch: selectedBranch || undefined,
+              division: selectedDivision || undefined,
+            });
           } catch {}
         }
 

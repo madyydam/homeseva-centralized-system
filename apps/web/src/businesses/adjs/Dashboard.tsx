@@ -37,6 +37,7 @@ import { ColdcallerDashboard } from './ColdcallerDashboard';
 import { DeveloperWorkspace } from './DeveloperWorkspace';
 import { DispatchChallanModal } from './DispatchChallanModal';
 import { SupportTicketModal } from './SupportTicketModal';
+import { logoutUser } from '@/lib/clientAuth';
 
 function EnterpriseDashboard({
   role,
@@ -293,13 +294,13 @@ function EnterpriseDashboard({
               </span>
             </div>
           </div>
-          <Link
-            href="/signin/adjs"
-            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs"
+          <button
+            onClick={() => logoutUser('adjs')}
+            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs cursor-pointer"
           >
             <LogOut className="h-3 w-3" />
             <span>Switch Business / Exit</span>
-          </Link>
+          </button>
         </div>
       </aside>
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -13,8 +14,10 @@ import {
   Home,
   Layers,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground';
+import { getLastActiveSubcompany } from '@/lib/clientAuth';
 
 interface BusinessItem {
   id: string;
@@ -149,6 +152,65 @@ const BUSINESSES: BusinessItem[] = [
 ];
 
 export default function HomePage() {
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function checkActiveSession() {
+      try {
+        const lastSession = getLastActiveSubcompany();
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.authenticated && !isCancelled) {
+            if (data.isSuperAdmin) {
+              window.location.replace('/super-admin/companies');
+              return;
+            }
+            if (data.businessSlug) {
+              const target =
+                lastSession && lastSession.slug === data.businessSlug && lastSession.targetUrl
+                  ? lastSession.targetUrl
+                  : `/app/${data.businessSlug}/dashboard?role=${encodeURIComponent(data.role || '')}`;
+              window.location.replace(target);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Session verification error:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    checkActiveSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  if (isCheckingSession) {
+    return (
+      <main className="relative min-h-screen h-screen max-h-screen bg-[#050609] text-white flex flex-col justify-center items-center overflow-hidden font-sans">
+        <WaveBackground />
+        <div className="relative z-10 flex flex-col items-center space-y-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 shadow-xl shadow-blue-500/25 animate-pulse">
+            <Layers className="h-7 w-7 text-white" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-black tracking-tight text-white">HomeSeva ERP</h2>
+            <p className="text-xs text-slate-400 font-medium mt-1">Resuming your active workspace session...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="relative min-h-screen h-screen max-h-screen bg-[#050609] text-white flex flex-col justify-between overflow-hidden font-sans">
       {/* 3D Silky Vertical Monochromatic Waves Live Background */}

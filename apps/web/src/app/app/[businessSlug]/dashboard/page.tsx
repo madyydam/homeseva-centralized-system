@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getBusinessModule } from '@/businesses';
 import { ArrowLeft, Building2 } from 'lucide-react';
+import { saveActiveSubcompany } from '@/lib/clientAuth';
 
 interface DashboardPageProps {
   params: {
@@ -49,7 +50,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
           if (data.memberName) setActiveMemberName(data.memberName);
           if (data.email) setActiveMemberEmail(data.email);
 
-          // Update local cache with server-verified data
+          // Update local cache and remember this subcompany as active
           if (typeof window !== 'undefined') {
             try {
               localStorage.setItem(`homeseva_session_${businessSlug}`, JSON.stringify({
@@ -59,12 +60,23 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
                 email: data.email,
                 businessSlug,
               }));
+              saveActiveSubcompany({
+                slug: businessSlug,
+                role: data.role || roleParam,
+                branch: branchParam,
+                division: divisionParam,
+              });
             } catch {}
+          }
+        } else {
+          // After logout or invalid session, protected pages cannot be accessed
+          if (typeof window !== 'undefined') {
+            window.location.replace(`/signin/${businessSlug}`);
           }
         }
       })
       .catch(() => {});
-  }, [businessSlug, roleParam]);
+  }, [businessSlug, roleParam, branchParam, divisionParam]);
 
   const businessModule = getBusinessModule(businessSlug);
 

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { logoutUser } from '@/lib/clientAuth';
 import {
   Building2,
   ShieldCheck,
@@ -22,8 +23,8 @@ export function SuperAdminSidebar({ activeTab }: SuperAdminSidebarProps) {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const handleSignOut = () => {
-    document.cookie = 'homeseva_sa_token=; Max-Age=0; path=/;';
+  const handleSignOut = async () => {
+    await logoutUser();
     router.push('/super-admin/signin');
   };
 

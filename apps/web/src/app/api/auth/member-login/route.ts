@@ -152,6 +152,13 @@ export async function POST(req: NextRequest) {
     });
 
     response.cookies.set(USER_SESSION_COOKIE, token, cookieOptions);
+    response.cookies.set('homeseva_last_slug', slug, {
+      httpOnly: false,
+      secure: isHttps,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: LIFETIME_SECONDS,
+    });
     return response;
   } catch (err: any) {
     console.error('Member login error:', err);

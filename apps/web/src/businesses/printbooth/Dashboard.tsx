@@ -23,6 +23,7 @@ import {
   PrintboothData,
 } from './types';
 import { PrintBoothColdcallerDashboard } from './ColdcallerDashboard';
+import { logoutUser } from '@/lib/clientAuth';
 
 export default function PrintboothDashboard(props: BusinessDashboardProps) {
   const isColdcaller = (props.role || '').toLowerCase().includes('cold');
@@ -208,13 +209,13 @@ function PrintboothManagerView({
               <span className="block text-[10px] text-purple-700 font-semibold truncate leading-tight">{role}</span>
             </div>
           </div>
-          <Link
-            href="/signin/printbooth"
-            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs"
+          <button
+            onClick={() => logoutUser('printbooth')}
+            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs cursor-pointer"
           >
             <LogOut className="h-3 w-3" />
             <span>Switch Business / Exit</span>
-          </Link>
+          </button>
         </div>
       </aside>
 

@@ -22,6 +22,7 @@ import { PaymentModal } from './components/PaymentModal';
 import { NewBookingModal } from './components/NewBookingModal';
 
 import { Booking, Invoice, UserRole } from './types';
+import { logoutUser } from '@/lib/clientAuth';
 import {
   LayoutDashboard,
   Calendar,
@@ -174,13 +175,13 @@ function MainApp() {
               </div>
 
               {/* Portal Exit */}
-              <Link
-                href="/signin/horeca-essentials"
-                className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition"
+              <button
+                onClick={() => logoutUser('horeca-essentials')}
+                className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition cursor-pointer"
               >
                 <ArrowLeft className="h-3 w-3" />
                 <span>Exit to Portal</span>
-              </Link>
+              </button>
             </div>
           </div>
         </aside>
