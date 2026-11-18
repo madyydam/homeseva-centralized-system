@@ -100,7 +100,7 @@ async function main() {
     { id: '4', slug: 'ecolab-distribution', name: 'Ecolab Institutional Distribution' },
     { id: '5', slug: 'hs-coworking', name: 'HS Co-Working Spaces' },
     { id: '6', slug: 'first-mover-advantage', name: 'First Mover Advantage Advisory' },
-    { id: '7', slug: 'printbooth', name: 'PrintBooth Digital Signage & Print' },
+    { id: '7', slug: 'adjs', name: 'ADJS' },
     { id: '8', slug: 'dvr-enterprise', name: 'DVR Enterprise Logistics' },
     { id: '9', slug: 'nda-services', name: 'NDA Corporate Services' },
     { id: '10', slug: 'hs-real-estate', name: 'HS Real Estate & Asset Holdings' },

@@ -18,12 +18,22 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const searchParams = useSearchParams();
   const branchParam = searchParams.get('branch') || undefined;
   const divisionParam = searchParams.get('division') || undefined;
+  const subcompanyParam = searchParams.get('subcompany') || (businessSlug === 'adjs' || businessSlug === 'printbooth' ? 'printbooth' : undefined);
   const roleParam = searchParams.get('role') || undefined;
 
   const [activeRole, setActiveRole] = useState<string | undefined>(roleParam);
   const [activeMemberId, setActiveMemberId] = useState<string | undefined>(undefined);
   const [activeMemberName, setActiveMemberName] = useState<string | undefined>(undefined);
   const [activeMemberEmail, setActiveMemberEmail] = useState<string | undefined>(undefined);
+
+  // If user navigated directly to /app/printbooth/..., canonicalize to /app/adjs/dashboard?subcompany=printbooth
+  useEffect(() => {
+    if (businessSlug === 'printbooth' && typeof window !== 'undefined') {
+      const q = new URLSearchParams(searchParams.toString());
+      q.set('subcompany', 'printbooth');
+      window.location.replace(`/app/adjs/dashboard?${q.toString()}`);
+    }
+  }, [businessSlug, searchParams]);
 
   useEffect(() => {
     // 1. Instant local cache hydration for zero layout shift
@@ -61,10 +71,11 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
                 businessSlug,
               }));
               saveActiveSubcompany({
-                slug: businessSlug,
+                slug: businessSlug === 'printbooth' ? 'adjs' : businessSlug,
                 role: data.role || roleParam,
                 branch: branchParam,
                 division: divisionParam,
+                subcompany: subcompanyParam,
               });
             } catch {}
           }
@@ -76,7 +87,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
         }
       })
       .catch(() => {});
-  }, [businessSlug, roleParam, branchParam, divisionParam]);
+  }, [businessSlug, roleParam, branchParam, divisionParam, subcompanyParam]);
 
   const businessModule = getBusinessModule(businessSlug);
 
@@ -106,7 +117,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   return (
     <Dashboard
       branch={branchParam}
-      division={divisionParam}
+      division={divisionParam || subcompanyParam}
       role={activeRole || roleParam}
       memberId={activeMemberId}
       memberName={activeMemberName}

@@ -8,6 +8,7 @@ export interface ActiveSubcompanySession {
   role?: string | undefined;
   branch?: string | undefined;
   division?: string | undefined;
+  subcompany?: string | undefined;
   targetUrl: string;
   savedAt: number;
 }
@@ -24,6 +25,7 @@ export function saveActiveSubcompany(session: {
   role?: string | undefined;
   branch?: string | undefined;
   division?: string | undefined;
+  subcompany?: string | undefined;
   targetUrl?: string | undefined;
 }) {
   if (typeof window === 'undefined') return;
@@ -33,6 +35,7 @@ export function saveActiveSubcompany(session: {
     if (session.role) params.set('role', session.role);
     if (session.branch) params.set('branch', session.branch);
     if (session.division) params.set('division', session.division);
+    if (session.subcompany) params.set('subcompany', session.subcompany);
     const qs = params.toString();
     if (qs) target += `?${qs}`;
 
@@ -41,6 +44,7 @@ export function saveActiveSubcompany(session: {
       role: session.role,
       branch: session.branch,
       division: session.division,
+      subcompany: session.subcompany,
       targetUrl: target,
       savedAt: Date.now(),
     };

@@ -71,8 +71,28 @@ export async function GET(req: NextRequest) {
       if (seenSlugs.has(b.slug)) continue;
 
       seenSlugs.add(b.slug);
-      const displayName = (b.slug === 'adjs' || b.slug === 'printbooth') ? 'ADJS - PRINTBOOTH™' : b.name;
-      uniqueBusinesses.push({ ...b, name: displayName });
+
+      let canonicalSlug = b.slug;
+      let displayName = b.name;
+      let subtitle = b.subtitle;
+      let subcompanies: any[] = [];
+
+      if (b.slug === 'adjs' || b.slug === 'printbooth') {
+        canonicalSlug = 'adjs';
+        displayName = 'ADJS';
+        subtitle = 'PRINTBOOTH™ Smart Kiosks';
+        subcompanies = [
+          { slug: 'printbooth', name: 'PRINTBOOTH™', subtitle: 'Smart Self-Service Printing Kiosks' },
+        ];
+      }
+
+      uniqueBusinesses.push({
+        ...b,
+        slug: canonicalSlug,
+        name: displayName,
+        subtitle,
+        subcompanies,
+      });
     }
 
     return NextResponse.json({ success: true, businesses: uniqueBusinesses });

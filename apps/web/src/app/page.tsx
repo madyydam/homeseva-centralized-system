@@ -108,7 +108,7 @@ const BUSINESSES: BusinessItem[] = [
   {
     id: '7',
     name: 'ADJS',
-    subtitle: 'Smart Kiosks & Autonomous Tech',
+    subtitle: 'PRINTBOOTH™ Smart Kiosks',
     slug: 'adjs',
     icon: Printer,
     color: 'text-purple-600',

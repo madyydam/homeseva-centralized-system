@@ -143,3 +143,107 @@
    - Universal Demo User: `abc@xyz.com` / `12345678` / `1234` for testing across all roles.
    - Smart Role Verification: Agar member kisi aur role me login karne ki koshish kare, show clear alert: *"You are not {selectedRole}. You are {actualRole}. Please select {actualRole} and try again."*
    - 99-Year Permanent Session Cookie (`homeseva_user_session`) jo user tab close ya refresh karne par expire na ho, sirf manual logout par hi clear ho.
+
+---
+
+## 8. MASTER BLUEPRINT & ARCHITECTURE SOP: ADDING A NEW COMPANY OR SUB-COMPANY
+
+> **GOLDEN RULE**: Kabhi bhi sirf Home Page ya Sub-Company page par naam add karke task khatam mat maano!  
+> HomeSeva ERP me koi bhi nayi **Company** ya **Sub-Company / Division / Studio** add karte waqt niche diye gaye **12 LAYERS** ko 100% end-to-end follow karna mandatory hai:
+
+### LAYER 1: Database Schema & Migrations (`packages/db/prisma/schema.prisma` & `supabase_migrations/`)
+1. **Parent Company Registration**:
+   - Agar nayi Company hai: `businesses` table me entry honi chahiye (`id`, `slug`, `name`, `subtitle`, `description`, `theme_color`, `is_active`, `config`).
+   - `config` JSON column me sub-companies ki configuration define karo:
+     ```json
+     {
+       "subcompanies": [
+         { "slug": "printbooth", "name": "PRINTBOOTH™", "subtitle": "Smart Self-Service Printing Kiosks", "badge": "Self-Service Kiosk" }
+       ]
+     }
+     ```
+2. **Sub-Company Isolation**:
+   - Agar sub-company ke paas dedicated entity table hai (jaise Gentle Hair Wigs ke paas `gentle_hair_wigs_studios` hai), toh schema me model define karo with composite unique `@@unique([businessId, slug])`.
+   - Business-specific tables (jaise `printbooth_crm_leads`, `printbooth_machine_orders`, `printbooth_support_tickets`) me hamesha `businessId String @default("<slug>") @map("business_id")` foreign index hona chahiye.
+3. **SQL Migrations**:
+   - `supabase_migrations/01_base_schema_and_businesses.sql` aur master SQL files me `INSERT INTO businesses` update karo with unique slug.
+
+### LAYER 2: Seed & Initialization Data (`packages/db/src/seed.ts`)
+1. `otherBusinesses` ya primary seeds me parent company slug aur name register karo.
+2. Agar sub-companies hain (jaise studios ya divisions), default sub-company entities ko database me upsert karo.
+3. Standard demo staff members seed karo taaki QA/Testing me koi issue na aaye.
+
+### LAYER 3: Backend Auth & Verification APIs (`apps/web/src/app/api/auth/`)
+1. **`/api/auth/businesses/route.ts`**:
+   - Businesses catalog list me parent company return honi chahiye.
+   - Single slug query (`?slug=<slug>`) me company ke sath uske `business_roles`, `tabs`, aur `config.subcompanies` cleanly return hone chahiye.
+2. **`/api/auth/role-credentials/route.ts`**:
+   - Company ke roles ki verification dynamic database query se honi chahiye.
+3. **`/api/auth/me/route.ts` & `/api/auth/member-login/route.ts`**:
+   - Session cookie issue karte waqt `businessSlug`, `role`, `memberId`, aur `subcompany` (agar applicable ho) payload me set ho.
+
+### LAYER 4: Super Admin Console (`apps/web/src/app/super-admin/companies/` & `/api/admin/`)
+1. **`/api/admin/credentials/route.ts`**:
+   - Companies array me company ka slug, name, roles aur uske sub-companies / divisions properly populated hone chahiye.
+2. **`/super-admin/companies/page.tsx`**:
+   - Left sidebar companies list me parent company ke card par uske sub-companies ki count ya pill badge dikhaye:
+     - E.g. `ADJS` -> Pill: `PRINTBOOTH™`
+     - E.g. `Gentle Hair Wigs` -> Pill: `3 Studios (Viman Nagar, Ravet, Kolhapur)`
+     - E.g. `HORECA Essentials` -> Pill: `2 Divisions (Sales & Rental)`
+   - Detail header me sub-company selector / badge present ho.
+3. **`/api/admin/backup/route.ts`**:
+   - Backup export aur restore logic me naye business ke tables include karo taaki JSON snapshot complete download ho.
+
+### LAYER 5: Dynamic Role Catalog (`apps/web/src/app/signin/[businessSlug]/page.tsx`)
+1. `DEFAULT_BUSINESS_ROLES` dictionary me naye business ke roles configure karo (e.g., `Owner`, `Manager`, `Coldcaller`, `Developer`, `Staff`).
+2. Role badges, descriptions, aur departments (Executive, Operations, Sales/CRM, Engineering, Support) explicitly set karo.
+
+### LAYER 6: Business Workspace Module (`apps/web/src/businesses/<slug>/`)
+1. `config.ts`: Define `adjsConfig` (id, name, slug, subtitle, description, themeColor, divisions/branches, roles).
+2. `types.ts`: Define specific item types, leads, orders, or support ticket models.
+3. `db.ts`: Reactive in-memory state manager with automatic PostgreSQL backend synchronization (`syncFromBackend`).
+4. `Dashboard.tsx`: Comprehensive role-based dashboard with:
+   - Collapsible persistent sidebar (`useSidebarCollapse` hook).
+   - Strict RBAC views (Owner overview, Manager dispatch, Developer tools, Staff support).
+5. `ColdcallerDashboard.tsx`: If telecalling desk is applicable, render monthly/annual sheets, scheduled follow-ups, and duplicate phone number blocker.
+6. `index.ts`: Export `<slug>Module: BusinessModule = { config, Dashboard }`.
+
+### LAYER 7: Business Registry & Types (`apps/web/src/businesses/index.ts`)
+1. Import `<slug>Module` into `apps/web/src/businesses/index.ts`.
+2. Add `<slug>` to `BUSINESS_MODULES` record mapping.
+3. Add to `getAllBusinessModules()` array.
+
+### LAYER 8: Central ERP Portal Home Page (`apps/web/src/app/page.tsx`)
+1. `BUSINESSES` array me company card add karo (id, name, subtitle, slug, icon/logoImg, color, bgColor, buttonStyle, hoverEffect).
+2. Sub-company indicator badge ya subtitle clear rakho taaki user ko pata chale ki uske andar kaun-kaun se sub-companies hain.
+
+### LAYER 9: Sign-In Ceremony & Sub-Company Selector (`apps/web/src/app/signin/[businessSlug]/page.tsx`)
+1. **Step 1: Sub-Company / Division Selection Screen**:
+   - Agar company ke paas multiple sub-companies, divisions ya studios hain (jaise ADJS -> Printbooth, HORECA -> Sales/Rental, Gentle -> Studios):
+   - Check: `if (isBusinessWithSubcompanies && !selectedSubcompany)`:
+     - Show high-fidelity sub-company selection cards.
+     - User card par click karega toh `selectedSubcompany` set hoga aur URL me `?subcompany=<slug>` query attach hogi.
+2. **Step 2: Sign-In Screen with Active Sub-Company Chip**:
+   - Top par brand chip dikhao with sub-company name aur "Switch Sub-Company" link.
+3. **Step 3: Dual 3D Padlock Verification Ceremony**:
+   - Dynamic flying keys animation for Password & 4-Digit Security PIN.
+
+### LAYER 10: Client-Side Session Persistence (`apps/web/src/lib/clientAuth.ts`)
+1. `saveActiveSubcompany`:
+   - Supports `{ slug, role, branch, division, subcompany, targetUrl }`.
+   - Stores into `localStorage['homeseva_last_active_subcompany']`.
+2. `getLastActiveSubcompany`:
+   - Home page aur Sign-In par verify karta hai; agar active session valid hai, user ko bina dubara login karaye seedha uske last active sub-company dashboard par bhejta hai.
+3. `logoutUser`:
+   - Cookies destroy karta hai, local session clear karta hai, aur safe redirect karta hai.
+
+### LAYER 11: Dynamic App Routing (`apps/web/src/app/app/[businessSlug]/dashboard/page.tsx`)
+1. URL search params se `subcompany`, `branch`, `division`, `role` parse karo.
+2. Business module ke `Dashboard` component ko pass karo via `BusinessDashboardProps`.
+3. Re-save active subcompany upon successful page mount.
+
+### LAYER 12: QA Lead Verification & VPS Deployment Readiness
+1. TypeScript Strict Type-Check: `pnpm --filter @homeseva/web exec tsc --noEmit` -> Must pass with 0 errors.
+2. VPS Deployment Readiness Test Suite: `node scripts/test-vps-readiness.mjs` -> Must pass all tests.
+3. Next.js Production Build: `pnpm --filter @homeseva/web build` -> Must build all static & dynamic routes cleanly.
+4. Git Commit: Clean descriptive local commit (never `git push` without user instruction).

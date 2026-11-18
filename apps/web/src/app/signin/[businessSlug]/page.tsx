@@ -27,6 +27,7 @@ import {
   UserCheck,
   Sparkles,
   Laptop,
+  Printer,
 } from 'lucide-react';
 import WaveBackground from '../../../components/WaveBackground';
 import { saveActiveSubcompany } from '@/lib/clientAuth';
@@ -123,6 +124,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const isGentleHairWigs = businessSlug === 'gentle-hair-wigs' || businessSlug === 'business-2';
   const isHorecaEssentials = businessSlug === 'horeca-essentials' || businessSlug === 'crockery-rental';
   const isEcolab = businessSlug === 'ecolab-distribution' || businessSlug === 'business-4';
+  const isAdjs = businessSlug === 'adjs' || businessSlug === 'printbooth';
 
   // Theme configuration for the business
   const theme = isGentleHairWigs
@@ -142,6 +144,15 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         activeGrad: 'from-emerald-600 to-teal-600',
         ring: 'focus:ring-emerald-500/20 focus:border-emerald-500',
         bannerGrad: 'bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-700',
+      }
+    : isAdjs
+    ? {
+        primary: '#7c3aed',
+        glow: 'rgba(124, 58, 237, 0.95)',
+        badgeBg: 'bg-purple-50 border-purple-200 text-purple-900',
+        activeGrad: 'from-purple-600 to-indigo-600',
+        ring: 'focus:ring-purple-500/20 focus:border-purple-500',
+        bannerGrad: 'bg-gradient-to-r from-purple-800 via-purple-700 to-indigo-700',
       }
     : isEcolab
     ? {
@@ -176,12 +187,29 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
   const [selectedBranch, setSelectedBranch] = useState<'viman-nagar' | 'ravet' | 'kolhapur' | null>(initialBranch);
 
+  const subcompanyParam = searchParams.get('subcompany') || (isAdjs ? searchParams.get('division') : null);
+  const initialSubcompany =
+    subcompanyParam === 'printbooth'
+      ? 'printbooth'
+      : businessSlug === 'printbooth'
+      ? 'printbooth'
+      : null;
+
+  const [selectedSubcompany, setSelectedSubcompany] = useState<'printbooth' | null>(initialSubcompany);
+
   // Dynamic roles fetched from Supabase API (pre-populated with catalog defaults)
-  const fallbackRoles = DEFAULT_BUSINESS_ROLES[businessSlug] || [];
+  const fallbackRoles = DEFAULT_BUSINESS_ROLES[businessSlug] || DEFAULT_BUSINESS_ROLES['adjs'] || [];
   const [roles, setRoles] = useState<DynamicRole[]>(fallbackRoles);
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0]?.role_id || '');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+
+  // Canonicalize /signin/printbooth to /signin/adjs?subcompany=printbooth
+  useEffect(() => {
+    if (businessSlug === 'printbooth' && typeof window !== 'undefined') {
+      window.location.replace('/signin/adjs?subcompany=printbooth');
+    }
+  }, [businessSlug]);
 
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
@@ -226,12 +254,20 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     fetch('/api/auth/me')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (isMounted && data && data.authenticated && data.businessSlug === businessSlug) {
-          let target = `/app/${businessSlug}/dashboard?role=${encodeURIComponent(data.role || '')}`;
+        if (
+          isMounted &&
+          data &&
+          data.authenticated &&
+          (data.businessSlug === businessSlug || (isAdjs && (data.businessSlug === 'adjs' || data.businessSlug === 'printbooth')))
+        ) {
+          const canonicalSlug = isAdjs ? 'adjs' : businessSlug;
+          let target = `/app/${canonicalSlug}/dashboard?role=${encodeURIComponent(data.role || '')}`;
           if (isGentleHairWigs && selectedBranch) {
             target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(data.role || '')}`;
           } else if (isHorecaEssentials && selectedDivision) {
             target = `/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(data.role || '')}`;
+          } else if (isAdjs && selectedSubcompany) {
+            target = `/app/adjs/dashboard?subcompany=${selectedSubcompany}&role=${encodeURIComponent(data.role || '')}`;
           }
           window.location.replace(target);
         }
@@ -240,7 +276,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     return () => {
       isMounted = false;
     };
-  }, [businessSlug, isGentleHairWigs, isHorecaEssentials, selectedBranch, selectedDivision]);
+  }, [businessSlug, isGentleHairWigs, isHorecaEssentials, isAdjs, selectedBranch, selectedDivision, selectedSubcompany]);
 
   // Real-time synchronization refs to completely eliminate closure latency & stale data bugs
   const latestPasswordRef = useRef(password);
@@ -347,6 +383,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
         // ✅ Security handshake complete: cookie is confirmed saved in the browser!
         // Cache authenticated profile locally for instantaneous client hydration
+        const canonicalSlug = isAdjs ? 'adjs' : businessSlug;
         if (typeof window !== 'undefined') {
           try {
             const userProfile = {
@@ -354,15 +391,16 @@ function BusinessSignInContent({ params }: SignInPageProps) {
               memberId: data.memberId,
               memberName: data.memberName || data.username || curEmail.split('@')[0],
               email: data.email || curEmail,
-              businessSlug,
+              businessSlug: canonicalSlug,
             };
-            localStorage.setItem(`homeseva_session_${businessSlug}`, JSON.stringify(userProfile));
+            localStorage.setItem(`homeseva_session_${canonicalSlug}`, JSON.stringify(userProfile));
             localStorage.setItem('homeseva_current_user', JSON.stringify(userProfile));
             saveActiveSubcompany({
-              slug: businessSlug,
+              slug: canonicalSlug,
               role: data.role || rRole,
               branch: selectedBranch || undefined,
               division: selectedDivision || undefined,
+              subcompany: selectedSubcompany || undefined,
             });
           } catch {}
         }
@@ -370,11 +408,13 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         // Smoothly elevate the vault door into the ceiling, then do full browser navigation
         setIsDoorAscending(true);
         setTimeout(() => {
-          let target = `/app/${businessSlug}/dashboard?role=${encodeURIComponent(rRole)}`;
+          let target = `/app/${canonicalSlug}/dashboard?role=${encodeURIComponent(rRole)}`;
           if (isGentleHairWigs && selectedBranch) {
             target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(rRole)}`;
           } else if (isHorecaEssentials && selectedDivision) {
             target = `/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(rRole)}`;
+          } else if (isAdjs && selectedSubcompany) {
+            target = `/app/adjs/dashboard?subcompany=${selectedSubcompany}&role=${encodeURIComponent(rRole)}`;
           }
           // Full browser navigation guarantees cookie persistence without SPA race conditions
           window.location.href = target;
@@ -387,7 +427,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         return false;
       }
     },
-    [businessSlug, isGentleHairWigs, isHorecaEssentials, selectedBranch, selectedDivision]
+    [businessSlug, isGentleHairWigs, isHorecaEssentials, isAdjs, selectedBranch, selectedDivision, selectedSubcompany]
   );
 
   // Single field flight & verification ceremony (Used for both Auto-Trigger & Form Submit)
@@ -1211,6 +1251,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white font-extrabold shadow-sm shrink-0">
                   <UtensilsCrossed className="h-6 w-6 text-white" />
                 </div>
+              ) : isAdjs ? (
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white font-extrabold shadow-sm shrink-0">
+                  <Printer className="h-6 w-6 text-white" />
+                </div>
               ) : isEcolab ? (
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#005eb8] p-0.5 border-2 border-blue-300 shadow-sm shrink-0 overflow-hidden">
                   <img
@@ -1230,6 +1274,8 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                     ? 'Gentle Hair Wigs Studio'
                     : isHorecaEssentials
                     ? 'HORECA Essentials'
+                    : isAdjs
+                    ? 'ADJS Enterprise'
                     : isEcolab
                     ? 'Ecolab Distribution'
                     : 'Business Workspace Sign In'}
@@ -1239,6 +1285,8 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                     ? 'Custom Hair Systems & Aesthetic Studios'
                     : isHorecaEssentials
                     ? 'Commercial Kitchenware Supply & Crockery Rentals'
+                    : isAdjs
+                    ? 'Smart Self-Service Printing Kiosks & Autonomous Tech'
                     : isEcolab
                     ? 'Hygiene, Chemical Solutions & Commercial Sanitization'
                     : 'Authorized Personnel Access'}
@@ -1410,6 +1458,55 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                 ))}
               </div>
             </div>
+          ) : isAdjs && !selectedSubcompany ? (
+            /* STEP 1: ADJS SUB-COMPANY SELECTION */
+            <div className="p-6 sm:p-8 pb-8 sm:pb-10 space-y-6 bg-slate-50/70">
+              <div className="text-center">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                  Select Business Division / Sub-Company
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Pick your division under ADJS to access dedicated kiosk CRM, machine orders &amp; engineering desks
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 max-w-xl mx-auto items-stretch">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubcompany('printbooth')}
+                  className="group flex flex-col justify-between rounded-2xl border-2 border-slate-200 hover:border-purple-600 bg-white p-6 sm:p-7 text-left shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-200 min-h-[220px]"
+                >
+                  <div className="w-full">
+                    <span className="rounded-lg bg-purple-50 border border-purple-200/90 px-2.5 py-1 text-[11px] font-bold text-purple-900 shadow-2xs">
+                      Sub-Company · Smart Kiosks
+                    </span>
+
+                    <div className="flex items-center space-x-3.5 my-3.5">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 border border-purple-200 text-purple-700 p-2 group-hover:border-purple-600 group-hover:bg-purple-600 group-hover:text-white transition shadow-2xs">
+                        <Printer className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-purple-900 transition leading-snug">
+                          PRINTBOOTH™
+                        </h3>
+                        <p className="text-xs text-purple-700 font-bold mt-0.5">
+                          Think It. Print It. · Smart Self-Service Printing Kiosks
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 font-medium leading-relaxed">
+                      Direct B2B machine sales, merchant placement calling desk CRM, autonomous kiosk touchscreen OS, and freight dispatch logistics.
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-extrabold text-purple-700 group-hover:text-purple-900">
+                    <span>Select Sub-Company &amp; Sign In</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </button>
+              </div>
+            </div>
           ) : (
             /* STEP 2: DYNAMIC ROLE & CREDENTIALS WITH 2 3D LOCKS IN LEFT COLUMN */
             <div className="p-5 sm:p-7 bg-white">
@@ -1455,6 +1552,27 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                     type="button"
                     onClick={() => setSelectedDivision(null)}
                     className="inline-flex items-center space-x-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-900 bg-white border border-emerald-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Change</span>
+                  </button>
+                </div>
+              )}
+
+              {isAdjs && selectedSubcompany && (
+                <div className="mb-4 flex items-center justify-between bg-purple-50/80 border border-purple-200 rounded-xl px-3.5 py-2">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <div className="h-6 w-6 rounded-md bg-purple-600 text-white flex items-center justify-center p-0.5 shrink-0 shadow-xs">
+                      <Printer className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-extrabold text-purple-950 truncate">
+                      Sub-Company: ADJS · PRINTBOOTH™ (Smart Self-Service Printing Kiosks)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubcompany(null)}
+                    className="inline-flex items-center space-x-1 text-[11px] font-bold text-purple-800 hover:text-purple-900 bg-white border border-purple-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span>Change</span>

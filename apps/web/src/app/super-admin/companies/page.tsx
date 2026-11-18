@@ -43,10 +43,18 @@ interface Role {
   department: string;
 }
 
+interface SubcompanyInfo {
+  slug: string;
+  name: string;
+  subtitle?: string;
+  badge?: string;
+}
+
 interface Company {
   businessId: string;
   businessSlug: string;
   businessName: string;
+  subcompanies?: SubcompanyInfo[];
   roles: Role[];
 }
 
@@ -431,9 +439,16 @@ export default function CompaniesPage() {
                           >
                             {c.businessName}
                           </p>
-                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                            {c.roles?.length || 0} configured roles
-                          </p>
+                          <div className="flex items-center space-x-1.5 mt-0.5">
+                            <span className="text-[11px] text-slate-400 truncate">
+                              {c.roles?.length || 0} roles
+                            </span>
+                            {c.subcompanies && c.subcompanies.length > 0 && (
+                              <span className="rounded bg-indigo-50 border border-indigo-200/80 text-indigo-700 px-1.5 py-0.5 text-[9.5px] font-bold truncate">
+                                {c.subcompanies.length === 1 ? (c.subcompanies[0]?.name || '1 Sub-Co') : `${c.subcompanies.length} Sub-Cos`}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <ChevronRight
@@ -451,15 +466,27 @@ export default function CompaniesPage() {
           {/* COLUMN 2: Operational Roles */}
           <div className="w-72 xl:w-80 flex-shrink-0 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
+              <div className="min-w-0 pr-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Operational Roles
                 </span>
                 <p className="text-xs text-slate-800 font-semibold truncate mt-0.5">
                   {selectedCompany ? selectedCompany.businessName : 'Select a company'}
                 </p>
+                {selectedCompany?.subcompanies && selectedCompany.subcompanies.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {selectedCompany.subcompanies.map((sub) => (
+                      <span
+                        key={sub.slug}
+                        className="inline-flex items-center rounded-md bg-purple-50 border border-purple-200 text-purple-700 px-1.5 py-0.5 text-[10px] font-bold"
+                      >
+                        Sub-Co: {sub.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
                 {selectedCompany?.roles?.length || 0}
               </span>
             </div>
