@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FileSpreadsheet,
@@ -51,6 +51,66 @@ export function ColdcallerDashboard({
 }: BusinessDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted'>('sheet');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Dynamic Session Identity with Client & Cookie Hydration
+  const [profile, setProfile] = useState({
+    id: memberId || '',
+    name: memberName || '',
+    email: memberEmail || '',
+    role: role || 'Coldcaller',
+  });
+
+  useEffect(() => {
+    // 1. Sync from props
+    if (memberName || memberEmail) {
+      setProfile((prev) => ({
+        id: memberId || prev.id,
+        name: memberName || prev.name,
+        email: memberEmail || prev.email,
+        role: role || prev.role,
+      }));
+    }
+
+    // 2. Hydrate from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('homeseva_session_adjs') || localStorage.getItem('homeseva_session_printbooth') || localStorage.getItem('homeseva_current_user');
+        if (stored) {
+          const p = JSON.parse(stored);
+          setProfile((prev) => ({
+            id: prev.id || p.memberId || '',
+            name: prev.name || p.memberName || p.name || '',
+            email: prev.email || p.email || '',
+            role: prev.role || p.role || 'Coldcaller',
+          }));
+        }
+      } catch {}
+
+      // 3. Fetch authoritative session from /api/auth/me (reads secure httpOnly cookie)
+      fetch('/api/auth/me')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.authenticated) {
+            setProfile({
+              id: data.memberId || memberId || '',
+              name: data.memberName || memberName || data.username || 'Staff Member',
+              email: data.email || memberEmail || '',
+              role: data.role || role || 'Coldcaller',
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [memberId, memberName, memberEmail, role]);
+
+  const initials = (profile.name || profile.role || 'CC')
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'CC';
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
@@ -162,18 +222,20 @@ export function ColdcallerDashboard({
         <div className="p-3 border-t border-slate-200 bg-slate-50">
           <div className="flex items-start space-x-2.5 mb-2.5 px-1">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-xs font-black text-white shrink-0 shadow-2xs mt-0.5">
-              CC
+              {initials}
             </div>
             <div className="min-w-0 flex-1 space-y-0.5">
               <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
-                {role || 'Coldcaller'}
+                {profile.role}
               </span>
               <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
-                {memberName || 'Active Caller'}
+                {profile.name || (profile.email ? profile.email.split('@')[0] : 'Active Caller')}
               </span>
-              <span className="block text-[10px] text-blue-700 font-mono truncate leading-tight">
-                {memberEmail || 'caller@printbooth.in'}
-              </span>
+              {profile.email ? (
+                <span className="block text-[10px] text-blue-700 font-mono truncate leading-tight">
+                  {profile.email}
+                </span>
+              ) : null}
             </div>
           </div>
           <Link
@@ -201,9 +263,9 @@ export function ColdcallerDashboard({
         <div className="p-6 max-w-7xl">
           {activeTab === 'sheet' && (
             <CrmView
-              telecallerId={memberId}
-              telecallerName={memberName}
-              telecallerEmail={memberEmail}
+              telecallerId={profile.id || memberId}
+              telecallerName={profile.name || memberName}
+              telecallerEmail={profile.email || memberEmail}
               initialViewMode="month-sheet"
               initialStatusFilter="all"
             />
@@ -211,9 +273,9 @@ export function ColdcallerDashboard({
 
           {activeTab === 'annual' && (
             <CrmView
-              telecallerId={memberId}
-              telecallerName={memberName}
-              telecallerEmail={memberEmail}
+              telecallerId={profile.id || memberId}
+              telecallerName={profile.name || memberName}
+              telecallerEmail={profile.email || memberEmail}
               initialViewMode="month-selector"
               initialStatusFilter="all"
             />
@@ -221,9 +283,9 @@ export function ColdcallerDashboard({
 
           {activeTab === 'follow-up' && (
             <CrmView
-              telecallerId={memberId}
-              telecallerName={memberName}
-              telecallerEmail={memberEmail}
+              telecallerId={profile.id || memberId}
+              telecallerName={profile.name || memberName}
+              telecallerEmail={profile.email || memberEmail}
               initialViewMode="month-sheet"
               initialStatusFilter="followup"
             />
@@ -231,9 +293,9 @@ export function ColdcallerDashboard({
 
           {activeTab === 'converted' && (
             <CrmView
-              telecallerId={memberId}
-              telecallerName={memberName}
-              telecallerEmail={memberEmail}
+              telecallerId={profile.id || memberId}
+              telecallerName={profile.name || memberName}
+              telecallerEmail={profile.email || memberEmail}
               initialViewMode="month-sheet"
               initialStatusFilter="converted"
             />

@@ -25,31 +25,46 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const [activeMemberEmail, setActiveMemberEmail] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    try {
-      const match = document.cookie.match(/(?:homeseva_user_session|homeseva_session)=([^;]+)/);
-      if (match && match[1]) {
-        const parts = match[1].split('.');
-        if (parts[0]) {
-          const json = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
-          const payload = JSON.parse(json);
-          if (payload.role) {
-            setActiveRole(payload.role);
-          }
-          if (payload.memberId || payload.sub) {
-            setActiveMemberId(payload.memberId || payload.sub);
-          }
-          if (payload.memberName || payload.username) {
-            setActiveMemberName(payload.memberName || payload.username);
-          }
-          if (payload.email) {
-            setActiveMemberEmail(payload.email);
+    // 1. Instant local cache hydration for zero layout shift
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(`homeseva_session_${businessSlug}`) || localStorage.getItem('homeseva_current_user');
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.role) setActiveRole(p.role);
+          if (p.memberId) setActiveMemberId(p.memberId);
+          if (p.memberName) setActiveMemberName(p.memberName);
+          if (p.email) setActiveMemberEmail(p.email);
+        }
+      } catch {}
+    }
+
+    // 2. Authoritative server verification via /api/auth/me (reads secure httpOnly cookie)
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.authenticated) {
+          if (data.role) setActiveRole(data.role);
+          if (data.memberId) setActiveMemberId(data.memberId);
+          if (data.memberName) setActiveMemberName(data.memberName);
+          if (data.email) setActiveMemberEmail(data.email);
+
+          // Update local cache with server-verified data
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(`homeseva_session_${businessSlug}`, JSON.stringify({
+                role: data.role,
+                memberId: data.memberId,
+                memberName: data.memberName,
+                email: data.email,
+                businessSlug,
+              }));
+            } catch {}
           }
         }
-      }
-    } catch {
-      // Fallback
-    }
-  }, [roleParam]);
+      })
+      .catch(() => {});
+  }, [businessSlug, roleParam]);
 
   const businessModule = getBusinessModule(businessSlug);
 

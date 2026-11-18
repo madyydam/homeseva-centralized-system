@@ -70,6 +70,63 @@ export function ColdCallerDashboard({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Dynamic Session Identity with Client & Cookie Hydration
+  const [profile, setProfile] = useState({
+    id: memberId || '',
+    name: memberName || '',
+    email: memberEmail || '',
+    role: role || 'Cold Caller',
+  });
+
+  useEffect(() => {
+    if (memberName || memberEmail) {
+      setProfile((prev) => ({
+        id: memberId || prev.id,
+        name: memberName || prev.name,
+        email: memberEmail || prev.email,
+        role: role || prev.role,
+      }));
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('homeseva_session_gentle-hair-wigs') || localStorage.getItem('homeseva_current_user');
+        if (cached) {
+          const p = JSON.parse(cached);
+          setProfile((prev) => ({
+            id: prev.id || p.memberId || '',
+            name: prev.name || p.memberName || p.name || '',
+            email: prev.email || p.email || '',
+            role: prev.role || p.role || 'Cold Caller',
+          }));
+        }
+      } catch {}
+
+      fetch('/api/auth/me')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && data.authenticated) {
+            setProfile({
+              id: data.memberId || memberId || '',
+              name: data.memberName || memberName || data.username || 'Staff Member',
+              email: data.email || memberEmail || '',
+              role: data.role || role || 'Cold Caller',
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [memberId, memberName, memberEmail, role]);
+
+  const initials = (profile.name || profile.role || 'CC')
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'CC';
+
   // Active navigation tab for the Cold Caller
   const [activeTab, setActiveTab] = useState<'sheet' | 'annual' | 'follow-up' | 'converted' | 'daily-reporting'>('sheet');
   const [todayStatus, setTodayStatus] = useState<'PENDING' | 'IN_PROGRESS' | 'PRESENT' | 'HALF_DAY' | 'LEAVE' | 'HOLIDAY'>('PENDING');
@@ -191,14 +248,16 @@ export function ColdCallerDashboard({
             <div className="pt-3 border-t border-slate-100 space-y-2.5">
               <div className="px-1 text-left space-y-0.5">
                 <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
-                  {role || 'Cold Caller'}
+                  {profile.role}
                 </span>
                 <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
-                  {memberName || 'Active Caller'}
+                  {profile.name || (profile.email ? profile.email.split('@')[0] : 'Active Caller')}
                 </span>
-                <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
-                  {memberEmail || 'caller@homeseva.com'}
-                </span>
+                {profile.email ? (
+                  <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
+                    {profile.email}
+                  </span>
+                ) : null}
               </div>
               <Link
                 href="/signin/gentle-hair-wigs"
@@ -386,18 +445,20 @@ export function ColdCallerDashboard({
             <>
               <div className="flex items-start space-x-2.5 mb-2.5 px-0.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-black text-white shrink-0 shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 shadow-amber-500/20 mt-0.5">
-                  CC
+                  {initials}
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <span className="block text-xs font-bold text-slate-900 truncate leading-tight">
-                    {role || 'Cold Caller'}
+                    {profile.role}
                   </span>
                   <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
-                    {memberName || 'Active Caller'}
+                    {profile.name || (profile.email ? profile.email.split('@')[0] : 'Active Caller')}
                   </span>
-                  <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
-                    {memberEmail || 'caller@homeseva.com'}
-                  </span>
+                  {profile.email ? (
+                    <span className="block text-[10px] text-slate-500 truncate leading-tight font-mono">
+                      {profile.email}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -415,9 +476,9 @@ export function ColdCallerDashboard({
             <div className="flex flex-col items-center space-y-2">
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-black text-white shadow-xs bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500"
-                title={`${role || 'Cold Caller'} • ${memberName || ''} (${memberEmail || ''})`}
+                title={`${profile.role} • ${profile.name} (${profile.email})`}
               >
-                CC
+                {initials}
               </div>
               <Link
                 href="/signin/gentle-hair-wigs"

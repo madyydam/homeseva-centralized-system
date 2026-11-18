@@ -318,6 +318,21 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         }
 
         // ✅ Security handshake complete: cookie is confirmed saved in the browser!
+        // Cache authenticated profile locally for instantaneous client hydration
+        if (typeof window !== 'undefined') {
+          try {
+            const userProfile = {
+              role: data.role || rRole,
+              memberId: data.memberId,
+              memberName: data.memberName || data.username || curEmail.split('@')[0],
+              email: data.email || curEmail,
+              businessSlug,
+            };
+            localStorage.setItem(`homeseva_session_${businessSlug}`, JSON.stringify(userProfile));
+            localStorage.setItem('homeseva_current_user', JSON.stringify(userProfile));
+          } catch {}
+        }
+
         // Smoothly elevate the vault door into the ceiling, then do full browser navigation
         setIsDoorAscending(true);
         setTimeout(() => {
