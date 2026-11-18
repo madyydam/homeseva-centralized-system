@@ -81,6 +81,11 @@ const icoBuf = Buffer.concat([icoHeader, pngBuf]);
 
 fs.writeFileSync(path.join(process.cwd(), 'apps', 'web', 'public', 'favicon.ico'), icoBuf);
 fs.writeFileSync(path.join(process.cwd(), 'apps', 'web', 'src', 'app', 'favicon.ico'), icoBuf);
+const desktopAssetIco = path.join(process.cwd(), 'apps', 'desktop', 'assets', 'icon.ico');
+if (fs.existsSync(path.dirname(desktopAssetIco))) {
+  fs.writeFileSync(desktopAssetIco, icoBuf);
+  console.log('Updated apps/desktop/assets/icon.ico');
+}
 console.log('Successfully generated favicon.ico (', icoBuf.length, 'bytes )');
 
 fs.unlinkSync(tempHtml);

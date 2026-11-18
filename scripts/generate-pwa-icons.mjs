@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const SIZES = [
   { name: 'icon-512x512.png', size: 512, iconSize: 260, strokeWidth: 2.2, radius: 120 },
+  { name: 'icon-256x256.png', size: 256, iconSize: 130, strokeWidth: 2.2, radius: 60 },
   { name: 'icon-192x192.png', size: 192, iconSize: 98, strokeWidth: 2.2, radius: 46 },
   { name: 'apple-touch-icon.png', size: 180, iconSize: 92, strokeWidth: 2.2, radius: 42 },
 ];
@@ -84,6 +85,13 @@ for (const item of SIZES) {
 const artifactPreview = path.join(ARTIFACT_DIR, 'pwa-installed-app-icon.png');
 fs.copyFileSync(path.join(TARGET_DIR, 'icon-512x512.png'), artifactPreview);
 console.log(`Copied preview to: ${artifactPreview}`);
+
+// Also copy to desktop assets if directory exists
+const desktopAssetDir = path.join(process.cwd(), 'apps', 'desktop', 'assets');
+if (fs.existsSync(desktopAssetDir)) {
+  fs.copyFileSync(path.join(TARGET_DIR, 'icon-512x512.png'), path.join(desktopAssetDir, 'icon.png'));
+  console.log('Updated apps/desktop/assets/icon.png');
+}
 
 // Clean up temp
 if (fs.existsSync(TEMP_HTML)) fs.unlinkSync(TEMP_HTML);
