@@ -184,7 +184,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
-  const [memberEmail, setMemberEmail] = useState('abc@xyz.com');
+  const [memberEmail, setMemberEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -273,7 +273,12 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
       isSubmittingSessionRef.current = true;
       try {
-        const curEmail = (latestEmailRef.current || 'abc@xyz.com').trim();
+        const curEmail = (latestEmailRef.current || '').trim();
+        if (!curEmail) {
+          setErrorMsg('Please enter your registered staff email address.');
+          isSubmittingSessionRef.current = false;
+          return false;
+        }
         // 1. Try individual member login
         let res = await fetch('/api/auth/member-login', {
           method: 'POST',
@@ -1819,7 +1824,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                             latestEmailRef.current = e.target.value;
                             setErrorMsg('');
                           }}
-                          placeholder="e.g. abc@xyz.com"
+                          placeholder="Enter your registered email"
                           required
                           className={`w-full rounded-xl border bg-white py-2.5 pl-9 pr-3 text-xs sm:text-sm text-slate-900 focus:outline-none transition border-slate-300 ${theme.ring}`}
                         />

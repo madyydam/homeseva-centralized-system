@@ -62,6 +62,8 @@ export default function CompaniesPage() {
   const [error, setError] = useState('');
   const [notification, setNotification] = useState('');
 
+  const [isSendingEmailId, setIsSendingEmailId] = useState<string | null>(null);
+
   // Password visibility map { [memberId]: boolean }
   const [showPassMap, setShowPassMap] = useState<Record<string, boolean>>({});
   const [showPinMap, setShowPinMap] = useState<Record<string, boolean>>({});
@@ -183,6 +185,8 @@ export default function CompaniesPage() {
           email: newEmail,
           password: newPassword,
           pin: newPin,
+          company_name: selectedCompany.businessName,
+          subcompany: selectedRole.department || '',
         }),
       }).then((r) => r.json());
 
@@ -194,13 +198,41 @@ export default function CompaniesPage() {
         setNewPassword('12345678');
         setNewPin('1234');
         setShowAddModal(false);
-        notify(`Member "${res.member.name}" added successfully to live database!`);
+        notify(res.message || `Member "${res.member.name}" added successfully and credentials emailed!`);
       } else {
         setError(res.error || 'Failed to add member to database.');
       }
     } catch (err: any) {
       setIsSaving(false);
       setError(err.message || 'Network error while adding member.');
+    }
+  };
+
+  // Resend Credentials Card Email via SMTP
+  const handleResendEmail = async (m: Member) => {
+    if (!selectedCompany) return;
+    setIsSendingEmailId(m.id);
+    try {
+      const res = await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'resend_email',
+          member_id: m.id,
+          company_name: selectedCompany.businessName,
+          subcompany: selectedRole?.department || '',
+        }),
+      }).then((r) => r.json());
+
+      if (res.success && res.emailDispatched) {
+        notify(`Credentials card email dispatched to ${m.email} successfully!`);
+      } else {
+        notify(res.message || res.emailError || 'Email dispatch failed. Please check SMTP settings.');
+      }
+    } catch (err: any) {
+      notify('Failed to send email: ' + (err?.message || 'Network error'));
+    } finally {
+      setIsSendingEmailId(null);
     }
   };
 
@@ -605,6 +637,19 @@ export default function CompaniesPage() {
 
                       {/* Action buttons */}
                       <div className="flex items-center space-x-1.5 flex-shrink-0 pt-0.5">
+                        <button
+                          type="button"
+                          disabled={isSendingEmailId === m.id}
+                          onClick={() => handleResendEmail(m)}
+                          className="p-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                          title="Resend Welcome Credentials Email"
+                        >
+                          {isSendingEmailId === m.id ? (
+                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Mail className="w-4 h-4" />
+                          )}
+                        </button>
                         <button
                           type="button"
                           onClick={() => startEdit(m)}

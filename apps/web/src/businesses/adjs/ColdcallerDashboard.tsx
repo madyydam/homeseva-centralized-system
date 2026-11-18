@@ -229,7 +229,7 @@ export function ColdcallerDashboard({
                 {profile.role}
               </span>
               <span className="block text-[11px] font-semibold text-slate-700 truncate leading-tight">
-                {profile.name || (profile.email ? profile.email.split('@')[0] : 'Active Caller')}
+                {profile.name || (profile.email ? profile.email.split('@')[0] : 'Unallocated Staff')}
               </span>
               {profile.email ? (
                 <span className="block text-[10px] text-blue-700 font-mono truncate leading-tight">

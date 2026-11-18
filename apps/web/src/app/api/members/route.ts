@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
+import { sendMemberWelcomeCredentialsEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentSuperAdminSession();
-    // Allow super admin or authenticated staff/owner viewing role members
     const { searchParams } = new URL(req.url);
     let businessId = searchParams.get('businessId');
     const businessSlug = searchParams.get('businessSlug');
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // For authenticated Super Admin, return the real passwords and PINs so the console eye-toggle can view/reveal them
+    // For authenticated Super Admin, return the real passwords and PINs so console can reveal them
     const isSuperAdmin = !!session;
     const members = (data || []).map((m: any) => ({
       ...m,
@@ -57,8 +57,70 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { business_id, role_id, name, email, password, pin } = body;
+    const {
+      business_id,
+      role_id,
+      name,
+      email,
+      password,
+      pin,
+      subcompany,
+      company_name,
+      action,
+      member_id,
+    } = body;
 
+    const admin = getAdminClient();
+
+    // ── Resend Credentials Email Action ──
+    if (action === 'resend_email') {
+      const targetId = member_id || body.id;
+      if (!targetId) {
+        return NextResponse.json({ success: false, error: 'Member ID is required to resend email' }, { status: 400 });
+      }
+
+      const { data: m, error: mErr } = await admin
+        .from('role_members')
+        .select('*')
+        .eq('id', targetId)
+        .single();
+
+      if (mErr || !m) {
+        return NextResponse.json({ success: false, error: 'Member not found' }, { status: 404 });
+      }
+
+      const { data: b } = await admin
+        .from('businesses')
+        .select('name, slug')
+        .eq('id', m.business_id)
+        .maybeSingle();
+
+      const cName = company_name || b?.name || 'HomeSeva Business';
+      const bSlug = b?.slug || 'adjs';
+
+      const mailRes = await sendMemberWelcomeCredentialsEmail({
+        to: m.email,
+        memberName: m.name,
+        companyName: cName,
+        subcompany: subcompany || undefined,
+        role: m.role_id,
+        email: m.email,
+        password: m.password,
+        pin: m.pin,
+        businessSlug: bSlug,
+      });
+
+      return NextResponse.json({
+        success: true,
+        emailDispatched: mailRes.success,
+        emailError: mailRes.error,
+        message: mailRes.success
+          ? `Credentials card email re-sent to ${m.email} successfully!`
+          : `Failed to dispatch email: ${mailRes.error}`,
+      });
+    }
+
+    // ── Standard Member Creation ──
     if (!business_id || !role_id || !name || !email || !password || !pin) {
       return NextResponse.json({
         success: false,
@@ -66,16 +128,20 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const admin = getAdminClient();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    const cleanPin = pin.trim();
+    const cleanName = name.trim();
+
     const { data, error } = await admin
       .from('role_members')
       .insert({
         business_id,
         role_id,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password: password.trim(),
-        pin: pin.trim(),
+        name: cleanName,
+        email: cleanEmail,
+        password: cleanPassword,
+        pin: cleanPin,
         is_active: true,
       })
       .select()
@@ -85,9 +151,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    // 1. Fetch business metadata for rich card email
+    const { data: biz } = await admin
+      .from('businesses')
+      .select('name, slug')
+      .eq('id', business_id)
+      .maybeSingle();
+
+    const targetCompanyName = company_name || biz?.name || 'HomeSeva Business';
+    const targetBusinessSlug = biz?.slug || 'adjs';
+
+    // 2. Automatically dispatch colorful credential card email via SMTP!
+    let emailDispatched = false;
+    let emailError: string | null = null;
+
+    try {
+      const mailRes = await sendMemberWelcomeCredentialsEmail({
+        to: cleanEmail,
+        memberName: cleanName,
+        companyName: targetCompanyName,
+        subcompany: subcompany || undefined,
+        role: role_id,
+        email: cleanEmail,
+        password: cleanPassword,
+        pin: cleanPin,
+        businessSlug: targetBusinessSlug,
+      });
+
+      emailDispatched = mailRes.success;
+      if (!mailRes.success) {
+        emailError = mailRes.error || 'Failed to dispatch email';
+      }
+    } catch (mailErr: any) {
+      console.error('SMTP automated dispatch exception:', mailErr);
+      emailError = mailErr?.message || 'SMTP exception';
+    }
+
     return NextResponse.json({
       success: true,
       member: { ...data, password: '••••••••', pin: '••••' },
+      emailDispatched,
+      emailError,
+      message: emailDispatched
+        ? `Member "${cleanName}" allotted! Credentials card email automatically sent to ${cleanEmail}.`
+        : `Member allotted to database. (Email notice: ${emailError || 'pending'})`,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -102,7 +209,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, name, email, password, pin, is_active } = body;
+    const { id, name, email, password, pin, is_active, resendCredentials, company_name, subcompany } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Member id is required' }, { status: 400 });
@@ -131,9 +238,41 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    let emailDispatched = false;
+    let emailError: string | null = null;
+
+    // If credentials updated or resend explicitly requested, dispatch updated card email
+    if (resendCredentials || (password && password !== '••••••••') || (pin && pin !== '••••')) {
+      try {
+        const { data: biz } = await admin
+          .from('businesses')
+          .select('name, slug')
+          .eq('id', data.business_id)
+          .maybeSingle();
+
+        const mailRes = await sendMemberWelcomeCredentialsEmail({
+          to: data.email,
+          memberName: data.name,
+          companyName: company_name || biz?.name || 'HomeSeva Business',
+          subcompany: subcompany || undefined,
+          role: data.role_id,
+          email: data.email,
+          password: data.password,
+          pin: data.pin,
+          businessSlug: biz?.slug || 'adjs',
+        });
+        emailDispatched = mailRes.success;
+        if (!mailRes.success) emailError = mailRes.error || null;
+      } catch (err: any) {
+        emailError = err?.message;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       member: { ...data, password: '••••••••', pin: '••••' },
+      emailDispatched,
+      emailError,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

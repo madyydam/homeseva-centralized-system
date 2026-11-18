@@ -56,24 +56,10 @@ export async function POST(req: NextRequest) {
 
     let targetMember = memberByEmail;
 
-    // Graceful fallback for demo member if table exists or during transition
-    if (!targetMember && em === 'abc@xyz.com') {
-      targetMember = {
-        id: `demo-${business.id}-${rId.toLowerCase().replace(/\s+/g, '-')}`,
-        business_id: business.id,
-        role_id: rId,
-        name: 'Demo User',
-        email: 'abc@xyz.com',
-        password: '12345678',
-        pin: '1234',
-        is_active: true,
-      };
-    }
-
     if (!targetMember) {
       return NextResponse.json({
         success: false,
-        error: `No member account found with email "${em}" in this business. Please contact your administrator.`,
+        error: `No member account found with email "${em}" in this business. Please contact your Super Administrator to allot access.`,
       }, { status: 401 });
     }
 

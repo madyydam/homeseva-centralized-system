@@ -274,24 +274,16 @@ export function ManagerDashboard({
     const map = new Map<string, { id: string; name: string; email: string }>();
     coldCallersList.forEach((c) => map.set(c.id, c));
 
-    // Also pick up any caller IDs present in leads
+    // Also pick up any caller IDs present in actual leads
     (data.crmLeads || []).forEach((l: any) => {
       if (l.telecallerId && !map.has(l.telecallerId)) {
         map.set(l.telecallerId, {
           id: l.telecallerId,
-          name: l.telecallerName || 'Cold Caller',
-          email: l.telecallerEmail || 'caller@gentlehairwigs.com',
+          name: l.telecallerName || 'Staff Member',
+          email: l.telecallerEmail || '',
         });
       }
     });
-
-    if (map.size === 0) {
-      map.set('demo-caller', {
-        id: 'demo-caller',
-        name: 'Demo Caller',
-        email: 'abc@xyz.com',
-      });
-    }
 
     return Array.from(map.values());
   }, [coldCallersList, data.crmLeads]);
@@ -1570,39 +1562,55 @@ export function ManagerDashboard({
 
                   {/* Cold Callers Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {displayedCallers.map((caller) => {
-                      const callerLeads = (data.crmLeads || []).filter(
-                        (l) => l.telecallerId === caller.id || (!l.telecallerId && caller.id === 'demo-caller')
-                      );
-                      const converted = callerLeads.filter((l) => l.status === 'Converted').length;
-                      const followups = callerLeads.filter((l) => l.status === 'Follow-up').length;
+                    {displayedCallers.length === 0 ? (
+                      <div className="col-span-full bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
+                        <PhoneCall className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                        <h4 className="text-sm font-bold text-slate-800">No Telecallers Allotted</h4>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                          No staff members have been allotted to calling roles for Gentle Hair Wigs yet in Super Admin.
+                        </p>
+                      </div>
+                    ) : (
+                      displayedCallers.map((caller) => {
+                        const callerLeads = (data.crmLeads || []).filter((l) => l.telecallerId === caller.id);
+                        const converted = callerLeads.filter((l) => l.status === 'Converted').length;
+                        const followups = callerLeads.filter((l) => l.status === 'Follow-up').length;
 
-                      return (
-                        <div
-                          key={caller.id}
-                          onClick={() => {
-                            setInspectingCaller(caller);
-                            setCallerSubTab('annual');
-                          }}
-                          className="group relative bg-white border border-slate-200/90 hover:border-amber-400 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
-                        >
-                          <div>
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
-                                  CC
+                        return (
+                          <div
+                            key={caller.id}
+                            onClick={() => {
+                              setInspectingCaller(caller);
+                              setCallerSubTab('annual');
+                            }}
+                            className="group relative bg-white border border-slate-200/90 hover:border-amber-400 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-500 text-sm font-black text-white shadow-xs group-hover:scale-105 transition-transform">
+                                    {(caller.name || 'CC')
+                                      .trim()
+                                      .split(/\s+/)
+                                      .map((w) => w[0])
+                                      .filter(Boolean)
+                                      .slice(0, 2)
+                                      .join('')
+                                      .toUpperCase() || 'CC'}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h3 className="text-sm font-black text-slate-900 truncate group-hover:text-amber-800 transition-colors">
+                                      {caller.name}
+                                    </h3>
+                                    {caller.email ? (
+                                      <p className="text-[11px] font-mono text-slate-500 truncate">{caller.email}</p>
+                                    ) : null}
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <h3 className="text-sm font-black text-slate-900 truncate group-hover:text-amber-800 transition-colors">
-                                    {caller.name}
-                                  </h3>
-                                  <p className="text-[11px] font-mono text-slate-500 truncate">{caller.email}</p>
-                                </div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                  Allotted Staff
+                                </span>
                               </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                Active Caller
-                              </span>
-                            </div>
 
                             <div className="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-slate-100 text-center">
                               <div className="bg-slate-50 rounded-lg p-2">
@@ -1626,7 +1634,7 @@ export function ManagerDashboard({
                           </div>
                         </div>
                       );
-                    })}
+                    }))}
                   </div>
                 </div>
               )}
