@@ -25,7 +25,10 @@ async function run() {
 
   // 1. PWA & Web Manifest
   await test('PWA Web Manifest & Metadata Route', async () => {
-    const res = await fetch(`${BASE_URL}/manifest.webmanifest`);
+    let res = await fetch(`${BASE_URL}/manifest.json`);
+    if (!res.ok) {
+      res = await fetch(`${BASE_URL}/manifest.webmanifest`);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!data.name || !data.name.includes('HomeSeva')) {
