@@ -251,6 +251,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
     'Note 3',
     'Note 4',
     'Note 5',
+    'Kiosk Model',
+    'Units Ordered',
+    'Installation City',
   ];
 
   const sampleRows = [
@@ -267,6 +270,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
       '',
       '',
       '',
+      '',
+      '',
+      'Pune',
     ],
     [
       'Amit Patel',
@@ -281,6 +287,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
       '',
       '',
       '',
+      '',
+      '',
+      'Pune',
     ],
     [
       'Suresh Kulkarni',
@@ -295,6 +304,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
       'Advance booking deposit received',
       '',
       '',
+      'PRINTBOOTH™ Compact (Standard)',
+      2,
+      'Mumbai',
     ],
     [
       'Mahesh Patil',
@@ -309,6 +321,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
       '',
       '',
       '',
+      '',
+      '',
+      'Kolhapur',
     ],
     [
       'Vijay Shinde',
@@ -323,6 +338,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
       '',
       '',
       '',
+      '',
+      '',
+      'Solapur',
     ],
   ];
 
@@ -340,6 +358,9 @@ export async function downloadPrintboothSampleExcel(): Promise<void> {
     { wch: 30 }, // Note 3
     { wch: 30 }, // Note 4
     { wch: 30 }, // Note 5
+    { wch: 32 }, // Kiosk Model
+    { wch: 16 }, // Units Ordered
+    { wch: 20 }, // Installation City
   ];
 
   const workbook = XLSX.utils.book_new();

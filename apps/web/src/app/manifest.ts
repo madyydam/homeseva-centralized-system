@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'HomeSeva Enterprise ERP',
+    name: 'HomeSeva ERP',
     short_name: 'HomeSeva ERP',
     description: 'Centralized Multi-Enterprise ERP & Operations Platform',
     start_url: '/',

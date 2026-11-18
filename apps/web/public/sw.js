@@ -1,5 +1,5 @@
-// HomeSeva Enterprise ERP Service Worker v1.6
-const CACHE_NAME = 'homeseva-erp-v1.6';
+// HomeSeva ERP Service Worker v1.6
+const CACHE_NAME = 'homeseva-erp-v1.6.1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

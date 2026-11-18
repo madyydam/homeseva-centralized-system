@@ -105,6 +105,9 @@ export function ImportExcelModal({
       const note3 = String(row[9] || '').trim();
       const note4 = String(row[10] || '').trim();
       const note5 = String(row[11] || '').trim();
+      const kioskModel = String(row[12] || '').trim() || undefined;
+      const unitsOrdered = row[13] ? Number(row[13]) || undefined : undefined;
+      const installationCity = String(row[14] || '').trim() || undefined;
 
       const date = rawDate
         ? normalizeDateToYMD(rawDate) || `${defaultYear}-${defaultMonth}-01`
@@ -161,6 +164,9 @@ export function ImportExcelModal({
         callCount: calls,
         notesList: [note1, note2, note3, note4, note5],
         leadDate: date,
+        kioskModel,
+        unitsOrdered,
+        installationCity,
       });
     }
 

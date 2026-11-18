@@ -20,7 +20,6 @@ import {
   normalizeStatus,
   formatDateToDMY,
   normalizeDateToYMD,
-  downloadPrintboothSampleExcel,
 } from './crm/crmUtils';
 import { CrmKpiCards, MonthKpiStats } from './crm/CrmKpiCards';
 import { CrmTable } from './crm/CrmTable';
@@ -83,20 +82,7 @@ export function CrmView({
   const [showImportModal, setShowImportModal] = useState(false);
   const [activeNotesLead, setActiveNotesLead] = useState<PrintboothLeadItem | null>(null);
   const [conversionModalLead, setConversionModalLead] = useState<PrintboothLeadItem | null>(null);
-
-  const [isDownloadingSample, setIsDownloadingSample] = useState(false);
-
-  const handleDownloadSampleExcel = useCallback(async () => {
-    try {
-      setIsDownloadingSample(true);
-      await downloadPrintboothSampleExcel();
-    } catch (err: any) {
-      console.error('Failed to download sample Excel:', err);
-      alert('Failed to download sample Excel template: ' + (err?.message || 'Unknown error'));
-    } finally {
-      setIsDownloadingSample(false);
-    }
-  }, []);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const activeMonthObj = useMemo(() => {
     return MONTHS_LIST.find((m) => m.value === selectedMonth) || MONTHS_LIST[9]!;
@@ -310,53 +296,85 @@ export function CrmView({
     adjsDb.batchAddCrmLeads(toInsert);
   };
 
-  // Export CSV
-  const handleExportCsv = () => {
+  // Export Excel (.xlsx) with complete structured columns matching Import format
+  const handleExportExcel = useCallback(async () => {
     if (tableLeads.length === 0) return;
-    const headers = [
-      'ID',
-      'Merchant Name',
-      'Phone',
-      'Shop / Business Name',
-      'Location Category',
-      'Status',
-      'Calls',
-      'Lead Date',
-      'Kiosk Model',
-      'Installation City',
-      'Units Ordered',
-      'Note 1',
-      'Note 2',
-      'Note 3',
-    ];
+    try {
+      setIsExportingExcel(true);
+      const XLSX = await import('xlsx');
 
-    const rows = tableLeads.map((l) => [
-      l.id,
-      `"${l.clientName.replace(/"/g, '""')}"`,
-      `"${l.phone}"`,
-      `"${(l.shopName || '').replace(/"/g, '""')}"`,
-      `"${l.locationCategory || ''}"`,
-      `"${l.status}"`,
-      l.callCount,
-      l.leadDate,
-      `"${l.kioskModel || ''}"`,
-      `"${l.installationCity || ''}"`,
-      l.unitsOrdered || '',
-      `"${(l.notesList[0] || '').replace(/"/g, '""')}"`,
-      `"${(l.notesList[1] || '').replace(/"/g, '""')}"`,
-      `"${(l.notesList[2] || '').replace(/"/g, '""')}"`,
-    ]);
+      const headers = [
+        'Merchant Name',
+        'Phone Number',
+        'Shop / Store Name',
+        'Location Category',
+        'Status',
+        'Date (DD/MM/YYYY)',
+        'Calls (0-5)',
+        'Note 1',
+        'Note 2',
+        'Note 3',
+        'Note 4',
+        'Note 5',
+        'Kiosk Model',
+        'Units Ordered',
+        'Installation City',
+        'Telecaller Name',
+        'Telecaller Email',
+      ];
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `PRINTBOOTH_Leads_${selectedYear}_${activeMonthObj.name}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+      const rows = tableLeads.map((l) => [
+        l.clientName || "Don't know",
+        l.phone || '',
+        l.shopName || '',
+        l.locationCategory || '',
+        l.status || '',
+        formatDateToDMY(l.leadDate),
+        l.callCount ?? 0,
+        l.notesList?.[0] || '',
+        l.notesList?.[1] || '',
+        l.notesList?.[2] || '',
+        l.notesList?.[3] || '',
+        l.notesList?.[4] || '',
+        l.kioskModel || '',
+        l.unitsOrdered || '',
+        l.installationCity || '',
+        l.telecallerName || telecallerName || '',
+        l.telecallerEmail || telecallerEmail || '',
+      ]);
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      worksheet['!cols'] = [
+        { wch: 22 }, // Merchant Name
+        { wch: 16 }, // Phone Number
+        { wch: 26 }, // Shop Name
+        { wch: 24 }, // Category
+        { wch: 16 }, // Status
+        { wch: 18 }, // Date
+        { wch: 14 }, // Calls
+        { wch: 36 }, // Note 1
+        { wch: 36 }, // Note 2
+        { wch: 30 }, // Note 3
+        { wch: 30 }, // Note 4
+        { wch: 30 }, // Note 5
+        { wch: 32 }, // Kiosk Model
+        { wch: 16 }, // Units Ordered
+        { wch: 20 }, // Installation City
+        { wch: 22 }, // Telecaller Name
+        { wch: 26 }, // Telecaller Email
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      const sheetName = `Leads - ${activeMonthObj.short} ${selectedYear}`;
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
+      XLSX.writeFile(workbook, `ADJS_Printbooth_Leads_${activeMonthObj.short}_${selectedYear}.xlsx`);
+    } catch (err: any) {
+      console.error('Export Excel failed:', err);
+      alert('Failed to export Excel file: ' + (err?.message || 'Error'));
+    } finally {
+      setIsExportingExcel(false);
+    }
+  }, [tableLeads, activeMonthObj, selectedYear, telecallerName, telecallerEmail]);
 
   return (
     <div className="space-y-5 font-sans">
@@ -418,26 +436,17 @@ export function CrmView({
 
               <button
                 type="button"
-                onClick={handleDownloadSampleExcel}
-                disabled={isDownloadingSample}
-                className="inline-flex items-center space-x-1.5 rounded-xl border border-blue-200 bg-blue-50/90 hover:bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800 transition shadow-2xs cursor-pointer disabled:opacity-50"
-                title="Download Sample Pre-Formatted Excel Template (.xlsx)"
+                onClick={handleExportExcel}
+                disabled={isExportingExcel || tableLeads.length === 0}
+                className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                title="Export Leads to Microsoft Excel (.xlsx)"
               >
-                {isDownloadingSample ? (
-                  <div className="h-3.5 w-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                {isExportingExcel ? (
+                  <div className="h-3.5 w-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Download className="h-3.5 w-3.5 text-blue-600" />
+                  <Download className="h-3.5 w-3.5 text-emerald-600" />
                 )}
-                <span>Download Sample Excel</span>
-              </button>
-
-              <button
-                onClick={handleExportCsv}
-                disabled={tableLeads.length === 0}
-                className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition shadow-2xs disabled:opacity-50"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Export CSV</span>
+                <span>Export Excel</span>
               </button>
 
               <button
