@@ -13,7 +13,10 @@ import {
   ChevronRight,
   CheckCircle2,
   Users,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
+import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 import { BusinessDashboardProps } from '../types';
 import { printboothConfig } from './config';
 import { printboothDb } from './db';
@@ -38,6 +41,7 @@ function PrintboothManagerView({
   memberId,
   memberName,
 }: BusinessDashboardProps) {
+  const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'paper' | 'coldcallers'>('overview');
   const [selectedCallerId, setSelectedCallerId] = useState<string | null>(null);
   const [selectedCallerName, setSelectedCallerName] = useState<string | null>(null);
@@ -121,101 +125,192 @@ function PrintboothManagerView({
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row text-slate-900 font-sans selection:bg-purple-600 selection:text-white">
       {/* Sidebar */}
-      <aside className="w-full lg:w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 lg:h-screen lg:sticky lg:top-0 z-30">
+      <aside
+        className={`w-full ${
+          isSidebarCollapsed ? 'lg:w-18' : 'lg:w-64'
+        } bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 lg:h-screen lg:sticky lg:top-0 z-30 transition-all duration-200`}
+      >
         <div>
-          <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200">
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm">
-                <Printer className="h-4.5 w-4.5" />
+          <div className="h-16 flex items-center justify-between px-3.5 border-b border-slate-200">
+            {!isSidebarCollapsed ? (
+              <>
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm">
+                    <Printer className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-xs font-black text-slate-900 truncate">Printbooth</h1>
+                    <p className="text-[10px] font-semibold text-purple-700 truncate">Press &amp; Packaging</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer shrink-0"
+                  title="Collapse Sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <div className="w-full flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm hover:scale-105 transition-transform cursor-pointer"
+                  title="Click to Expand Sidebar"
+                >
+                  <PanelLeftOpen className="h-4.5 w-4.5" />
+                </button>
               </div>
-              <div className="min-w-0">
-                <h1 className="text-xs font-black text-slate-900 truncate">Printbooth</h1>
-                <p className="text-[10px] font-semibold text-purple-700 truncate">Press &amp; Packaging</p>
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="p-3 space-y-4">
+          <div className="p-2.5 space-y-4">
             <div>
-              <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                Press Shop
-              </span>
+              {!isSidebarCollapsed && (
+                <span className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Press Shop
+                </span>
+              )}
               <nav className="space-y-1">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  title={isSidebarCollapsed ? 'Overview' : undefined}
+                  className={`w-full flex items-center rounded-xl transition ${
+                    isSidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2 text-xs font-semibold'
+                  } ${
                     activeTab === 'overview'
                       ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <LayoutDashboard className="h-4 w-4 text-purple-600" />
-                  <span>Overview</span>
+                  <LayoutDashboard className="h-4 w-4 text-purple-600 shrink-0" />
+                  {!isSidebarCollapsed && <span>Overview</span>}
                 </button>
                 <button
                   onClick={() => setActiveTab('jobs')}
-                  className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  title={isSidebarCollapsed ? `Press Job Tickets (${data.jobs.length})` : undefined}
+                  className={`w-full flex items-center rounded-xl transition ${
+                    isSidebarCollapsed ? 'justify-center p-2.5 relative' : 'space-x-2.5 px-3 py-2 text-xs font-semibold'
+                  } ${
                     activeTab === 'jobs'
                       ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <Printer className="h-4 w-4 text-purple-600" />
-                  <span>Press Job Tickets</span>
-                  <span className="ml-auto rounded-full bg-purple-100 text-purple-800 px-1.5 text-[10px] font-mono font-bold">
-                    {data.jobs.length}
-                  </span>
+                  <Printer className="h-4 w-4 text-purple-600 shrink-0" />
+                  {!isSidebarCollapsed ? (
+                    <>
+                      <span>Press Job Tickets</span>
+                      <span className="ml-auto rounded-full bg-purple-100 text-purple-800 px-1.5 text-[10px] font-mono font-bold">
+                        {data.jobs.length}
+                      </span>
+                    </>
+                  ) : (
+                    data.jobs.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-2 w-2">
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
+                      </span>
+                    )
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('paper')}
-                  className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  title={isSidebarCollapsed ? `Paper Reams Inventory (${data.paperStock.length})` : undefined}
+                  className={`w-full flex items-center rounded-xl transition ${
+                    isSidebarCollapsed ? 'justify-center p-2.5 relative' : 'space-x-2.5 px-3 py-2 text-xs font-semibold'
+                  } ${
                     activeTab === 'paper'
                       ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <Boxes className="h-4 w-4 text-purple-600" />
-                  <span>Paper Reams Inventory</span>
-                  <span className="ml-auto rounded-full bg-slate-100 text-slate-700 px-1.5 text-[10px] font-mono font-bold">
-                    {data.paperStock.length}
-                  </span>
+                  <Boxes className="h-4 w-4 text-purple-600 shrink-0" />
+                  {!isSidebarCollapsed ? (
+                    <>
+                      <span>Paper Reams Inventory</span>
+                      <span className="ml-auto rounded-full bg-slate-100 text-slate-700 px-1.5 text-[10px] font-mono font-bold">
+                        {data.paperStock.length}
+                      </span>
+                    </>
+                  ) : (
+                    data.paperStock.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-2 w-2">
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500" />
+                      </span>
+                    )
+                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('coldcallers')}
-                  className={`w-full flex items-center space-x-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  title={isSidebarCollapsed ? `Coldcallers & CRM (${coldCallersList.length})` : undefined}
+                  className={`w-full flex items-center rounded-xl transition ${
+                    isSidebarCollapsed ? 'justify-center p-2.5 relative' : 'space-x-2.5 px-3 py-2 text-xs font-semibold'
+                  } ${
                     activeTab === 'coldcallers'
                       ? 'bg-purple-50 text-purple-900 border border-purple-200/80 font-bold shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <Users className="h-4 w-4 text-purple-600" />
-                  <span>Coldcallers &amp; CRM</span>
-                  <span className="ml-auto rounded-full bg-amber-100 text-amber-800 px-1.5 text-[10px] font-mono font-bold">
-                    {coldCallersList.length}
-                  </span>
+                  <Users className="h-4 w-4 text-purple-600 shrink-0" />
+                  {!isSidebarCollapsed ? (
+                    <>
+                      <span>Coldcallers &amp; CRM</span>
+                      <span className="ml-auto rounded-full bg-amber-100 text-amber-800 px-1.5 text-[10px] font-mono font-bold">
+                        {coldCallersList.length}
+                      </span>
+                    </>
+                  ) : (
+                    coldCallersList.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-2 w-2">
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                      </span>
+                    )
+                  )}
                 </button>
               </nav>
             </div>
           </div>
         </div>
 
-        <div className="p-3 border-t border-slate-200 bg-slate-50">
-          <div className="flex items-center space-x-2.5 mb-2 px-1">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-xs font-black text-white shrink-0 shadow-2xs">
-              PB
+        <div className="p-2.5 border-t border-slate-200 bg-slate-50">
+          {!isSidebarCollapsed ? (
+            <>
+              <div className="flex items-center space-x-2.5 mb-2 px-1">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-xs font-black text-white shrink-0 shadow-2xs">
+                  PB
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-slate-900 truncate leading-tight">Press Manager</span>
+                  <span className="block text-[10px] text-purple-700 font-semibold truncate leading-tight">{role}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => logoutUser('printbooth')}
+                className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs cursor-pointer"
+              >
+                <LogOut className="h-3 w-3" />
+                <span>Switch Business / Exit</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col items-center space-y-2">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600 text-xs font-black text-white shrink-0 shadow-2xs"
+                title={`Printbooth (${role})`}
+              >
+                PB
+              </div>
+              <button
+                onClick={() => logoutUser('printbooth')}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition shadow-2xs cursor-pointer"
+                title="Switch Business / Exit"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="block text-xs font-bold text-slate-900 truncate leading-tight">Press Manager</span>
-              <span className="block text-[10px] text-purple-700 font-semibold truncate leading-tight">{role}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => logoutUser('printbooth')}
-            className="w-full flex items-center justify-center space-x-1.5 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition shadow-xs cursor-pointer"
-          >
-            <LogOut className="h-3 w-3" />
-            <span>Switch Business / Exit</span>
-          </button>
+          )}
         </div>
       </aside>
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logoutUser } from '@/lib/clientAuth';
+import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 import {
   Building2,
   ShieldCheck,
@@ -21,7 +22,7 @@ interface SuperAdminSidebarProps {
 
 export function SuperAdminSidebar({ activeTab }: SuperAdminSidebarProps) {
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isSidebarCollapsed: isCollapsed, toggleSidebar } = useSidebarCollapse();
 
   const handleSignOut = async () => {
     await logoutUser();
@@ -81,7 +82,7 @@ export function SuperAdminSidebar({ activeTab }: SuperAdminSidebarProps) {
           {/* Collapse Toggle Button */}
           <button
             type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={toggleSidebar}
             className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition shadow-2xs cursor-pointer flex-shrink-0"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >

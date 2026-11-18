@@ -19,6 +19,7 @@ import { gentleHairWigsConfig } from './config';
 import { CrmView } from './CrmView';
 import { DailyReportingView } from './DailyReportingView';
 import { logoutUser } from '@/lib/clientAuth';
+import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 
 const COLD_CALLER_NAV_ITEMS = [
   {
@@ -68,7 +69,7 @@ export function ColdCallerDashboard({
   const currentBranchInfo =
     BRANCH_LIST.find((b) => b.slug === currentBranch) || BRANCH_LIST[0]!;
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { isSidebarCollapsed, setIsSidebarCollapsed } = useSidebarCollapse();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Dynamic Session Identity with Client & Cookie Hydration

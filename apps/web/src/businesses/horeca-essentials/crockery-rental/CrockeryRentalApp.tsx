@@ -36,7 +36,10 @@ import {
   Settings,
   User,
   ArrowLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
+import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 
 export function CrockeryRentalApp() {
   return (
@@ -48,6 +51,7 @@ export function CrockeryRentalApp() {
 
 function MainApp() {
   const { role, setRole, bookings, invoices, generateInvoice } = useInventory();
+  const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Modals state
@@ -96,16 +100,38 @@ function MainApp() {
       {/* Main Workspace Body */}
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 px-4 sm:px-6 py-4 gap-6">
         {/* Left Navigation Sidebar - Stays Dark */}
-        <aside className="w-56 shrink-0 hidden md:block">
+        <aside className={`${isSidebarCollapsed ? 'w-18' : 'w-56'} shrink-0 hidden md:block transition-all duration-200`}>
           <div className="sticky top-14 h-[calc(100vh-4.5rem)] flex flex-col justify-between rounded-2xl bg-slate-900 border border-slate-800 p-2.5 shadow-xl">
             {/* Top Navigation Items */}
             <div className="space-y-1 flex-1 overflow-y-auto pr-0.5">
               {/* Brand Header */}
-              <div className="flex items-center justify-between px-3 py-2 mb-2 border-b border-slate-800/80">
-                <span className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider">
-                  Crockery Rental
-                </span>
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="System Live" />
+              <div className="flex items-center justify-between px-2.5 py-2 mb-2 border-b border-slate-800/80">
+                {!isSidebarCollapsed ? (
+                  <>
+                    <span className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider truncate">
+                      Crockery Rental
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleSidebar}
+                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                      title="Collapse Sidebar"
+                    >
+                      <PanelLeftClose className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="w-full flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={toggleSidebar}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                      title="Click to Expand Sidebar"
+                    >
+                      <PanelLeftOpen className="h-4 w-4 text-amber-400" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {navItems.map((item) => {
@@ -115,22 +141,26 @@ function MainApp() {
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
-                    className={`group relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer overflow-hidden ${
+                    title={isSidebarCollapsed ? item.label : undefined}
+                    className={`group relative w-full flex items-center ${
+                      isSidebarCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
+                    } rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer overflow-hidden ${
                       isActive
                         ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/25 scale-[1.02]'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/90 hover:translate-x-1 hover:shadow-xs active:scale-98'
                     }`}
                   >
-                    {/* Indicator on Active */}
-                    <span
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r transition-all duration-200 ${
-                        isActive
-                          ? 'h-4 bg-white opacity-100'
-                          : 'h-0 bg-amber-400 opacity-0 group-hover:h-3 group-hover:opacity-100'
-                      }`}
-                    />
+                    {!isSidebarCollapsed && (
+                      <span
+                        className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r transition-all duration-200 ${
+                          isActive
+                            ? 'h-4 bg-white opacity-100'
+                            : 'h-0 bg-amber-400 opacity-0 group-hover:h-3 group-hover:opacity-100'
+                        }`}
+                      />
+                    )}
 
-                    <div className="flex items-center gap-2.5 pl-1">
+                    <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-2.5 pl-1'}`}>
                       <Icon
                         className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
                           isActive
@@ -138,10 +168,10 @@ function MainApp() {
                             : 'text-slate-400 group-hover:text-amber-400 group-hover:scale-115'
                         }`}
                       />
-                      <span className="truncate">{item.label}</span>
+                      {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
                     </div>
 
-                    {item.badge && (
+                    {!isSidebarCollapsed && item.badge && (
                       <span className="rounded-full bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 shadow-xs group-hover:scale-110 transition-transform">
                         {item.badge}
                       </span>
@@ -153,34 +183,43 @@ function MainApp() {
 
             {/* Bottom Pinned Active Role Selector */}
             <div className="pt-2 mt-auto border-t border-slate-800/80 space-y-2">
-              <div className="rounded-xl bg-slate-950/80 p-2.5 border border-slate-800/80 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                  <span className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Role Access</span>
-                  </span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {!isSidebarCollapsed ? (
+                <div className="rounded-xl bg-slate-950/80 p-2.5 border border-slate-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Role Access</span>
+                    </span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as UserRole)}
+                    className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                  >
+                    <option value="owner">👑 Owner (All Access)</option>
+                    <option value="manager">💼 Manager</option>
+                    <option value="counter">📞 Counter Staff</option>
+                    <option value="godown">📦 Godown Staff</option>
+                    <option value="accountant">📊 Accountant</option>
+                  </select>
                 </div>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
-                >
-                  <option value="owner">👑 Owner (All Access)</option>
-                  <option value="manager">💼 Manager</option>
-                  <option value="counter">📞 Counter Staff</option>
-                  <option value="godown">📦 Godown Staff</option>
-                  <option value="accountant">📊 Accountant</option>
-                </select>
-              </div>
+              ) : (
+                <div className="flex justify-center" title={`Current Role: ${role}`}>
+                  <div className="h-8 w-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-amber-400">
+                    <User className="h-4 w-4" />
+                  </div>
+                </div>
+              )}
 
               {/* Portal Exit */}
               <button
                 onClick={() => logoutUser('horeca-essentials')}
+                title={isSidebarCollapsed ? 'Exit to Portal' : undefined}
                 className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition cursor-pointer"
               >
                 <ArrowLeft className="h-3 w-3" />
-                <span>Exit to Portal</span>
+                {!isSidebarCollapsed && <span>Exit to Portal</span>}
               </button>
             </div>
           </div>

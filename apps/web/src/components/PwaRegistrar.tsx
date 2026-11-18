@@ -108,3 +108,5 @@ export function PwaRegistrar() {
     </div>
   );
 }
+
+export default PwaRegistrar;

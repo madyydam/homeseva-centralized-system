@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { PwaRegistrar } from '@/components/PwaRegistrar';
 
 export const metadata: Metadata = {
   title: 'HomeSeva — Centralized ERP v1.6',
@@ -41,10 +40,14 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}`,
+          }}
+        />
       </head>
       <body className="min-h-screen bg-[#050609] text-white font-sans antialiased overflow-x-hidden selection:bg-amber-500 selection:text-white">
         {children}
-        <PwaRegistrar />
       </body>
     </html>
   );

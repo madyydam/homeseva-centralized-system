@@ -48,6 +48,7 @@ import {
   GentleHairWigsStudioData,
 } from './types';
 import { logoutUser } from '@/lib/clientAuth';
+import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 const CrmView = dynamic(() => import('./CrmView').then((m) => m.CrmView), {
   loading: () => (
     <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3 bg-white rounded-xl border border-slate-200/80 p-8 shadow-xs">
@@ -225,7 +226,7 @@ export function ManagerDashboard({
   }, [isColdCaller, activeTab]);
 
   // Sidebar collapse toggle state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { isSidebarCollapsed, setIsSidebarCollapsed } = useSidebarCollapse();
 
   // Isolated database state
   const [data, setData] = useState<GentleHairWigsStudioData>(() => gentleHairWigsDb.getStudioData(currentBranch));

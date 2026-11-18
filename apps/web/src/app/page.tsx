@@ -17,6 +17,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground';
+import PwaRegistrar from '../components/PwaRegistrar';
 import { getLastActiveSubcompany } from '@/lib/clientAuth';
 
 interface BusinessItem {
@@ -300,6 +301,7 @@ export default function HomePage() {
       </div>
 
       <div className="relative z-10" />
+      <PwaRegistrar />
     </main>
   );
 }
