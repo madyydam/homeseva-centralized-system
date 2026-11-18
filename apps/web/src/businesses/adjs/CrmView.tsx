@@ -170,10 +170,10 @@ export function CrmView({
           return a.clientName.localeCompare(b.clientName);
         }
         if (sortBy === 'oldest') {
-          return new Date(a.leadDate).getTime() - new Date(b.leadDate).getTime();
+          return (a.leadDate || '').localeCompare(b.leadDate || '');
         }
         // default newest
-        return new Date(b.leadDate).getTime() - new Date(a.leadDate).getTime();
+        return (b.leadDate || '').localeCompare(a.leadDate || '');
       });
   }, [currentMonthLeads, statusFilter, dateFilter, deferredSearchTerm, sortBy]);
 

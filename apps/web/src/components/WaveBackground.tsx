@@ -21,21 +21,21 @@ export default function WaveBackground() {
     // to Deep Charcoal and Obsidian Pitch Black on the Right (matching reference image)
     const NUM_LAYERS = 15;
     const ribbonPalettes = [
-      { start: '#ffffff', end: '#f0f3f6', shadowAlpha: 0.35 },
-      { start: '#f0f3f6', end: '#e2e7ee', shadowAlpha: 0.38 },
-      { start: '#e2e7ee', end: '#d0d8e2', shadowAlpha: 0.40 },
-      { start: '#d0d8e2', end: '#bac5d3', shadowAlpha: 0.44 },
-      { start: '#bac5d3', end: '#9faec0', shadowAlpha: 0.48 },
-      { start: '#9faec0', end: '#8291a5', shadowAlpha: 0.52 },
-      { start: '#8291a5', end: '#657489', shadowAlpha: 0.56 },
-      { start: '#657489', end: '#4a576b', shadowAlpha: 0.60 },
-      { start: '#4a576b', end: '#333e50', shadowAlpha: 0.64 },
-      { start: '#333e50', end: '#222b38', shadowAlpha: 0.68 },
-      { start: '#222b38', end: '#151b24', shadowAlpha: 0.72 },
-      { start: '#151b24', end: '#0c1118', shadowAlpha: 0.76 },
-      { start: '#0c1118', end: '#06090e', shadowAlpha: 0.82 },
-      { start: '#06090e', end: '#030508', shadowAlpha: 0.88 },
-      { start: '#030508', end: '#000000', shadowAlpha: 0.95 },
+      { start: '#ffffff', end: '#f0f3f6', shadowColor: 'rgba(0, 0, 0, 0.35)' },
+      { start: '#f0f3f6', end: '#e2e7ee', shadowColor: 'rgba(0, 0, 0, 0.38)' },
+      { start: '#e2e7ee', end: '#d0d8e2', shadowColor: 'rgba(0, 0, 0, 0.40)' },
+      { start: '#d0d8e2', end: '#bac5d3', shadowColor: 'rgba(0, 0, 0, 0.44)' },
+      { start: '#bac5d3', end: '#9faec0', shadowColor: 'rgba(0, 0, 0, 0.48)' },
+      { start: '#9faec0', end: '#8291a5', shadowColor: 'rgba(0, 0, 0, 0.52)' },
+      { start: '#8291a5', end: '#657489', shadowColor: 'rgba(0, 0, 0, 0.56)' },
+      { start: '#657489', end: '#4a576b', shadowColor: 'rgba(0, 0, 0, 0.60)' },
+      { start: '#4a576b', end: '#333e50', shadowColor: 'rgba(0, 0, 0, 0.64)' },
+      { start: '#333e50', end: '#222b38', shadowColor: 'rgba(0, 0, 0, 0.68)' },
+      { start: '#222b38', end: '#151b24', shadowColor: 'rgba(0, 0, 0, 0.72)' },
+      { start: '#151b24', end: '#0c1118', shadowColor: 'rgba(0, 0, 0, 0.76)' },
+      { start: '#0c1118', end: '#06090e', shadowColor: 'rgba(0, 0, 0, 0.82)' },
+      { start: '#06090e', end: '#030508', shadowColor: 'rgba(0, 0, 0, 0.88)' },
+      { start: '#030508', end: '#000000', shadowColor: 'rgba(0, 0, 0, 0.95)' },
     ];
 
     const step = 10;
@@ -147,7 +147,7 @@ export default function WaveBackground() {
         ctx.fillStyle = grad;
 
         // Realistic 3D drop shadow cast towards the right fold
-        ctx.shadowColor = `rgba(0, 0, 0, ${palette.shadowAlpha})`;
+        ctx.shadowColor = palette.shadowColor;
         ctx.shadowBlur = 20;
         ctx.shadowOffsetX = 10;
         ctx.shadowOffsetY = 3;

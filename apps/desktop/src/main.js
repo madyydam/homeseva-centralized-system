@@ -1,10 +1,19 @@
 delete process.env.ELECTRON_RUN_AS_NODE;
 const electron = require('electron');
-const { app, BrowserWindow, ipcMain, dialog, Menu } = electron;
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
+
+// If invoked via standard Node rather than the Electron binary, re-spawn with Electron executable
+if (typeof electron === 'string' || !electron || !electron.app) {
+  const electronBin = typeof electron === 'string' ? electron : require('electron');
+  const child = spawn(electronBin, [path.join(__dirname, '..')], { stdio: 'inherit' });
+  child.on('close', (code) => process.exit(code || 0));
+  return;
+}
+
+const { app, BrowserWindow, ipcMain, dialog, Menu } = electron;
 
 let log = null;
 try {

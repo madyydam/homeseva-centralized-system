@@ -199,14 +199,14 @@ export class AdjsDatabase {
       const res = await fetch(url);
       const data = await res.json();
       if (data.success && Array.isArray(data.leads)) {
-        if (telecallerId && telecallerId !== 'all') {
-          const otherLeads = this.inMemoryCache.leads.filter((l) => l.telecallerId !== telecallerId);
-          this.inMemoryCache.leads = [...data.leads, ...otherLeads];
-        } else {
-          this.inMemoryCache.leads = data.leads;
+        const nextLeads = telecallerId && telecallerId !== 'all'
+          ? [...data.leads, ...this.inMemoryCache.leads.filter((l) => l.telecallerId !== telecallerId)]
+          : data.leads;
+        if (JSON.stringify(this.inMemoryCache.leads) !== JSON.stringify(nextLeads)) {
+          this.inMemoryCache.leads = nextLeads;
+          this.persistLeads();
+          this.notifySubscribers();
         }
-        this.persistLeads();
-        this.notifySubscribers();
         return this.getCrmLeads(telecallerId);
       }
     } catch (err) {
@@ -278,9 +278,11 @@ export class AdjsDatabase {
       const res = await fetch('/api/printbooth/orders');
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        this.inMemoryCache.orders = data.orders;
-        this.persistOrders();
-        this.notifySubscribers();
+        if (JSON.stringify(this.inMemoryCache.orders) !== JSON.stringify(data.orders)) {
+          this.inMemoryCache.orders = data.orders;
+          this.persistOrders();
+          this.notifySubscribers();
+        }
       }
     } catch (err) {
       console.warn('Failed to sync orders from backend:', err);
@@ -347,9 +349,11 @@ export class AdjsDatabase {
       const res = await fetch('/api/printbooth/tickets');
       const data = await res.json();
       if (data.success && Array.isArray(data.tickets)) {
-        this.inMemoryCache.tickets = data.tickets;
-        this.persistTickets();
-        this.notifySubscribers();
+        if (JSON.stringify(this.inMemoryCache.tickets) !== JSON.stringify(data.tickets)) {
+          this.inMemoryCache.tickets = data.tickets;
+          this.persistTickets();
+          this.notifySubscribers();
+        }
       }
     } catch (err) {
       console.warn('Failed to sync tickets from backend:', err);

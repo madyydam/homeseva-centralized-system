@@ -45,6 +45,8 @@
       background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0) 70%);
       border-radius: 50%;
       animation: pulse-glow 2.5s infinite ease-in-out;
+      will-change: transform, opacity;
+      transform: translateZ(0);
     }
     .logo-box {
       position: relative;
@@ -107,6 +109,8 @@
       border-top-color: #3b82f6;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
+      will-change: transform;
+      transform: translateZ(0);
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -128,8 +132,10 @@
       width: 0%;
       background: linear-gradient(90deg, #2563eb, #38bdf8);
       border-radius: 9999px;
-      transition: width 0.25s ease-out;
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+      will-change: width;
+      transform: translateZ(0);
     }
     .progress-meta {
       display: none;
@@ -160,6 +166,8 @@
       background: linear-gradient(90deg, transparent, #3b82f6, transparent);
       animation: indeterminate 1.4s ease-in-out infinite;
       border-radius: 9999px;
+      will-change: left;
+      transform: translateZ(0);
     }
     @keyframes indeterminate {
       0% { left: -35%; }
@@ -289,7 +297,7 @@
       applyUpdateState({ status: 'checking' });
 
       setTimeout(() => {
-        applyUpdateState({ status: 'available', version: '1.4.0' });
+        applyUpdateState({ status: 'available', version: '1.6.0' });
 
         let pct = 0;
         const interval = setInterval(() => {
@@ -304,7 +312,7 @@
               total: '77.2 MB',
             });
             setTimeout(() => {
-              applyUpdateState({ status: 'downloaded', version: '1.4.0' });
+              applyUpdateState({ status: 'downloaded', version: '1.6.0' });
             }, 600);
           } else {
             const currentMB = ((pct / 100) * 77.2).toFixed(1);

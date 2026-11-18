@@ -63,7 +63,7 @@ export function ColdcallerDashboard({
         if (saved !== null) {
           setIsSidebarCollapsed(saved === 'true');
         }
-      } catch {}
+      } catch { }
     }
   }, []);
 
@@ -73,7 +73,7 @@ export function ColdcallerDashboard({
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('homeseva_sidebar_collapsed', String(next));
-        } catch {}
+        } catch { }
       }
       return next;
     });
@@ -111,7 +111,7 @@ export function ColdcallerDashboard({
             role: prev.role || p.role || 'Coldcaller',
           }));
         }
-      } catch {}
+      } catch { }
 
       // 3. Fetch authoritative session from /api/auth/me (reads secure httpOnly cookie)
       fetch('/api/auth/me')
@@ -126,7 +126,7 @@ export function ColdcallerDashboard({
             });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [memberId, memberName, memberEmail, role]);
 
@@ -173,11 +173,10 @@ export function ColdcallerDashboard({
                   setActiveTab(tab.id);
                   setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-900 border border-blue-200'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
+                className={`w-full flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold transition ${isActive
+                  ? 'bg-blue-50 text-blue-900 border border-blue-200'
+                  : 'text-slate-600 hover:bg-slate-50'
+                  }`}
               >
                 <Icon className="h-4 w-4 text-blue-600" />
                 <span>{tab.label}</span>
@@ -198,9 +197,8 @@ export function ColdcallerDashboard({
 
       {/* Desktop Dedicated Sidebar: Strictly Coldcalling Desk ONLY */}
       <aside
-        className={`hidden md:flex bg-white border-r border-slate-200 flex-col justify-between shrink-0 h-screen sticky top-0 z-30 transition-all duration-200 ${
-          isSidebarCollapsed ? 'w-18' : 'w-64'
-        }`}
+        className={`hidden md:flex bg-white border-r border-slate-200 flex-col justify-between shrink-0 h-screen sticky top-0 z-30 transition-all duration-200 ${isSidebarCollapsed ? 'w-18' : 'w-64'
+          }`}
       >
         <div>
           {/* Header Brand */}
@@ -255,13 +253,11 @@ export function ColdcallerDashboard({
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     title={isSidebarCollapsed ? `${tab.label} — ${tab.sub}` : undefined}
-                    className={`w-full flex items-center rounded-xl transition ${
-                      isSidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2 text-left'
-                    } ${
-                      isActive
+                    className={`w-full flex items-center rounded-xl transition ${isSidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2 text-left'
+                      } ${isActive
                         ? 'bg-blue-50/90 text-blue-900 border border-blue-200 shadow-2xs font-bold'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-blue-700' : 'text-slate-400'}`} />
                     {!isSidebarCollapsed && (
@@ -331,59 +327,59 @@ export function ColdcallerDashboard({
 
       {/* Main Calling Workspace Canvas */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50">
-        {/* Top Header Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
-          <div>
-            <span className="text-sm font-extrabold text-slate-900">
-              ADJS · PRINTBOOTH™
-            </span>
-          </div>
-        </header>
+    {/* Top Header Bar */}
+    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
+      <div>
+        <span className="text-sm font-extrabold text-slate-900">
+          ADJS · PRINTBOOTH™
+        </span>
+      </div>
+    </header>
 
-        {/* Body Canvas */}
-        <div className="p-6 max-w-7xl">
-          {activeTab === 'sheet' && (
-            <CrmView
-              telecallerId={profile.id || memberId}
-              telecallerName={profile.name || memberName}
-              telecallerEmail={profile.email || memberEmail}
-              initialViewMode="month-sheet"
-              initialStatusFilter="all"
-            />
-          )}
+    {/* Body Canvas */}
+    <div className="p-6 max-w-7xl">
+      {activeTab === 'sheet' && (
+        <CrmView
+          telecallerId={profile.id || memberId}
+          telecallerName={profile.name || memberName}
+          telecallerEmail={profile.email || memberEmail}
+          initialViewMode="month-sheet"
+          initialStatusFilter="all"
+        />
+      )}
 
-          {activeTab === 'annual' && (
-            <CrmView
-              telecallerId={profile.id || memberId}
-              telecallerName={profile.name || memberName}
-              telecallerEmail={profile.email || memberEmail}
-              initialViewMode="month-selector"
-              initialStatusFilter="all"
-            />
-          )}
+      {activeTab === 'annual' && (
+        <CrmView
+          telecallerId={profile.id || memberId}
+          telecallerName={profile.name || memberName}
+          telecallerEmail={profile.email || memberEmail}
+          initialViewMode="month-selector"
+          initialStatusFilter="all"
+        />
+      )}
 
-          {activeTab === 'follow-up' && (
-            <CrmView
-              telecallerId={profile.id || memberId}
-              telecallerName={profile.name || memberName}
-              telecallerEmail={profile.email || memberEmail}
-              initialViewMode="month-sheet"
-              initialStatusFilter="followup"
-            />
-          )}
+      {activeTab === 'follow-up' && (
+        <CrmView
+          telecallerId={profile.id || memberId}
+          telecallerName={profile.name || memberName}
+          telecallerEmail={profile.email || memberEmail}
+          initialViewMode="month-sheet"
+          initialStatusFilter="followup"
+        />
+      )}
 
-          {activeTab === 'converted' && (
-            <CrmView
-              telecallerId={profile.id || memberId}
-              telecallerName={profile.name || memberName}
-              telecallerEmail={profile.email || memberEmail}
-              initialViewMode="month-sheet"
-              initialStatusFilter="converted"
-            />
-          )}
-        </div>
-      </main>
+      {activeTab === 'converted' && (
+        <CrmView
+          telecallerId={profile.id || memberId}
+          telecallerName={profile.name || memberName}
+          telecallerEmail={profile.email || memberEmail}
+          initialViewMode="month-sheet"
+          initialStatusFilter="converted"
+        />
+      )}
     </div>
+  </main>
+    </div >
   );
 }
 
