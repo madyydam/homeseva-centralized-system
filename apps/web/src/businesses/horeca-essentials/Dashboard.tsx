@@ -27,17 +27,11 @@ import {
   HorecaStockItem,
   HorecaEssentialsData,
 } from './types';
-import CrockeryRentalApp from './crockery-rental/CrockeryRentalApp';
-import { logoutUser } from '@/lib/clientAuth';
-
-export default function HorecaEssentialsDashboard({
+import { logoutUser } from '@/lib/clientAuth';export default function HorecaEssentialsDashboard({
   division = 'essentials-sales',
   role = 'Wholesale Sales Executive',
 }: BusinessDashboardProps) {
   const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
-  const [activeDivision, setActiveDivision] = useState<'essentials-sales' | 'crockery-rental'>(
-    division === 'crockery-rental' ? 'crockery-rental' : 'essentials-sales'
-  );
 
   const [activeTab, setActiveTab] = useState<'overview' | 'sales' | 'rentals' | 'stock'>('overview');
   const [data, setData] = useState<HorecaEssentialsData>({
@@ -138,7 +132,7 @@ export default function HorecaEssentialsDashboard({
       id: `STK-${String(data.stockItems.length + 1).padStart(3, '0')}`,
       sku: stockSku || `SKU-${Date.now().toString().slice(-4)}`,
       name: stockName.trim(),
-      division: activeDivision,
+      division: 'essentials-sales',
       totalUnits: Number(stockQty) || 0,
       availableUnits: Number(stockQty) || 0,
       ratePerUnit: Number(stockRate) || 0,
@@ -149,10 +143,6 @@ export default function HorecaEssentialsDashboard({
     setShowStockModal(false);
     setStockName('');
   };
-
-  if (activeDivision === 'crockery-rental') {
-    return <CrockeryRentalApp />;
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-900 font-sans selection:bg-emerald-600 selection:text-white">
@@ -201,40 +191,6 @@ export default function HorecaEssentialsDashboard({
           </div>
 
           <div className="p-2.5 space-y-4">
-            {/* Division Switcher Pill */}
-            {!isSidebarCollapsed ? (
-              <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-bold">
-                <button
-                  onClick={() => setActiveDivision('essentials-sales')}
-                  className="flex-1 py-1.5 rounded-lg transition text-center bg-white text-emerald-900 shadow-2xs font-extrabold"
-                >
-                  Sales
-                </button>
-                <button
-                  onClick={() => setActiveDivision('crockery-rental')}
-                  className="flex-1 py-1.5 rounded-lg transition text-center text-slate-600 hover:text-slate-900 cursor-pointer"
-                >
-                  Crockery Rental
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => setActiveDivision('essentials-sales')}
-                  title="Sales Division"
-                  className="w-full py-1 text-[10px] font-bold rounded-lg bg-emerald-100 text-emerald-800 text-center"
-                >
-                  Sales
-                </button>
-                <button
-                  onClick={() => setActiveDivision('crockery-rental')}
-                  title="Crockery Rental Division"
-                  className="w-full py-1 text-[10px] font-bold rounded-lg text-slate-600 hover:bg-slate-100 text-center"
-                >
-                  Rental
-                </button>
-              </div>
-            )}
 
             <div>
               {!isSidebarCollapsed && (

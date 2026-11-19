@@ -1,6 +1,7 @@
 import { BusinessModule } from './types';
 import { prefabConstructionModule } from './prefab-construction';
 import { horecaEssentialsModule } from './horeca-essentials';
+import { crockeryRentalModule } from './horeca-essentials/crockery-rental';
 import { gentleHairWigsModule } from './gentle-hair-wigs';
 import { ecolabDistributionModule } from './ecolab-distribution';
 import { hsCoworkingModule } from './hs-coworking';
@@ -31,7 +32,7 @@ export const BUSINESS_MODULES: Record<string, BusinessModule> = {
 
   // Backward compatibility alias slugs if needed
   'business-1': prefabConstructionModule,
-  'crockery-rental': horecaEssentialsModule,
+  'crockery-rental': crockeryRentalModule,
   'business-2': gentleHairWigsModule,
   'business-4': ecolabDistributionModule,
 };

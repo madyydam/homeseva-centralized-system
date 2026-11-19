@@ -99,8 +99,10 @@ const syncToPostgres = (action: string, payload: any) => {
   });
 };
 
-export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: UserRole }> = ({ children, initialRole }) => {
   const [role, setRoleState] = useState<UserRole>(() => {
+    // Props take priority (set from login/session), then localStorage, then default
+    if (initialRole) return initialRole;
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(STORAGE_KEYS.ROLE);

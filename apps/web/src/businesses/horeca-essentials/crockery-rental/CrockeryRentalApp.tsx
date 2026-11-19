@@ -22,6 +22,7 @@ import { PaymentModal } from './components/PaymentModal';
 import { NewBookingModal } from './components/NewBookingModal';
 
 import { Booking, Invoice, UserRole } from './types';
+import { BusinessDashboardProps } from '../../types';
 import { logoutUser } from '@/lib/clientAuth';
 import {
   LayoutDashboard,
@@ -38,19 +39,20 @@ import {
   ArrowLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
 } from 'lucide-react';
 import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 
-export function CrockeryRentalApp() {
+export function CrockeryRentalApp({ role: propRole }: BusinessDashboardProps = {}) {
   return (
-    <InventoryProvider>
+    <InventoryProvider initialRole={(propRole as UserRole) ?? 'owner'}>
       <MainApp />
     </InventoryProvider>
   );
 }
 
 function MainApp() {
-  const { role, setRole, bookings, invoices, generateInvoice } = useInventory();
+  const { role, bookings, invoices, generateInvoice } = useInventory();
   const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
@@ -181,40 +183,32 @@ function MainApp() {
               })}
             </div>
 
-            {/* Bottom Pinned Active Role Selector */}
+            {/* Bottom Pinned Active Role Display (read-only — set from login) */}
             <div className="pt-2 mt-auto border-t border-slate-800/80 space-y-2">
               {!isSidebarCollapsed ? (
                 <div className="rounded-xl bg-slate-950/80 p-2.5 border border-slate-800/80 space-y-1.5">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-amber-500" />
-                      <span>Role Access</span>
+                      <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Signed In As</span>
                     </span>
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                    className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
-                  >
-                    <option value="owner">👑 Owner (All Access)</option>
-                    <option value="manager">💼 Manager</option>
-                    <option value="counter">📞 Counter Staff</option>
-                    <option value="godown">📦 Godown Staff</option>
-                    <option value="accountant">📊 Accountant</option>
-                  </select>
+                  <div className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-xs font-bold text-amber-400 capitalize">
+                    {role === 'owner' ? '👑 Owner' : role === 'manager' ? '💼 Manager' : role === 'counter' ? '📞 Counter Staff' : role === 'godown' ? '📦 Godown Staff' : role === 'accountant' ? '📊 Accountant' : `${role}`}
+                  </div>
                 </div>
               ) : (
-                <div className="flex justify-center" title={`Current Role: ${role}`}>
+                <div className="flex justify-center" title={`Role: ${role}`}>
                   <div className="h-8 w-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center text-amber-400">
-                    <User className="h-4 w-4" />
+                    <ShieldCheck className="h-4 w-4" />
                   </div>
                 </div>
               )}
 
               {/* Portal Exit */}
               <button
-                onClick={() => logoutUser('horeca-essentials')}
+                onClick={() => logoutUser('crockery-rental')}
                 title={isSidebarCollapsed ? 'Exit to Portal' : undefined}
                 className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition cursor-pointer"
               >
