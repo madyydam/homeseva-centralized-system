@@ -69,6 +69,11 @@ export async function GET(req: NextRequest) {
         printboothLeads,
         printboothOrders,
         printboothTickets,
+        crockeryItems,
+        crockeryCustomers,
+        crockeryBookings,
+        crockeryInvoices,
+        crockeryPayments,
       ] = await Promise.all([
         (prisma as any).businessRole?.findMany({ where: { businessId: business.id } }).catch(() => []),
         (prisma as any).roleMember?.findMany({ where: { businessId: business.id } }).catch(() => []),
@@ -80,6 +85,11 @@ export async function GET(req: NextRequest) {
         (business.slug === 'adjs' || business.slug === 'printbooth') ? prisma.printboothLead.findMany({ where: { businessId: business.id } }).catch(() => []) : [],
         (business.slug === 'adjs' || business.slug === 'printbooth') ? (prisma as any).printboothMachineOrder?.findMany({ where: { businessId: business.id } }).catch(() => []) : [],
         (business.slug === 'adjs' || business.slug === 'printbooth') ? (prisma as any).printboothSupportTicket?.findMany({ where: { businessId: business.id } }).catch(() => []) : [],
+        (business.slug === 'horeca-essentials' || business.slug === 'crockery-rental') ? prisma.crockeryItem.findMany({ where: { businessId: 'horeca-essentials' } }).catch(() => []) : [],
+        (business.slug === 'horeca-essentials' || business.slug === 'crockery-rental') ? prisma.crockeryCustomer.findMany({ where: { businessId: 'horeca-essentials' } }).catch(() => []) : [],
+        (business.slug === 'horeca-essentials' || business.slug === 'crockery-rental') ? prisma.crockeryBooking.findMany({ where: { businessId: 'horeca-essentials' }, include: { items: true } }).catch(() => []) : [],
+        (business.slug === 'horeca-essentials' || business.slug === 'crockery-rental') ? prisma.crockeryInvoice.findMany({ where: { businessId: 'horeca-essentials' }, include: { lines: true } }).catch(() => []) : [],
+        (business.slug === 'horeca-essentials' || business.slug === 'crockery-rental') ? prisma.crockeryPayment.findMany({ where: { businessId: 'horeca-essentials' } }).catch(() => []) : [],
       ]);
 
       const snapshot = {
@@ -103,6 +113,11 @@ export async function GET(req: NextRequest) {
           printboothLeads,
           printboothOrders,
           printboothTickets,
+          crockeryItems,
+          crockeryCustomers,
+          crockeryBookings,
+          crockeryInvoices,
+          crockeryPayments,
         },
       };
 
@@ -142,6 +157,13 @@ export async function GET(req: NextRequest) {
               },
             }).catch(() => 0);
             recordCount += count;
+          } else if (b.slug === 'horeca-essentials' || b.slug === 'crockery-rental') {
+            const [itemCount, bookingCount, invoiceCount] = await Promise.all([
+              prisma.crockeryItem.count({ where: { businessId: 'horeca-essentials' } }).catch(() => 0),
+              prisma.crockeryBooking.count({ where: { businessId: 'horeca-essentials' } }).catch(() => 0),
+              prisma.crockeryInvoice.count({ where: { businessId: 'horeca-essentials' } }).catch(() => 0),
+            ]);
+            recordCount += itemCount + bookingCount + invoiceCount;
           }
         } catch {
           // Ignore

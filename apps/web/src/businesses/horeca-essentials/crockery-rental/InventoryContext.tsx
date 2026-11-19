@@ -74,86 +74,193 @@ interface InventoryContextType {
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
+// v2 storage keys ensure any legacy mock data in browser localStorage is discarded
 const STORAGE_KEYS = {
-  ROLE: 'crockery_role_v1',
-  PROFILE: 'crockery_profile_v1',
-  ITEMS: 'crockery_items_v1',
-  CUSTOMERS: 'crockery_customers_v1',
-  BOOKINGS: 'crockery_bookings_v1',
-  LEDGER: 'crockery_ledger_v1',
-  INVOICES: 'crockery_invoices_v1',
-  PAYMENTS: 'crockery_payments_v1',
-  PACKAGES: 'crockery_packages_v1',
+  ROLE: 'crockery_role_v2',
+  PROFILE: 'crockery_profile_v2',
+  ITEMS: 'crockery_items_v2',
+  CUSTOMERS: 'crockery_customers_v2',
+  BOOKINGS: 'crockery_bookings_v2',
+  LEDGER: 'crockery_ledger_v2',
+  INVOICES: 'crockery_invoices_v2',
+  PAYMENTS: 'crockery_payments_v2',
+  PACKAGES: 'crockery_packages_v2',
+};
+
+// Asynchronous helper to sync changes with PostgreSQL backend
+const syncToPostgres = (action: string, payload: any) => {
+  if (typeof window === 'undefined') return;
+  fetch('/api/crockery-rental/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, payload }),
+  }).catch((err) => {
+    console.error(`[PostgreSQL Sync Error] Action ${action}:`, err);
+  });
 };
 
 export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [role, setRoleState] = useState<UserRole>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ROLE);
-      if (saved) return saved as UserRole;
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.ROLE);
+        if (saved) return saved as UserRole;
+      } catch (_) {}
+    }
     return 'owner';
   });
 
   const [profile, setProfileState] = useState<BusinessProfile>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialBusinessProfile;
   });
 
   const [items, setItemsState] = useState<Item[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ITEMS);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.ITEMS);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialItems;
   });
 
   const [customers, setCustomersState] = useState<Customer[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialCustomers;
   });
 
   const [bookings, setBookingsState] = useState<Booking[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.BOOKINGS);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.BOOKINGS);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialBookings;
   });
 
   const [ledger, setLedgerState] = useState<StockMovement[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LEDGER);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.LEDGER);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialLedger;
   });
 
   const [invoices, setInvoicesState] = useState<Invoice[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.INVOICES);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.INVOICES);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialInvoices;
   });
 
   const [payments, setPaymentsState] = useState<Payment[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
     return initialPayments;
   });
 
-  const [packages] = useState<PackageCombo[]>(initialPackages);
+  const [packages, setPackagesState] = useState<PackageCombo[]>(initialPackages);
 
-  // Sync state changes to localStorage
+  // Authoritative PostgreSQL initial synchronization
+  useEffect(() => {
+    // 1. Wipe legacy mock localStorage entries from v1
+    if (typeof window !== 'undefined') {
+      try {
+        const legacyKeys = [
+          'crockery_role_v1',
+          'crockery_profile_v1',
+          'crockery_items_v1',
+          'crockery_customers_v1',
+          'crockery_bookings_v1',
+          'crockery_ledger_v1',
+          'crockery_invoices_v1',
+          'crockery_payments_v1',
+          'crockery_packages_v1',
+        ];
+        legacyKeys.forEach((k) => localStorage.removeItem(k));
+      } catch (_) {}
+    }
+
+    // 2. Fetch live data from PostgreSQL
+    fetch('/api/crockery-rental/sync')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (res && res.success && res.data) {
+          const d = res.data;
+          if (Array.isArray(d.items)) {
+            setItemsState(d.items);
+            try {
+              localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(d.items));
+            } catch (_) {}
+          }
+          if (Array.isArray(d.customers)) {
+            setCustomersState(d.customers);
+            try {
+              localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(d.customers));
+            } catch (_) {}
+          }
+          if (Array.isArray(d.bookings)) {
+            setBookingsState(d.bookings);
+            try {
+              localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(d.bookings));
+            } catch (_) {}
+          }
+          if (Array.isArray(d.ledger)) {
+            setLedgerState(d.ledger);
+            try {
+              localStorage.setItem(STORAGE_KEYS.LEDGER, JSON.stringify(d.ledger));
+            } catch (_) {}
+          }
+          if (Array.isArray(d.invoices)) {
+            setInvoicesState(d.invoices);
+            try {
+              localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(d.invoices));
+            } catch (_) {}
+          }
+          if (Array.isArray(d.payments)) {
+            setPaymentsState(d.payments);
+            try {
+              localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(d.payments));
+            } catch (_) {}
+          }
+          if (Array.isArray(d.packages) && d.packages.length > 0) {
+            setPackagesState(d.packages);
+          }
+          if (d.profile) {
+            setProfileState(d.profile);
+            try {
+              localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(d.profile));
+            } catch (_) {}
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not connect to PostgreSQL backend API, running with local state:', err);
+      });
+  }, []);
+
+  // Sync state changes to localStorage and PostgreSQL
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
     try {
@@ -167,6 +274,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       try {
         localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
       } catch (_) {}
+      syncToPostgres('update_profile', next);
       return next;
     });
   };
@@ -213,9 +321,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (_) {}
   };
 
-  // Availability calculation:
-  // Reserved(item, range) = sum of quantities in bookings with status Confirmed, Dispatched, or Overdue
-  // whose [delivery_date, return_date + return_buffer_days] overlaps the range
+  // Availability calculation
   const getAvailableStock = useCallback(
     (
       itemId: string,
@@ -270,6 +376,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const nextBookings = [newBooking, ...bookings];
     saveBookings(nextBookings);
+    syncToPostgres('upsert_booking', newBooking);
 
     // If advance paid > 0, record payment
     if (newBooking.advance_paid > 0) {
@@ -294,6 +401,10 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
   const updateBooking = (id: string, updates: Partial<Booking>) => {
     const nextBookings = bookings.map((b) => (b.id === id ? { ...b, ...updates } : b));
     saveBookings(nextBookings);
+    const updated = nextBookings.find((b) => b.id === id);
+    if (updated) {
+      syncToPostgres('upsert_booking', updated);
+    }
   };
 
   // Dispatch booking: moves stock In godown -> Out on rent
@@ -314,7 +425,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     const nextItems = items.map((item) => {
       const match = dispatches.find((d) => d.itemId === item.id);
       if (match && match.quantity > 0) {
-        newLedgerEntries.push({
+        const movement: StockMovement = {
           id: `mov-${Date.now()}-${item.id}`,
           item_id: item.id,
           item_name: item.name,
@@ -327,15 +438,19 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
           user: `${role.toUpperCase()} (${driverName || 'Godown'})`,
           reason: `Dispatched to ${targetBooking.customer_name} via ${vehicleDetails}`,
           created_at: nowIso,
-        });
+        };
+        newLedgerEntries.push(movement);
+        syncToPostgres('add_stock_movement', movement);
 
         const newGodown = Math.max(0, item.in_godown - match.quantity);
         const newRented = item.out_on_rent + match.quantity;
-        return {
+        const updatedItem = {
           ...item,
           in_godown: newGodown,
           out_on_rent: newRented,
         };
+        syncToPostgres('upsert_item', updatedItem);
+        return updatedItem;
       }
       return item;
     });
@@ -352,14 +467,17 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       };
     });
 
-    updateBooking(bookingId, {
+    const updatedBooking: Booking = {
+      ...targetBooking,
       status: 'Dispatched',
       items: updatedItems,
       dispatched_at: nowIso,
       dispatched_by: driverName || 'Godown Incharge',
       vehicle_details: vehicleDetails,
       signature_dispatch: signature,
-    });
+    };
+
+    updateBooking(bookingId, updatedBooking);
   };
 
   // Return booking: counts good, broken, missing
@@ -389,8 +507,6 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       const missing = Math.max(0, dispatched - good - broken);
       const damageGrade = ret?.damageGrade || (broken > 0 ? 'broken' : 'none');
 
-      // Damage cost calculation
-      // Broken: 100% replacement cost; Chipped: 50% replacement cost; Missing: 100% replacement cost
       const unitCost = bi.replacement_cost_snapshot;
       const brokenMultiplier = damageGrade === 'chipped' ? 0.5 : 1.0;
       const itemDamageCost = broken * (unitCost * brokenMultiplier) + missing * unitCost;
@@ -416,10 +532,9 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       const broken = ret.returnedBroken;
       const missing = Math.max(0, dispatched - good - broken);
 
-      // Ledger: Good -> Cleaning (or Godown if cleaning disabled)
       const targetBucket = profile.cleaning_stage_enabled ? 'In cleaning' : 'In godown';
       if (good > 0) {
-        newLedgerEntries.push({
+        const mGood: StockMovement = {
           id: `mov-${Date.now()}-${item.id}-good`,
           item_id: item.id,
           item_name: item.name,
@@ -432,12 +547,13 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
           user: role.toUpperCase(),
           reason: `Returned good pieces from ${targetBooking.customer_name}`,
           created_at: nowIso,
-        });
+        };
+        newLedgerEntries.push(mGood);
+        syncToPostgres('add_stock_movement', mGood);
       }
 
-      // Ledger: Broken -> Written off
       if (broken > 0) {
-        newLedgerEntries.push({
+        const mBroken: StockMovement = {
           id: `mov-${Date.now()}-${item.id}-broken`,
           item_id: item.id,
           item_name: item.name,
@@ -450,12 +566,13 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
           user: role.toUpperCase(),
           reason: `Damage (${ret.damageGrade || 'broken'}) returned from ${targetBooking.customer_name}`,
           created_at: nowIso,
-        });
+        };
+        newLedgerEntries.push(mBroken);
+        syncToPostgres('add_stock_movement', mBroken);
       }
 
-      // Ledger: Missing -> Written off
       if (missing > 0) {
-        newLedgerEntries.push({
+        const mMissing: StockMovement = {
           id: `mov-${Date.now()}-${item.id}-missing`,
           item_id: item.id,
           item_name: item.name,
@@ -468,7 +585,9 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
           user: role.toUpperCase(),
           reason: `Missing pieces on return from ${targetBooking.customer_name}`,
           created_at: nowIso,
-        });
+        };
+        newLedgerEntries.push(mMissing);
+        syncToPostgres('add_stock_movement', mMissing);
       }
 
       const newOutOnRent = Math.max(0, item.out_on_rent - dispatched);
@@ -477,7 +596,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       const newWrittenOff = item.written_off + broken + missing;
       const newTotal = item.total_quantity - (broken + missing);
 
-      return {
+      const updatedItem = {
         ...item,
         out_on_rent: newOutOnRent,
         in_cleaning: newInCleaning,
@@ -485,12 +604,13 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
         written_off: newWrittenOff,
         total_quantity: Math.max(0, newTotal),
       };
+      syncToPostgres('upsert_item', updatedItem);
+      return updatedItem;
     });
 
     saveItems(nextItems);
     saveLedger([...newLedgerEntries, ...ledger]);
 
-    // Check if late return: calculate late fee
     let lateFee = 0;
     const expectedReturnMs = new Date(targetBooking.expected_return_date).getTime();
     const actualReturnMs = new Date(nowIso.split('T')[0] ?? '').getTime();
@@ -520,7 +640,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     return generateInvoice(bookingId, 18, 0, targetBooking.discount);
   };
 
-  // Generate sequential FY invoice (e.g. 26-27/0086)
+  // Generate sequential FY invoice
   const generateInvoice = (
     bookingId: string,
     taxRate: number = 18,
@@ -530,7 +650,6 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     const booking = bookings.find((b) => b.id === bookingId);
     if (!booking) throw new Error('Booking not found');
 
-    // Calculate rental days
     const delDate = new Date(booking.delivery_date);
     const retDate = new Date(booking.actual_return_date || booking.expected_return_date);
     const diffDays = Math.max(1, Math.round((retDate.getTime() - delDate.getTime()) / 86400000) + 1);
@@ -646,6 +765,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     saveInvoices([newInvoice, ...invoices]);
+    syncToPostgres('upsert_invoice', newInvoice);
     return newInvoice;
   };
 
@@ -658,6 +778,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     const nextPayments = [newPayment, ...payments];
     savePayments(nextPayments);
+    syncToPostgres('record_payment', newPayment);
 
     // Update booking advance_paid or balance
     if (newPayment.direction === 'received') {
@@ -676,6 +797,10 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
           i.id === inv.id ? { ...i, balance_due: nextBalance, status: (nextBalance === 0 ? 'paid' : 'final') as 'paid' | 'final' } : i
         );
         saveInvoices(nextInvoices);
+        const updatedInvoice = nextInvoices.find((i) => i.id === inv.id);
+        if (updatedInvoice) {
+          syncToPostgres('upsert_invoice', updatedInvoice);
+        }
       }
     }
   };
@@ -692,27 +817,29 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     saveItems([...items, newItem]);
+    syncToPostgres('upsert_item', newItem);
 
     // Ledger opening entry
-    saveLedger([
-      {
-        id: `mov-${Date.now()}`,
-        item_id: newItem.id,
-        item_name: newItem.name,
-        type: 'PURCHASE',
-        quantity: newItem.total_quantity,
-        bucket_to: 'In godown',
-        user: role.toUpperCase(),
-        reason: 'New stock added to inventory master',
-        created_at: new Date().toISOString(),
-      },
-      ...ledger,
-    ]);
+    const movement: StockMovement = {
+      id: `mov-${Date.now()}`,
+      item_id: newItem.id,
+      item_name: newItem.name,
+      type: 'PURCHASE',
+      quantity: newItem.total_quantity,
+      bucket_to: 'In godown',
+      user: role.toUpperCase(),
+      reason: 'New stock added to inventory master',
+      created_at: new Date().toISOString(),
+    };
+
+    saveLedger([movement, ...ledger]);
+    syncToPostgres('add_stock_movement', movement);
   };
 
   const updateItem = (item: Item) => {
     const nextItems = items.map((i) => (i.id === item.id ? item : i));
     saveItems(nextItems);
+    syncToPostgres('upsert_item', item);
   };
 
   // Stock Adjustment (Audit / Correction)
@@ -732,7 +859,6 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       nextGodown += quantity;
       nextTotal += quantity;
     } else if (type === 'ADJUSTMENT') {
-      // Adjustment can be negative or positive
       nextGodown = Math.max(0, nextGodown + quantity);
       nextTotal = Math.max(0, nextTotal + quantity);
     }
@@ -741,21 +867,25 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       i.id === itemId ? { ...i, in_godown: nextGodown, total_quantity: nextTotal } : i
     );
     saveItems(nextItems);
+    const updated = nextItems.find((i) => i.id === itemId);
+    if (updated) {
+      syncToPostgres('upsert_item', updated);
+    }
 
-    saveLedger([
-      {
-        id: `mov-${Date.now()}`,
-        item_id: item.id,
-        item_name: item.name,
-        type,
-        quantity: Math.abs(quantity),
-        bucket_to: 'In godown',
-        user: role.toUpperCase(),
-        reason,
-        created_at: new Date().toISOString(),
-      },
-      ...ledger,
-    ]);
+    const movement: StockMovement = {
+      id: `mov-${Date.now()}`,
+      item_id: item.id,
+      item_name: item.name,
+      type,
+      quantity: Math.abs(quantity),
+      bucket_to: 'In godown',
+      user: role.toUpperCase(),
+      reason,
+      created_at: new Date().toISOString(),
+    };
+
+    saveLedger([movement, ...ledger]);
+    syncToPostgres('add_stock_movement', movement);
   };
 
   // Wash done: moves from In Cleaning to In Godown
@@ -774,22 +904,26 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
         : i
     );
     saveItems(nextItems);
+    const updated = nextItems.find((i) => i.id === itemId);
+    if (updated) {
+      syncToPostgres('upsert_item', updated);
+    }
 
-    saveLedger([
-      {
-        id: `mov-${Date.now()}`,
-        item_id: item.id,
-        item_name: item.name,
-        type: 'WASH_DONE',
-        quantity: actualQty,
-        bucket_from: 'In cleaning',
-        bucket_to: 'In godown',
-        user: role.toUpperCase(),
-        reason: 'Cleaned, sanitized and restacked in warehouse',
-        created_at: new Date().toISOString(),
-      },
-      ...ledger,
-    ]);
+    const movement: StockMovement = {
+      id: `mov-${Date.now()}`,
+      item_id: item.id,
+      item_name: item.name,
+      type: 'WASH_DONE',
+      quantity: actualQty,
+      bucket_from: 'In cleaning',
+      bucket_to: 'In godown',
+      user: role.toUpperCase(),
+      reason: 'Cleaned, sanitized and restacked in warehouse',
+      created_at: new Date().toISOString(),
+    };
+
+    saveLedger([movement, ...ledger]);
+    syncToPostgres('add_stock_movement', movement);
   };
 
   // Add Customer
@@ -800,6 +934,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     };
     saveCustomers([newCustomer, ...customers]);
+    syncToPostgres('upsert_customer', newCustomer);
     return newCustomer;
   };
 
@@ -813,9 +948,11 @@ export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children 
     setInvoicesState(initialInvoices);
     setPaymentsState(initialPayments);
 
-    try {
-      localStorage.clear();
-    } catch (_) {}
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.clear();
+      } catch (_) {}
+    }
   };
 
   const contextValue = useMemo<InventoryContextType>(

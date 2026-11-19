@@ -692,3 +692,255 @@ model PrintboothSupportTicket {
   @@map("printbooth_support_tickets")
 }
 
+// ─── HoReCa Essentials: Crockery & Catering Rentals ──────────────────────────
+
+model CrockeryItem {
+  id                 String   @id @default(uuid())
+  businessId         String   @default("horeca-essentials") @map("business_id")
+  name               String
+  category           String   // 'plates' | 'bowls' | 'glassware' | 'cups' | 'cutlery' | 'serving' | 'other'
+  packSize           Int      @default(1) @map("pack_size")
+  rentPerDay         Decimal  @default(0) @db.Decimal(10, 2) @map("rent_per_day")
+  rentBasis          String   @default("per_day") @map("rent_basis") // 'per_day' | 'per_event'
+  replacementCost    Decimal  @default(0) @db.Decimal(10, 2) @map("replacement_cost")
+  totalQuantity      Int      @default(0) @map("total_quantity") // Owned pieces
+  inGodown           Int      @default(0) @map("in_godown")
+  outOnRent          Int      @default(0) @map("out_on_rent")
+  inCleaning         Int      @default(0) @map("in_cleaning")
+  writtenOff         Int      @default(0) @map("written_off")
+  active             Boolean  @default(true)
+  image              String?
+  lowStockThreshold  Int?     @default(50) @map("low_stock_threshold")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  bookingItems       CrockeryBookingItem[]
+  stockMovements     CrockeryStockMovement[]
+
+  @@index([businessId])
+  @@index([category])
+  @@map("crockery_items")
+}
+
+model CrockeryCustomer {
+  id         String   @id @default(uuid())
+  businessId String   @default("horeca-essentials") @map("business_id")
+  name       String
+  phone      String
+  altPhone   String?  @map("alt_phone")
+  address    String
+  gstin      String?
+  tag        String   @default("regular") // 'regular' | 'caterer' | 'blacklisted' | 'vip'
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  bookings   CrockeryBooking[]
+
+  @@index([businessId])
+  @@index([phone])
+  @@map("crockery_customers")
+}
+
+model CrockeryBooking {
+  id                  String    @id @default(uuid())
+  businessId          String    @default("horeca-essentials") @map("business_id")
+  bookingNumber       String    @unique @map("booking_number")
+  customerId          String?   @map("customer_id")
+  customer            CrockeryCustomer? @relation(fields: [customerId], references: [id])
+  customerName        String    @map("customer_name")
+  customerPhone       String    @map("customer_phone")
+  customerAddress     String    @map("customer_address")
+  eventType           String    @default("Wedding") @map("event_type")
+  eventDate           String    @map("event_date")
+  deliveryDate        String    @map("delivery_date")
+  expectedReturnDate  String    @map("expected_return_date")
+  actualReturnDate    String?   @map("actual_return_date")
+  venueName           String    @map("venue_name")
+  venueAddress        String    @map("venue_address")
+  contactPerson       String?   @map("contact_person")
+  status              String    @default("Quotation") // 'Enquiry' | 'Quotation' | 'Confirmed' | 'Dispatched' | 'Returned' | 'Closed' | 'Cancelled' | 'Overdue'
+  transportCharge     Decimal   @default(0) @db.Decimal(12, 2) @map("transport_charge")
+  discount            Decimal   @default(0) @db.Decimal(12, 2) @map("discount")
+  advancePaid         Decimal   @default(0) @db.Decimal(12, 2) @map("advance_paid")
+  securityDeposit     Decimal   @default(0) @db.Decimal(12, 2) @map("security_deposit")
+  damageCharge        Decimal   @default(0) @db.Decimal(12, 2) @map("damage_charge")
+  lateFee             Decimal   @default(0) @db.Decimal(12, 2) @map("late_fee")
+  notes               String?
+  dispatchedAt        DateTime? @map("dispatched_at")
+  returnedAt          DateTime? @map("returned_at")
+  dispatchedBy        String?   @map("dispatched_by")
+  vehicleDetails      String?   @map("vehicle_details")
+  signatureDispatch   String?   @map("signature_dispatch")
+  signatureReturn     String?   @map("signature_return")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  items               CrockeryBookingItem[]
+  invoices            CrockeryInvoice[]
+  payments            CrockeryPayment[]
+
+  @@index([businessId])
+  @@index([status])
+  @@index([customerPhone])
+  @@map("crockery_bookings")
+}
+
+model CrockeryBookingItem {
+  id                       String   @id @default(uuid())
+  businessId               String   @default("horeca-essentials") @map("business_id")
+  bookingId                String   @map("booking_id")
+  booking                  CrockeryBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  itemId                   String   @map("item_id")
+  item                     CrockeryItem? @relation(fields: [itemId], references: [id])
+  itemName                 String   @map("item_name")
+  category                 String   @default("plates")
+  packSize                 Int      @default(1) @map("pack_size")
+  quantity                 Int      @default(1)
+  dispatchedQuantity       Int      @default(0) @map("dispatched_quantity")
+  returnedGood             Int      @default(0) @map("returned_good")
+  returnedBroken           Int      @default(0) @map("returned_broken")
+  returnedMissing          Int      @default(0) @map("returned_missing")
+  rateSnapshot             Decimal  @default(0) @db.Decimal(10, 2) @map("rate_snapshot")
+  rentBasis                String   @default("per_day") @map("rent_basis")
+  replacementCostSnapshot  Decimal  @default(0) @db.Decimal(10, 2) @map("replacement_cost_snapshot")
+  damageGrade              String?  @map("damage_grade")
+
+  @@index([bookingId])
+  @@index([itemId])
+  @@map("crockery_booking_items")
+}
+
+model CrockeryStockMovement {
+  id            String   @id @default(uuid())
+  businessId    String   @default("horeca-essentials") @map("business_id")
+  itemId        String   @map("item_id")
+  item          CrockeryItem? @relation(fields: [itemId], references: [id])
+  itemName      String   @map("item_name")
+  type          String   // 'OPENING' | 'PURCHASE' | 'DISPATCH' | 'RETURN_GOOD' | 'RETURN_BROKEN' | 'RETURN_MISSING' | 'WASH_DONE' | 'ADJUSTMENT' | 'AUDIT_CORRECTION' | 'REVERSAL'
+  quantity      Int
+  bucketFrom    String?  @map("bucket_from")
+  bucketTo      String?  @map("bucket_to")
+  bookingId     String?  @map("booking_id")
+  bookingNumber String?  @map("booking_number")
+  user          String   @default("Staff")
+  reason        String   @default("")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([itemId])
+  @@map("crockery_stock_movements")
+}
+
+model CrockeryInvoice {
+  id              String   @id @default(uuid())
+  businessId      String   @default("horeca-essentials") @map("business_id")
+  invoiceNumber   String   @unique @map("invoice_number")
+  financialYear   String   @default("2026-27") @map("financial_year")
+  bookingId       String   @map("booking_id")
+  booking         CrockeryBooking? @relation(fields: [bookingId], references: [id])
+  bookingNumber   String   @map("booking_number")
+  customerName    String   @map("customer_name")
+  customerPhone   String   @map("customer_phone")
+  customerAddress String   @map("customer_address")
+  deliveryDate    String   @map("delivery_date")
+  returnDate      String   @map("return_date")
+  rentDays        Int      @default(1) @map("rent_days")
+  rentAmount      Decimal  @default(0) @db.Decimal(12, 2) @map("rent_amount")
+  transportCharge Decimal  @default(0) @db.Decimal(12, 2) @map("transport_charge")
+  damageAmount    Decimal  @default(0) @db.Decimal(12, 2) @map("damage_amount")
+  lateFee         Decimal  @default(0) @db.Decimal(12, 2) @map("late_fee")
+  discount        Decimal  @default(0) @db.Decimal(12, 2) @map("discount")
+  taxAmount       Decimal  @default(0) @db.Decimal(12, 2) @map("tax_amount")
+  taxRate         Decimal  @default(0) @db.Decimal(6, 2) @map("tax_rate")
+  totalAmount     Decimal  @default(0) @db.Decimal(12, 2) @map("total_amount")
+  advancePaid     Decimal  @default(0) @db.Decimal(12, 2) @map("advance_paid")
+  balanceDue      Decimal  @default(0) @db.Decimal(12, 2) @map("balance_due")
+  status          String   @default("draft") // 'draft' | 'final' | 'paid'
+  issuedAt        DateTime @default(now()) @map("issued_at")
+  issuedBy        String   @default("Billing Staff") @map("issued_by")
+
+  lines           CrockeryInvoiceLine[]
+
+  @@index([businessId])
+  @@index([bookingId])
+  @@index([status])
+  @@map("crockery_invoices")
+}
+
+model CrockeryInvoiceLine {
+  id          String   @id @default(uuid())
+  businessId  String   @default("horeca-essentials") @map("business_id")
+  invoiceId   String   @map("invoice_id")
+  invoice     CrockeryInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int      @default(1)
+  rate        Decimal  @default(0) @db.Decimal(12, 2)
+  amount      Decimal  @default(0) @db.Decimal(12, 2)
+  type        String   @default("rent") // 'rent' | 'transport' | 'damage' | 'late_fee' | 'discount' | 'tax'
+
+  @@index([invoiceId])
+  @@map("crockery_invoice_lines")
+}
+
+model CrockeryPayment {
+  id            String   @id @default(uuid())
+  businessId    String   @default("horeca-essentials") @map("business_id")
+  bookingId     String   @map("booking_id")
+  booking       CrockeryBooking? @relation(fields: [bookingId], references: [id])
+  bookingNumber String   @map("booking_number")
+  customerId    String?  @map("customer_id")
+  customerName  String   @map("customer_name")
+  amount        Decimal  @default(0) @db.Decimal(12, 2)
+  method        String   @default("UPI") // 'UPI' | 'Cash' | 'Bank Transfer' | 'Cheque'
+  reference     String?
+  notes         String?
+  date          String
+  receivedBy    String   @default("Staff") @map("received_by")
+  direction     String   @default("received") // 'received' | 'refund'
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([bookingId])
+  @@map("crockery_payments")
+}
+
+model CrockeryPackageCombo {
+  id              String   @id @default(uuid())
+  businessId      String   @default("horeca-essentials") @map("business_id")
+  name            String
+  description     String   @default("")
+  suggestedGuests Int      @default(100) @map("suggested_guests")
+  itemsJson       Json     @default("[]") @map("items_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@map("crockery_package_combos")
+}
+
+model CrockeryBusinessProfile {
+  id                   String   @id @default(uuid())
+  businessId           String   @unique @default("horeca-essentials") @map("business_id")
+  name                 String   @default("HomeSeva Crockery & Catering Rentals")
+  tagline              String   @default("Commercial Tableware, Glassware & Buffet Catering Equipment Hire")
+  phone                String   @default("+91 98765 00000")
+  altPhone             String   @default("") @map("alt_phone")
+  email                String   @default("rentals@homeseva.com")
+  address              String   @default("HomeSeva Central Logistics Hub")
+  gstin                String   @default("")
+  upiId                String   @default("") @map("upi_id")
+  bankName             String   @default("") @map("bank_name")
+  accountNumber        String   @default("") @map("account_number")
+  ifsc                 String   @default("")
+  termsConditions      String   @default("1. All counts must be verified upon delivery and return.\n2. Broken or missing pieces will be charged at current replacement cost.\n3. Overdue rentals attract standard daily fee plus late surcharge.") @db.Text @map("terms_conditions")
+  defaultPrepDays      Int      @default(0) @map("default_prep_days")
+  returnBufferDays     Int      @default(1) @map("return_buffer_days")
+  cleaningStageEnabled Boolean  @default(true) @map("cleaning_stage_enabled")
+  lateFeeMultiplier    Decimal  @default(1.0) @db.Decimal(5, 2) @map("late_fee_multiplier")
+  minAdvancePercent    Decimal  @default(25.0) @db.Decimal(5, 2) @map("min_advance_percent")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("crockery_business_profile")
+}
+

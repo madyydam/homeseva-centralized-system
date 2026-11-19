@@ -32,7 +32,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({ onClose, onSuc
 
   // Step 1: Customer
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id || '');
-  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(customers.length === 0);
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
