@@ -24,18 +24,23 @@ export const Header: React.FC<HeaderProps> = ({ setActiveTab }) => {
   }, [bookings]);
 
   return (
-    <header className="no-print print:hidden sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-2xs">
-      <div className="mx-auto flex max-w-[1600px] h-13 items-center justify-between px-4 sm:px-6">
-        {/* Left: Minimal Logo */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-xs">
-            <UtensilsCrossed className="h-4 w-4" />
+    <header className="no-print print:hidden sticky top-0 z-40 h-16 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs flex items-center">
+      <div className="mx-auto flex w-full max-w-[1600px] h-full items-center justify-between px-4 sm:px-6">
+        {/* Left: Brand & Division Title */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-sm ring-1 ring-amber-500/20">
+            <UtensilsCrossed className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="text-sm font-black tracking-tight text-slate-900">
-              Crockery Rentals
-            </h1>
-            <p className="text-[10px] text-slate-500 font-semibold leading-tight">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-black tracking-tight text-slate-900 truncate">
+                Crockery Rentals
+              </h1>
+              <span className="hidden sm:inline-flex items-center rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                HORECA Division
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
               Banquet Tableware & Buffet Hire Operations
             </p>
           </div>
@@ -43,23 +48,24 @@ export const Header: React.FC<HeaderProps> = ({ setActiveTab }) => {
 
         {/* Right: Live Status Indicators Only */}
         <div className="flex items-center gap-2.5 text-xs font-semibold">
-          <span className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-1 rounded-lg text-[11px] font-bold">
+          <span className="inline-flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-1 rounded-lg text-[11px] font-bold">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
             {todayDispatches} To Dispatch
           </span>
-          <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg text-[11px] font-bold">
+          <span className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg text-[11px] font-bold">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
             {todayReturns} To Return
           </span>
           {overdueCount > 0 && (
-            <span
+            <button
+              type="button"
               onClick={() => setActiveTab('bookings')}
-              className="flex items-center gap-1.5 text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer hover:bg-rose-100 transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer hover:bg-rose-100 active:scale-95 transition shadow-2xs"
               title="Click to view overdue bookings"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-ping" />
               {overdueCount} Overdue!
-            </span>
+            </button>
           )}
         </div>
       </div>

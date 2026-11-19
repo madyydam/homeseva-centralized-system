@@ -101,7 +101,7 @@ function MainApp() {
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 px-4 sm:px-6 py-4 gap-6">
         {/* Left Navigation Sidebar - Stays Dark */}
         <aside className={`${isSidebarCollapsed ? 'w-18' : 'w-56'} shrink-0 hidden md:block transition-all duration-200`}>
-          <div className="sticky top-14 h-[calc(100vh-4.5rem)] flex flex-col justify-between rounded-2xl bg-slate-900 border border-slate-800 p-2.5 shadow-xl">
+          <div className="sticky top-20 h-[calc(100vh-6rem)] flex flex-col justify-between rounded-2xl bg-slate-900 border border-slate-800 p-2.5 shadow-xl">
             {/* Top Navigation Items */}
             <div className="space-y-1 flex-1 overflow-y-auto pr-0.5">
               {/* Brand Header */}
