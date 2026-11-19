@@ -26,7 +26,7 @@ export const BUSINESS_MODULES: Record<string, BusinessModule> = {
   'printbooth': adjsModule,
   'dvr-enterprise': dvrEnterpriseModule,
   'dvr-enterprises': dvrEnterpriseModule,
-  'dve-enterprises': dvrEnterpriseModule,
+  'dve-enterprises': dveEnterprisesModule,
   'nda-services': ndaServicesModule,
   'hs-real-estate': hsRealEstateModule,
 
@@ -45,12 +45,14 @@ export function getAllBusinessModules(): BusinessModule[] {
   return [
     prefabConstructionModule,
     horecaEssentialsModule,
+    crockeryRentalModule,
     gentleHairWigsModule,
     ecolabDistributionModule,
     hsCoworkingModule,
     firstMoverAdvantageModule,
     printboothModule,
     dvrEnterpriseModule,
+    dveEnterprisesModule,
     ndaServicesModule,
     hsRealEstateModule,
   ];

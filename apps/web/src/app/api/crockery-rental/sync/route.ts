@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@homeseva/db';
+import { getCurrentSuperAdminSession, getCurrentStaffSession } from '@/lib/authSession';
 import {
   Item,
   Customer,
@@ -16,7 +17,19 @@ import { initialBusinessProfile } from '@/businesses/horeca-essentials/crockery-
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = 'horeca-essentials';
+const BUSINESS_ID = 'crockery-rental';
+const BUSINESS_ID_WHERE = { in: ['crockery-rental', 'horeca-essentials'] };
+
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
+
+  const staffSession = await getCurrentStaffSession();
+  if (staffSession && staffSession.businessSlug === 'crockery-rental') {
+    return true;
+  }
+  return false;
+}
 
 // Helper to format DB item to frontend Item
 function formatItem(row: any): Item {
@@ -228,6 +241,13 @@ function formatProfile(row: any): BusinessProfile {
 
 // GET: Authoritative fetch from PostgreSQL
 export async function GET() {
+  if (!(await isAuthorized())) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized: Active Crockery Rental session required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const [
       dbItems,
@@ -240,38 +260,38 @@ export async function GET() {
       dbProfile,
     ] = await Promise.all([
       prisma.crockeryItem.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         orderBy: { name: 'asc' },
       }),
       prisma.crockeryCustomer.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.crockeryBooking.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         include: { items: true },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.crockeryStockMovement.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         orderBy: { createdAt: 'desc' },
         take: 500,
       }),
       prisma.crockeryInvoice.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         include: { lines: true },
         orderBy: { issuedAt: 'desc' },
       }),
       prisma.crockeryPayment.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.crockeryPackageCombo.findMany({
-        where: { businessId: BUSINESS_ID },
+        where: { businessId: BUSINESS_ID_WHERE },
         orderBy: { createdAt: 'asc' },
       }),
-      prisma.crockeryBusinessProfile.findUnique({
-        where: { businessId: BUSINESS_ID },
+      prisma.crockeryBusinessProfile.findFirst({
+        where: { businessId: BUSINESS_ID_WHERE },
       }),
     ]);
 
@@ -299,6 +319,13 @@ export async function GET() {
 
 // POST: Direct mutations into PostgreSQL
 export async function POST(req: NextRequest) {
+  if (!(await isAuthorized())) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized: Active Crockery Rental session required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await req.json();
     const { action, payload } = body;

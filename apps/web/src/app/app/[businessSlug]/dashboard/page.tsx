@@ -21,7 +21,18 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const subcompanyParam = searchParams.get('subcompany') || (businessSlug === 'adjs' || businessSlug === 'printbooth' ? 'printbooth' : undefined);
   const roleParam = searchParams.get('role') || undefined;
 
-  const [activeRole, setActiveRole] = useState<string | undefined>(roleParam);
+  const [activeRole, setActiveRole] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(`homeseva_session_${businessSlug}`) || localStorage.getItem('homeseva_current_user');
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.role) return p.role;
+        }
+      } catch {}
+    }
+    return undefined;
+  });
   const [activeMemberId, setActiveMemberId] = useState<string | undefined>(undefined);
   const [activeMemberName, setActiveMemberName] = useState<string | undefined>(undefined);
   const [activeMemberEmail, setActiveMemberEmail] = useState<string | undefined>(undefined);
@@ -72,7 +83,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
               }));
               saveActiveSubcompany({
                 slug: businessSlug === 'printbooth' ? 'adjs' : businessSlug,
-                role: data.role || roleParam,
+                role: data.role,
                 branch: branchParam,
                 division: divisionParam,
                 subcompany: subcompanyParam,
@@ -87,7 +98,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
         }
       })
       .catch(() => {});
-  }, [businessSlug, roleParam, branchParam, divisionParam, subcompanyParam]);
+  }, [businessSlug, branchParam, divisionParam, subcompanyParam]);
 
   const businessModule = getBusinessModule(businessSlug);
 
@@ -118,7 +129,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
     <Dashboard
       branch={branchParam}
       division={divisionParam || subcompanyParam}
-      role={activeRole || roleParam}
+      role={activeRole}
       memberId={activeMemberId}
       memberName={activeMemberName}
       memberEmail={activeMemberEmail}

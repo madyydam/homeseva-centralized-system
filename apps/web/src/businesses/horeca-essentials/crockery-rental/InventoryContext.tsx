@@ -101,16 +101,16 @@ const syncToPostgres = (action: string, payload: any) => {
 
 export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: UserRole }> = ({ children, initialRole }) => {
   const [role, setRoleState] = useState<UserRole>(() => {
-    // Props take priority (set from login/session), then localStorage, then default
+    // Authoritative session role strictly takes priority
     if (initialRole) return initialRole;
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEYS.ROLE);
-        if (saved) return saved as UserRole;
-      } catch (_) {}
-    }
     return 'owner';
   });
+
+  useEffect(() => {
+    if (initialRole) {
+      setRoleState(initialRole);
+    }
+  }, [initialRole]);
 
   const [profile, setProfileState] = useState<BusinessProfile>(() => {
     if (typeof window !== 'undefined') {
@@ -262,12 +262,9 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       });
   }, []);
 
-  // Sync state changes to localStorage and PostgreSQL
-  const setRole = (newRole: UserRole) => {
-    setRoleState(newRole);
-    try {
-      localStorage.setItem(STORAGE_KEYS.ROLE, newRole);
-    } catch (_) {}
+  // Role is authoritative and locked to authenticated user session
+  const setRole = (_newRole: UserRole) => {
+    console.warn('Role changes are locked to authenticated user session.');
   };
 
   const updateProfile = (updates: Partial<BusinessProfile>) => {
@@ -941,7 +938,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
   };
 
   const resetAllData = () => {
-    setRoleState('owner');
+    setRoleState(initialRole ?? 'owner');
     setProfileState(initialBusinessProfile);
     setItemsState(initialItems);
     setCustomersState(initialCustomers);
