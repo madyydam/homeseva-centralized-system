@@ -1386,30 +1386,232 @@ CREATE TABLE IF NOT EXISTS public.sheet_links (
 );
 
 -- =============================================================================
--- 23. COMPATIBILITY VIEWS & SYNONYMS FOR CROCKERY RENTAL ENGINE
+-- 23. CROCKERY RENTAL DEDICATED RELATIONAL ENGINE & INVOICING DDL
 -- =============================================================================
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'items') THEN
-    CREATE OR REPLACE VIEW public.crockery_items AS SELECT * FROM public.items;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'customers') THEN
-    CREATE OR REPLACE VIEW public.crockery_customers AS SELECT * FROM public.customers;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'bookings') THEN
-    CREATE OR REPLACE VIEW public.crockery_bookings AS SELECT * FROM public.bookings;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'booking_items') THEN
-    CREATE OR REPLACE VIEW public.crockery_booking_items AS SELECT * FROM public.booking_items;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stock_ledger') THEN
-    CREATE OR REPLACE VIEW public.crockery_stock_ledger AS SELECT * FROM public.stock_ledger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'invoices') THEN
-    CREATE OR REPLACE VIEW public.crockery_invoices AS SELECT * FROM public.invoices;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payments') THEN
-    CREATE OR REPLACE VIEW public.crockery_payments AS SELECT * FROM public.payments;
-  END IF;
-END $$;
+
+CREATE TABLE IF NOT EXISTS public.crockery_items (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  pack_size INTEGER NOT NULL DEFAULT 1,
+  rent_per_day NUMERIC(10,2) NOT NULL DEFAULT 0,
+  rent_basis TEXT NOT NULL DEFAULT 'per_day',
+  replacement_cost NUMERIC(10,2) NOT NULL DEFAULT 0,
+  total_quantity INTEGER NOT NULL DEFAULT 0,
+  in_godown INTEGER NOT NULL DEFAULT 0,
+  out_on_rent INTEGER NOT NULL DEFAULT 0,
+  in_cleaning INTEGER NOT NULL DEFAULT 0,
+  written_off INTEGER NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT true,
+  image TEXT,
+  low_stock_threshold INTEGER DEFAULT 50,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_items_biz ON public.crockery_items(business_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_items_cat ON public.crockery_items(category);
+
+CREATE TABLE IF NOT EXISTS public.crockery_customers (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  alt_phone TEXT,
+  address TEXT NOT NULL,
+  gstin TEXT,
+  tag TEXT NOT NULL DEFAULT 'regular',
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_customers_biz ON public.crockery_customers(business_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_customers_phone ON public.crockery_customers(phone);
+
+CREATE TABLE IF NOT EXISTS public.crockery_bookings (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  booking_number TEXT NOT NULL UNIQUE,
+  customer_id TEXT REFERENCES public.crockery_customers(id) ON DELETE SET NULL,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_address TEXT NOT NULL,
+  event_type TEXT NOT NULL DEFAULT 'Wedding',
+  event_date TEXT NOT NULL,
+  delivery_date TEXT NOT NULL,
+  expected_return_date TEXT NOT NULL,
+  actual_return_date TEXT,
+  venue_name TEXT NOT NULL,
+  venue_address TEXT NOT NULL,
+  contact_person TEXT,
+  status TEXT NOT NULL DEFAULT 'Quotation',
+  transport_charge NUMERIC(12,2) NOT NULL DEFAULT 0,
+  discount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  advance_paid NUMERIC(12,2) NOT NULL DEFAULT 0,
+  security_deposit NUMERIC(12,2) NOT NULL DEFAULT 0,
+  damage_charge NUMERIC(12,2) NOT NULL DEFAULT 0,
+  late_fee NUMERIC(12,2) NOT NULL DEFAULT 0,
+  notes TEXT,
+  dispatched_at TIMESTAMPTZ,
+  returned_at TIMESTAMPTZ,
+  dispatched_by TEXT,
+  vehicle_details TEXT,
+  signature_dispatch TEXT,
+  signature_return TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_bookings_biz ON public.crockery_bookings(business_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_bookings_status ON public.crockery_bookings(status);
+CREATE INDEX IF NOT EXISTS idx_crockery_bookings_phone ON public.crockery_bookings(customer_phone);
+
+CREATE TABLE IF NOT EXISTS public.crockery_booking_items (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  booking_id TEXT NOT NULL REFERENCES public.crockery_bookings(id) ON DELETE CASCADE,
+  item_id TEXT NOT NULL,
+  item_name TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'plates',
+  pack_size INTEGER NOT NULL DEFAULT 1,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  dispatched_quantity INTEGER NOT NULL DEFAULT 0,
+  returned_good INTEGER NOT NULL DEFAULT 0,
+  returned_broken INTEGER NOT NULL DEFAULT 0,
+  returned_missing INTEGER NOT NULL DEFAULT 0,
+  rate_snapshot NUMERIC(10,2) NOT NULL DEFAULT 0,
+  rent_basis TEXT NOT NULL DEFAULT 'per_day',
+  replacement_cost_snapshot NUMERIC(10,2) NOT NULL DEFAULT 0,
+  damage_grade TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_booking_items_bk ON public.crockery_booking_items(booking_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_booking_items_it ON public.crockery_booking_items(item_id);
+
+CREATE TABLE IF NOT EXISTS public.crockery_stock_movements (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  item_id TEXT NOT NULL,
+  item_name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  bucket_from TEXT,
+  bucket_to TEXT,
+  booking_id TEXT,
+  booking_number TEXT,
+  "user" TEXT NOT NULL DEFAULT 'Staff',
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_stock_mov_biz ON public.crockery_stock_movements(business_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_stock_mov_it ON public.crockery_stock_movements(item_id);
+
+CREATE TABLE IF NOT EXISTS public.crockery_invoices (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  firm TEXT NOT NULL DEFAULT 'someshwar',
+  invoice_number TEXT NOT NULL UNIQUE,
+  financial_year TEXT NOT NULL DEFAULT '2026-27',
+  booking_id TEXT NOT NULL,
+  booking_number TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_address TEXT NOT NULL,
+  customer_gstin TEXT,
+  consignee_name TEXT,
+  consignee_address TEXT,
+  consignee_gstin TEXT,
+  delivery_note TEXT,
+  dispatch_doc_no TEXT,
+  delivery_date TEXT NOT NULL,
+  return_date TEXT NOT NULL,
+  event_date TEXT,
+  rent_days INTEGER NOT NULL DEFAULT 1,
+  rent_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  transport_charge NUMERIC(12,2) NOT NULL DEFAULT 0,
+  damage_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  late_fee NUMERIC(12,2) NOT NULL DEFAULT 0,
+  discount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  round_off NUMERIC(10,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(6,2) NOT NULL DEFAULT 0,
+  total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  advance_paid NUMERIC(12,2) NOT NULL DEFAULT 0,
+  balance_due NUMERIC(12,2) NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',
+  issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  issued_by TEXT NOT NULL DEFAULT 'Billing Staff',
+  remarks TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_inv_biz ON public.crockery_invoices(business_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_inv_bk ON public.crockery_invoices(booking_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_inv_status ON public.crockery_invoices(status);
+
+CREATE TABLE IF NOT EXISTS public.crockery_invoice_lines (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  invoice_id TEXT NOT NULL REFERENCES public.crockery_invoices(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  particulars TEXT,
+  hsn_sac TEXT DEFAULT '997319',
+  quantity INTEGER NOT NULL DEFAULT 1,
+  rate NUMERIC(12,2) NOT NULL DEFAULT 0,
+  per TEXT DEFAULT 'Nos',
+  days INTEGER DEFAULT 1,
+  amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  type TEXT NOT NULL DEFAULT 'rent'
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_inv_lines_inv ON public.crockery_invoice_lines(invoice_id);
+
+CREATE TABLE IF NOT EXISTS public.crockery_payments (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  booking_id TEXT NOT NULL,
+  booking_number TEXT NOT NULL,
+  customer_id TEXT,
+  customer_name TEXT NOT NULL,
+  amount NUMERIC(12,2) NOT NULL,
+  method TEXT NOT NULL DEFAULT 'UPI',
+  reference TEXT,
+  notes TEXT,
+  date TEXT NOT NULL,
+  received_by TEXT NOT NULL DEFAULT 'Staff',
+  direction TEXT NOT NULL DEFAULT 'received',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_payments_biz ON public.crockery_payments(business_id);
+CREATE INDEX IF NOT EXISTS idx_crockery_payments_bk ON public.crockery_payments(booking_id);
+
+CREATE TABLE IF NOT EXISTS public.crockery_package_combos (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL DEFAULT 'horeca-essentials',
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  suggested_guests INTEGER NOT NULL DEFAULT 100,
+  items_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crockery_package_combos_biz ON public.crockery_package_combos(business_id);
+
+CREATE TABLE IF NOT EXISTS public.crockery_business_profile (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_id TEXT NOT NULL UNIQUE DEFAULT 'horeca-essentials',
+  name TEXT NOT NULL DEFAULT 'HomeSeva Crockery & Catering Rentals',
+  tagline TEXT NOT NULL DEFAULT 'Commercial Tableware, Glassware & Buffet Catering Equipment Hire',
+  phone TEXT NOT NULL DEFAULT '+91 98765 00000',
+  alt_phone TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT 'rentals@homeseva.com',
+  address TEXT NOT NULL DEFAULT 'HomeSeva Central Logistics Hub',
+  gstin TEXT NOT NULL DEFAULT '',
+  upi_id TEXT NOT NULL DEFAULT '',
+  bank_name TEXT NOT NULL DEFAULT '',
+  account_number TEXT NOT NULL DEFAULT '',
+  ifsc TEXT NOT NULL DEFAULT '',
+  terms_conditions TEXT NOT NULL DEFAULT '1. All counts must be verified upon delivery and return.\n2. Broken or missing pieces will be charged at current replacement cost.\n3. Overdue rentals attract standard daily fee plus late surcharge.',
+  default_prep_days INTEGER NOT NULL DEFAULT 0,
+  return_buffer_days INTEGER NOT NULL DEFAULT 1,
+  cleaning_stage_enabled BOOLEAN NOT NULL DEFAULT true,
+  late_fee_multiplier NUMERIC(5,2) NOT NULL DEFAULT 1.0,
+  min_advance_percent NUMERIC(5,2) NOT NULL DEFAULT 25.0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
