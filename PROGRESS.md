@@ -71,3 +71,18 @@ This log tracks every verified task executed on the `production-migration` branc
   - `pnpm type-check`: 5/5 packages green.
   - `pnpm lint`: "No ESLint warnings or errors".
   - `pnpm --filter @homeseva/web build`: Clean production build output (`✓ Compiled successfully`, all 25 API routes & static pages generated).
+
+### [Step 1 Remediation] Security Hardening, Brute-Force Lockout, Event Loop Protection & 30-Day Cookies
+- **Commit**: `039121d`
+- **Changes**:
+  - **PIN Bypass Patched**: In `apps/web/src/app/api/auth/member-login/route.ts`, PIN is now strictly required if configured on `RoleMember`. Bypassing PIN check with empty string is completely blocked.
+  - **Account Lockout for Employees**: Added `failedAttempts` and `lockedUntil` to `RoleMember` in `schema.prisma`. 5 consecutive failed attempts lock the account for 15 minutes.
+  - **Event Loop Unblocked**: Replaced all synchronous `bcrypt.compareSync` and `hashSync` calls with asynchronous non-blocking equivalents across Super Admin login, credentials, and verify-field routes.
+  - **Credential Oracle Throttled**: In `role/verify-field` and `super-admin/verify-field`, invalid checks now increment `failedAttempts` and trigger 15-minute lockouts after 5 consecutive failures.
+  - **30-Day Persistent Session Cookies**: Replaced 100-year permanent cookies with standard 30-day (2,592,000s) cookies (`ONE_MONTH_SESSION_SECONDS`), preventing daily login friction for staff while maintaining finite expiration.
+  - **Sanitized Super Admin UI**: Removed hardcoded `'12345678'` and `'1234'` from `apps/web/src/app/super-admin/companies/page.tsx`, and added a "⚡ Generate Secure" random credentials generator.
+  - **Signin Dropdown Resilience**: In `apps/web/src/app/signin/[businessSlug]/page.tsx`, memoized fallback roles and ensured that if the database is unseeded or slow, the UI gracefully retains fallback roles and never freezes on "Loading roles...".
+- **Verification Evidence**:
+  - `pnpm type-check`: 5/5 packages green.
+  - `pnpm lint`: "✔ No ESLint warnings or errors".
+  - `pnpm --filter @homeseva/web build`: 100% clean production build (25 API routes & static pages).
