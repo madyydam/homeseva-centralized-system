@@ -83,6 +83,7 @@ This log tracks every verified task executed on the `production-migration` branc
   - **Sanitized Super Admin UI**: Removed hardcoded `'12345678'` and `'1234'` from `apps/web/src/app/super-admin/companies/page.tsx`, and added a "⚡ Generate Secure" random credentials generator.
   - **Signin Dropdown Resilience**: In `apps/web/src/app/signin/[businessSlug]/page.tsx`, memoized fallback roles and ensured that if the database is unseeded or slow, the UI gracefully retains fallback roles and never freezes on "Loading roles...".
 - **Verification Evidence**:
+  - `node scripts/test-step1-security-suite.mjs`: 25/25 assertions passed (0 failures).
   - `pnpm type-check`: 5/5 packages green.
   - `pnpm lint`: "✔ No ESLint warnings or errors".
   - `pnpm --filter @homeseva/web build`: 100% clean production build (25 API routes & static pages).
