@@ -59,7 +59,9 @@ export interface SessionPayload {
   exp: number; // Unix timestamp in ms
 }
 
-export const PERMANENT_SESSION_LIFETIME = 3153600000; // 100 years (Permanent until explicit logout)
+// 30 Days persistent session lifetime (prevents daily login frustration for staff)
+export const ONE_MONTH_SESSION_SECONDS = 30 * 24 * 60 * 60; // 2,592,000 seconds
+export const PERMANENT_SESSION_LIFETIME = ONE_MONTH_SESSION_SECONDS; // Standard 30-day session lifetime
 
 /**
  * Signs a session payload and returns a tamper-proof JWT-like token: base64(payload).base64(signature)

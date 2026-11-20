@@ -178,9 +178,9 @@ export async function POST(req: NextRequest) {
       }
 
       const isUserMatch = u.toLowerCase() === expectedUsername.toLowerCase();
-      const isPassMatch = bcrypt.compareSync(p, expectedPassHash);
-      const isPin4Match = bcrypt.compareSync(p4, expectedPin4Hash);
-      const isPin8Match = bcrypt.compareSync(p8, expectedPin8Hash);
+      const isPassMatch = await bcrypt.compare(p, expectedPassHash).catch(() => false);
+      const isPin4Match = await bcrypt.compare(p4, expectedPin4Hash).catch(() => false);
+      const isPin8Match = await bcrypt.compare(p8, expectedPin8Hash).catch(() => false);
 
       if (!isUserMatch || !isPassMatch || !isPin4Match || !isPin8Match) {
         const newAttempts = (adminRecord.failedAttempts || 0) + 1;
@@ -240,9 +240,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const passHash = bcrypt.hashSync(newPassword.trim(), 10);
-      const pin4Hash = bcrypt.hashSync(newPin4.trim(), 10);
-      const pin8Hash = bcrypt.hashSync(newPin8.trim(), 10);
+      const passHash = await hashCredential(newPassword.trim());
+      const pin4Hash = await hashCredential(newPin4.trim());
+      const pin8Hash = await hashCredential(newPin8.trim());
 
       await prisma.superAdminCredentials.upsert({
         where: { id: 'primary' },

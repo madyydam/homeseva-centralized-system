@@ -49,11 +49,32 @@ export async function POST(req: NextRequest) {
     if (field === 'username') {
       matched = cleanVal.toLowerCase() === adminRecord.username.trim().toLowerCase();
     } else if (field === 'password') {
-      matched = bcrypt.compareSync(cleanVal, adminRecord.passwordHash);
+      matched = await bcrypt.compare(cleanVal, adminRecord.passwordHash).catch(() => false);
     } else if (field === 'pin4') {
-      matched = bcrypt.compareSync(cleanVal, adminRecord.pin4Hash);
+      matched = await bcrypt.compare(cleanVal, adminRecord.pin4Hash).catch(() => false);
     } else if (field === 'pin8') {
-      matched = bcrypt.compareSync(cleanVal, adminRecord.pin8Hash);
+      matched = await bcrypt.compare(cleanVal, adminRecord.pin8Hash).catch(() => false);
+    }
+
+    if (!matched && (field === 'password' || field === 'pin4' || field === 'pin8')) {
+      const newAttempts = (adminRecord.failedAttempts || 0) + 1;
+      const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
+      if (newAttempts >= 5) {
+        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      }
+      await prisma.superAdminCredentials.update({
+        where: { id: 'primary' },
+        data: updatePayload,
+      });
+
+      if (newAttempts >= 5) {
+        return NextResponse.json({
+          success: false,
+          matched: false,
+          locked: true,
+          error: 'Account has been locked for 15 minutes due to 5 consecutive failed attempts.',
+        }, { status: 403 });
+      }
     }
 
     return NextResponse.json({ success: true, matched });

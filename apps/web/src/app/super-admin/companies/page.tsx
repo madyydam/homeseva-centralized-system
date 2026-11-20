@@ -80,10 +80,22 @@ export default function CompaniesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('12345678');
-  const [newPin, setNewPin] = useState('1234');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPin, setNewPin] = useState('');
   const [showNewPass, setShowNewPass] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const generateRandomCredentials = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    let p = '';
+    for (let i = 0; i < 12; i++) {
+      p += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const pinVal = Math.floor(1000 + Math.random() * 9000).toString();
+    setNewPassword(p);
+    setNewPin(pinVal);
+    setShowNewPass(true);
+  };
 
   // Edit Member Modal State
   const [editingMember, setEditingMember] = useState<Member | null>(null);
@@ -203,8 +215,8 @@ export default function CompaniesPage() {
         setMembers((prev) => [...prev, res.member]);
         setNewName('');
         setNewEmail('');
-        setNewPassword('12345678');
-        setNewPin('1234');
+        setNewPassword('');
+        setNewPin('');
         setShowAddModal(false);
         notify(res.message || `Member "${res.member.name}" added successfully and credentials emailed!`);
       } else {
@@ -752,6 +764,17 @@ export default function CompaniesPage() {
                 />
               </div>
 
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-700">Account Credentials</span>
+                <button
+                  type="button"
+                  onClick={generateRandomCredentials}
+                  className="text-[11px] text-indigo-600 font-bold hover:text-indigo-800 underline"
+                >
+                  ⚡ Generate Secure
+                </button>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -767,6 +790,7 @@ export default function CompaniesPage() {
                   <input
                     type={showNewPass ? 'text' : 'password'}
                     required
+                    placeholder="Enter or generate"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -781,6 +805,7 @@ export default function CompaniesPage() {
                     type="text"
                     required
                     maxLength={6}
+                    placeholder="4-digit PIN"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"

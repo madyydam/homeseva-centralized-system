@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { prisma } from '@homeseva/db';
-import { signSession, SUPER_ADMIN_COOKIE } from '../../../../../lib/authSession';
+import { signSession, SUPER_ADMIN_COOKIE, ONE_MONTH_SESSION_SECONDS } from '../../../../../lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,9 +54,9 @@ export async function POST(req: NextRequest) {
     }
 
     const isUserMatch = u.toLowerCase() === expectedUsername.toLowerCase();
-    const isPassMatch = bcrypt.compareSync(p, expectedPassHash);
-    const isPin4Match = bcrypt.compareSync(p4, expectedPin4Hash);
-    const isPin8Match = bcrypt.compareSync(p8, expectedPin8Hash);
+    const isPassMatch = await bcrypt.compare(p, expectedPassHash).catch(() => false);
+    const isPin4Match = await bcrypt.compare(p4, expectedPin4Hash).catch(() => false);
+    const isPin8Match = await bcrypt.compare(p8, expectedPin8Hash).catch(() => false);
 
     if (!isUserMatch || !isPassMatch || !isPin4Match || !isPin8Match) {
       const newAttempts = (adminRecord.failedAttempts || 0) + 1;
@@ -81,12 +81,12 @@ export async function POST(req: NextRequest) {
       data: { failedAttempts: 0, lockedUntil: null },
     });
 
-    // Sign session token and set HTTP-only cookie
+    // Sign session token and set HTTP-only cookie (30-day lifetime)
     const token = await signSession({
       sub: expectedUsername,
       role: 'SUPER_ADMIN',
       isSuperAdmin: true,
-    }, 86400);
+    }, ONE_MONTH_SESSION_SECONDS);
 
     const isHttps = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';
     const cookieOptions = {
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       secure: isHttps,
       sameSite: 'lax' as const,
       path: '/',
-      maxAge: 86400,
+      maxAge: ONE_MONTH_SESSION_SECONDS,
     };
 
     cookies().set(SUPER_ADMIN_COOKIE, token, cookieOptions);

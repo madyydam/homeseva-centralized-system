@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@homeseva/db';
-import { signSession, USER_SESSION_COOKIE } from '@/lib/authSession';
+import { signSession, USER_SESSION_COOKIE, ONE_MONTH_SESSION_SECONDS } from '@/lib/authSession';
 import { verifyCredential, hashCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +60,19 @@ export async function POST(req: NextRequest) {
       }, { status: 401 });
     }
 
+    // Check lockout status (5 failed attempts = 15 minute lock)
+    if (targetMember.lockedUntil) {
+      const lockExpiry = new Date(targetMember.lockedUntil).getTime();
+      const now = Date.now();
+      if (lockExpiry > now) {
+        const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
+        return NextResponse.json({
+          success: false,
+          error: `Account locked after 5 failed attempts. Please retry in ${remainingMinutes} minute(s).`,
+        }, { status: 403 });
+      }
+    }
+
     // 3. Smart role check: Verify if member is trying to login to a different role
     const normalizeRole = (r: string) => {
       const norm = r.trim().toLowerCase().replace(/[\s\-_]+/g, '');
@@ -86,43 +99,79 @@ export async function POST(req: NextRequest) {
 
     // 4. Validate password (Bcrypt cryptographic verification with zero-downtime auto-upgrade)
     const passCheck = await verifyCredential(pw, targetMember.password);
-    if (!passCheck.isValid) {
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication failed. Password does not match.',
-      }, { status: 401 });
-    }
 
-    // 5. Validate PIN (if required)
-    const pinCheck = targetMember.pin && p ? await verifyCredential(p, targetMember.pin) : { isValid: true, needsRehash: false };
-    if (targetMember.pin && p && !pinCheck.isValid) {
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication failed. Security PIN does not match.',
-      }, { status: 401 });
-    }
-
-    // Auto-upgrade legacy plaintext to secure Bcrypt hashes in PostgreSQL
-    if (passCheck.needsRehash || (p && pinCheck.needsRehash)) {
-      try {
-        const updatePayload: Record<string, string> = {};
-        if (passCheck.needsRehash) {
-          updatePayload.password = await hashCredential(pw);
-        }
-        if (p && pinCheck.needsRehash) {
-          updatePayload.pin = await hashCredential(p);
+    // 5. Validate PIN (Mandatory if configured on the account; cannot be bypassed with empty string)
+    const isPinRequired = !!(targetMember.pin && targetMember.pin.trim());
+    let pinCheck = { isValid: true, needsRehash: false };
+    if (isPinRequired) {
+      if (!p) {
+        const newAttempts = (targetMember.failedAttempts || 0) + 1;
+        const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
+        if (newAttempts >= 5) {
+          updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
         }
         await prisma.roleMember.update({
           where: { id: targetMember.id },
           data: updatePayload,
         });
-      } catch (err) {
-        console.warn('Background credential rehash notice:', err);
+
+        const remaining = 5 - newAttempts;
+        const warningMsg = remaining > 0 && remaining <= 3
+          ? ` (${remaining} attempt(s) remaining before 15-minute lock)`
+          : '';
+
+        return NextResponse.json({
+          success: false,
+          error: `Security PIN is required for your account.${warningMsg}`,
+        }, { status: 401 });
       }
+      pinCheck = await verifyCredential(p, targetMember.pin);
     }
 
-    // 6. Sign session (8 hours / standard lifetime)
-    const LIFETIME_SECONDS = 28800; // 8 hours
+    const isPassCorrect = passCheck.isValid;
+    const isPinCorrect = !isPinRequired || pinCheck.isValid;
+
+    if (!isPassCorrect || !isPinCorrect) {
+      const newAttempts = (targetMember.failedAttempts || 0) + 1;
+      const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
+      if (newAttempts >= 5) {
+        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      }
+      await prisma.roleMember.update({
+        where: { id: targetMember.id },
+        data: updatePayload,
+      });
+
+      const remaining = 5 - newAttempts;
+      const errMsg = !isPassCorrect
+        ? 'Authentication failed. Password does not match.'
+        : 'Authentication failed. Security PIN does not match.';
+
+      const warningMsg = remaining > 0 && remaining <= 3
+        ? ` (${remaining} attempt(s) remaining before 15-minute lock)`
+        : '';
+
+      return NextResponse.json({
+        success: false,
+        error: `${errMsg}${warningMsg}`,
+      }, { status: 401 });
+    }
+
+    // Success! Reset failed attempts and auto-upgrade legacy plaintext to secure Bcrypt hashes
+    const resetPayload: Record<string, any> = { failedAttempts: 0, lockedUntil: null };
+    if (passCheck.needsRehash) {
+      resetPayload.password = await hashCredential(pw);
+    }
+    if (isPinRequired && p && pinCheck.needsRehash) {
+      resetPayload.pin = await hashCredential(p);
+    }
+    await prisma.roleMember.update({
+      where: { id: targetMember.id },
+      data: resetPayload,
+    });
+
+    // 6. Sign session (30 days / 1 month lifetime - prevents staff login frustration)
+    const LIFETIME_SECONDS = ONE_MONTH_SESSION_SECONDS;
     const token = await signSession({
       sub: targetMember.id,
       role: targetMember.roleId,

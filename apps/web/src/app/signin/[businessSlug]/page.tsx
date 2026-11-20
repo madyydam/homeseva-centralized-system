@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -213,10 +213,12 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
   // Dynamic roles fetched from PostgreSQL API (pre-populated with catalog defaults)
   const initialDivKey = businessSlug === 'crockery-rental' ? 'crockery-rental' : (initialDivision || businessSlug);
-  const fallbackRoles: DynamicRole[] =
+  const fallbackRoles: DynamicRole[] = useMemo(() =>
     DEFAULT_BUSINESS_ROLES[initialDivKey] ||
     DEFAULT_BUSINESS_ROLES[businessSlug] ||
-    (isHorecaEssentials ? (DEFAULT_BUSINESS_ROLES['crockery-rental'] || []) : (isAdjs ? (DEFAULT_BUSINESS_ROLES['adjs'] || []) : []));
+    (isHorecaEssentials ? (DEFAULT_BUSINESS_ROLES['crockery-rental'] || []) : (isAdjs ? (DEFAULT_BUSINESS_ROLES['adjs'] || []) : [])),
+    [initialDivKey, businessSlug, isHorecaEssentials, isAdjs]
+  );
   const [roles, setRoles] = useState<DynamicRole[]>(fallbackRoles);
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0]?.role_id || '');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
@@ -631,39 +633,48 @@ function BusinessSignInContent({ params }: SignInPageProps) {
         const apiSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (isAdjs ? 'adjs' : businessSlug);
         const res = await fetch(`/api/auth/businesses?slug=${apiSlug}`);
         const data = await res.json();
-        if (data.success && data.business?.roles) {
+        if (data.success && Array.isArray(data.business?.roles) && data.business.roles.length > 0) {
           let loadedRoles = data.business.roles;
           if (isHorecaEssentials) {
             const currentDiv = selectedDivision || (businessSlug === 'crockery-rental' ? 'crockery-rental' : 'essentials-sales');
             if (currentDiv === 'crockery-rental') {
-              loadedRoles = loadedRoles.filter((r: any) =>
+              const filtered = loadedRoles.filter((r: any) =>
                 !r.role_id.toLowerCase().includes('sales representative')
               );
+              if (filtered.length > 0) loadedRoles = filtered;
             } else if (currentDiv === 'essentials-sales') {
-              loadedRoles = loadedRoles.filter((r: any) =>
+              const filtered = loadedRoles.filter((r: any) =>
                 !r.role_id.toLowerCase().includes('rental logistics') &&
                 !r.role_id.toLowerCase().includes('banquet billing')
               );
+              if (filtered.length > 0) loadedRoles = filtered;
             }
           }
-          setRoles(loadedRoles);
           if (loadedRoles.length > 0) {
+            setRoles(loadedRoles);
             // Keep selected role if valid, else pick first
             const exists = loadedRoles.some((r: any) => r.role_id === latestRoleRef.current);
             if (!exists) {
               setSelectedRole(loadedRoles[0].role_id);
               latestRoleRef.current = loadedRoles[0].role_id;
             }
+          } else if (fallbackRoles.length > 0) {
+            setRoles(fallbackRoles);
           }
+        } else if (fallbackRoles.length > 0) {
+          setRoles(fallbackRoles);
         }
       } catch (err) {
         console.error('Failed to load roles from API:', err);
+        if (fallbackRoles.length > 0) {
+          setRoles(fallbackRoles);
+        }
       } finally {
         setIsLoadingRoles(false);
       }
     }
     loadRoles();
-  }, [businessSlug, selectedDivision, isHorecaEssentials, isAdjs]);
+  }, [businessSlug, selectedDivision, isHorecaEssentials, isAdjs, fallbackRoles]);
 
 
 

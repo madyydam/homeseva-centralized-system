@@ -133,9 +133,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const passHash = bcrypt.hashSync(newPassword.trim(), 10);
-      const pin4Hash = bcrypt.hashSync(newPin4.trim(), 10);
-      const pin8Hash = bcrypt.hashSync(newPin8.trim(), 10);
+      const passHash = await hashCredential(newPassword.trim());
+      const pin4Hash = await hashCredential(newPin4.trim());
+      const pin8Hash = await hashCredential(newPin8.trim());
 
       await prisma.superAdminCredentials.upsert({
         where: { id: 'primary' },

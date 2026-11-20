@@ -69,6 +69,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!matched && (field === 'password' || field === 'pin')) {
+      const newAttempts = (dbRole.failedAttempts || 0) + 1;
+      const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
+      if (newAttempts >= 5) {
+        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      }
+      await prisma.businessRole.update({
+        where: { id: dbRole.id },
+        data: updatePayload,
+      });
+
+      if (newAttempts >= 5) {
+        return NextResponse.json({
+          success: false,
+          matched: false,
+          locked: true,
+          error: 'Role has been locked for 15 minutes due to 5 consecutive failed attempts.',
+        }, { status: 403 });
+      }
+    }
+
     return NextResponse.json({ success: true, matched });
   } catch (err: any) {
     console.error('Error verifying role field:', err);
