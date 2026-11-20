@@ -245,15 +245,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     }
   }, [subcompanyParam]);
 
-  // Canonicalize /signin/printbooth and /signin/crockery-rental to their respective unified portals
-  useEffect(() => {
-    if (businessSlug === 'printbooth' && typeof window !== 'undefined') {
-      window.location.replace('/signin/adjs?subcompany=printbooth');
-    }
-    if (businessSlug === 'crockery-rental' && typeof window !== 'undefined') {
-      window.location.replace('/signin/horeca-essentials?division=crockery-rental');
-    }
-  }, [businessSlug]);
+
 
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
@@ -292,38 +284,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const [isDoorAscending, setIsDoorAscending] = useState(false);
   const typingTimerRef = useRef<{ password?: NodeJS.Timeout; pin?: NodeJS.Timeout }>({});
 
-  // If user already has an active session for this business, smoothly advance straight into dashboard
-  useEffect(() => {
-    let isMounted = true;
-    fetch('/api/auth/me')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (
-          isMounted &&
-          data &&
-          data.authenticated &&
-          (data.businessSlug === businessSlug || (isAdjs && (data.businessSlug === 'adjs' || data.businessSlug === 'printbooth')))
-        ) {
-          const canonicalSlug = isAdjs ? 'adjs' : businessSlug;
-          let target = `/app/${canonicalSlug}/dashboard?role=${encodeURIComponent(data.role || '')}`;
-          if (isGentleHairWigs && selectedBranch) {
-            target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(data.role || '')}`;
-          } else if (isHorecaEssentials && selectedDivision) {
-            target =
-              selectedDivision === 'crockery-rental'
-                ? `/app/crockery-rental/dashboard?role=${encodeURIComponent(data.role || '')}`
-                : `/app/horeca-essentials/dashboard?division=essentials-sales&role=${encodeURIComponent(data.role || '')}`;
-          } else if (isAdjs && selectedSubcompany) {
-            target = `/app/adjs/dashboard?subcompany=${selectedSubcompany}&role=${encodeURIComponent(data.role || '')}`;
-          }
-          window.location.replace(target);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, [businessSlug, isGentleHairWigs, isHorecaEssentials, isAdjs, selectedBranch, selectedDivision, selectedSubcompany]);
+
 
   // Real-time synchronization refs to completely eliminate closure latency & stale data bugs
   const latestPasswordRef = useRef(password);
@@ -704,15 +665,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     loadRoles();
   }, [businessSlug, selectedDivision, isHorecaEssentials, isAdjs]);
 
-  // Update if branchParam or divisionParam changes
-  useEffect(() => {
-    if (branchParam === 'viman-nagar' || branchParam === 'ravet' || branchParam === 'kolhapur') {
-      setSelectedBranch(branchParam);
-    }
-    if (divisionParam === 'essentials-sales' || divisionParam === 'crockery-rental') {
-      setSelectedDivision(divisionParam as 'essentials-sales' | 'crockery-rental');
-    }
-  }, [branchParam, divisionParam]);
+
 
   // Handle clicking outside custom dropdown & ESC key
   useEffect(() => {
@@ -1982,7 +1935,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                         Select Your Role
                       </label>
 
-                      {isLoadingRoles ? (
+                      {isLoadingRoles && roles.length === 0 ? (
                         <div className="w-full flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500">
                           Loading roles...
                         </div>

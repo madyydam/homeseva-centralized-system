@@ -39,6 +39,8 @@ export default async function BusinessWorkspaceLayout({
     (userPayload.businessSlug === businessSlug ||
       (userPayload.businessSlug === 'adjs' && businessSlug === 'printbooth') ||
       (userPayload.businessSlug === 'printbooth' && businessSlug === 'adjs') ||
+      (userPayload.businessSlug === 'horeca-essentials' && businessSlug === 'crockery-rental') ||
+      (userPayload.businessSlug === 'crockery-rental' && businessSlug === 'horeca-essentials') ||
       (userPayload.businessSlug === 'gentle-hair-wigs' && businessSlug === 'business-2') ||
       (userPayload.businessSlug === 'business-2' && businessSlug === 'gentle-hair-wigs') ||
       (userPayload.businessSlug === 'ecolab-distribution' && businessSlug === 'business-4') ||
