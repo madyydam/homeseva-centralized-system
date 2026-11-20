@@ -18,11 +18,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'businessSlug required' }, { status: 400 });
     }
 
+    const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
+
     const admin = getAdminClient();
     const { data: business } = await admin
       .from('businesses')
       .select('id')
-      .eq('slug', businessSlug)
+      .eq('slug', canonicalSlug)
       .single();
 
     if (!business) {
@@ -73,11 +75,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'businessSlug, roleId, and tabAccessList required' }, { status: 400 });
     }
 
+    const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
+
     const admin = getAdminClient();
     const { data: business } = await admin
       .from('businesses')
       .select('id')
-      .eq('slug', businessSlug)
+      .eq('slug', canonicalSlug)
       .single();
 
     if (!business) {

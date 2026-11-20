@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
       `);
 
     if (businessSlug) {
-      query = query.eq('businesses.slug', businessSlug);
+      const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
+      query = query.eq('businesses.slug', canonicalSlug);
     }
 
     const { data: roles, error } = await query.order('role_id');
@@ -53,10 +54,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'businessSlug, roleId, and password are required.' }, { status: 400 });
       }
 
+      const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
+
       const { data: b } = await admin
         .from('businesses')
         .select('id')
-        .eq('slug', businessSlug)
+        .eq('slug', canonicalSlug)
         .single();
 
       if (!b) {

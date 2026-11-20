@@ -260,7 +260,8 @@ export async function POST(req: NextRequest) {
     // ───────────────────────────────────────────────────────────────────────────
     if (action === 'verify') {
       const { businessSlug, role, password, pin } = body;
-      const slug = (businessSlug || '').trim();
+      const rawSlug = (businessSlug || '').trim();
+      const slug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
       const roleName = (role || '').trim();
       const pass = (password || '').trim();
       const p = (pin || '').trim();

@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { businessSlug, role, password, pin } = body;
 
-    const slug = (businessSlug || '').trim();
+    const rawSlug = (businessSlug || '').trim();
+    const slug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
     const roleId = (role || '').trim();
     const enteredPass = (password || '').trim();
     const enteredPin = (pin || '').trim();

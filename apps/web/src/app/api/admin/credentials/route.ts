@@ -194,11 +194,13 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
+
       // Find business
       const { data: b } = await admin
         .from('businesses')
         .select('id')
-        .eq('slug', businessSlug)
+        .eq('slug', canonicalSlug)
         .single();
 
       if (!b) {
@@ -253,10 +255,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'businessSlug and credentials array required.' }, { status: 400 });
       }
 
+      const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
+
       const { data: b } = await admin
         .from('businesses')
         .select('id')
-        .eq('slug', businessSlug)
+        .eq('slug', canonicalSlug)
         .single();
 
       if (!b) {

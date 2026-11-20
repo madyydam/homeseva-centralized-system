@@ -17,12 +17,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, matched: false });
     }
 
+    const rawSlug = businessSlug.trim();
+    const canonicalSlug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
+
     const admin = getAdminClient();
 
     const { data: business } = await admin
       .from('businesses')
       .select('id, slug, is_active')
-      .eq('slug', businessSlug.trim())
+      .eq('slug', canonicalSlug)
       .single();
 
     if (!business || !business.is_active) {

@@ -6,11 +6,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const slug = searchParams.get('slug');
+    const rawSlug = searchParams.get('slug');
 
     const admin = getAdminClient();
 
-    if (slug) {
+    if (rawSlug) {
+      const canonicalSlug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
+
       // Query specific business and its roles
       const { data: business } = await admin
         .from('businesses')
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
             id, tab_key, label, description, sort_order, is_active
           )
         `)
-        .eq('slug', slug)
+        .eq('slug', canonicalSlug)
         .eq('is_active', true)
         .single();
 
@@ -32,16 +34,28 @@ export async function GET(req: NextRequest) {
       }
 
       // Filter active roles and tabs
-      const activeRoles = (business.business_roles || []).filter((r: any) => r.is_active);
+      let activeRoles = (business.business_roles || []).filter((r: any) => r.is_active);
       const activeTabs = (business.tabs || []).filter((t: any) => t.is_active);
+
+      // Specific division role tailoring for Crockery Rental vs Essentials Sales
+      if (rawSlug === 'crockery-rental') {
+        activeRoles = activeRoles.filter((r: any) =>
+          !r.role_id.toLowerCase().includes('sales representative')
+        );
+      } else if (rawSlug === 'essentials-sales') {
+        activeRoles = activeRoles.filter((r: any) =>
+          !r.role_id.toLowerCase().includes('rental logistics') &&
+          !r.role_id.toLowerCase().includes('banquet billing')
+        );
+      }
 
       return NextResponse.json({
         success: true,
         business: {
           id: business.id,
-          name: business.name,
-          slug: business.slug,
-          subtitle: business.subtitle,
+          name: rawSlug === 'crockery-rental' ? 'Crockery Rentals' : business.name,
+          slug: rawSlug,
+          subtitle: rawSlug === 'crockery-rental' ? 'Banquet Tableware & Buffet Hire Operations' : business.subtitle,
           description: business.description,
           themeColor: business.theme_color,
           logoUrl: business.logo_url,

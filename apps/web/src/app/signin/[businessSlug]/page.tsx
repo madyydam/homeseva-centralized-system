@@ -64,7 +64,7 @@ function getRoleIcon(roleName: string, dept: string = '') {
   if (text.includes('developer') || text.includes('dev') || text.includes('code') || text.includes('engineer')) return Laptop;
   if (text.includes('manager') || text.includes('supervisor') || text.includes('director')) return ShieldCheck;
   if (text.includes('call') || text.includes('telecaller')) return PhoneCall;
-  if (text.includes('stylist') || text.includes('hair') || text.includes('cut')) return Scissors;
+  if (text.includes('stylist') || text.includes('hair') || text.includes('barber') || /\bcut\b/.test(text)) return Scissors;
   if (text.includes('measurement') || text.includes('consultant')) return Ruler;
   if (text.includes('billing') || text.includes('desk') || text.includes('front') || text.includes('account')) return Receipt;
   if (text.includes('inventory') || text.includes('warehouse') || text.includes('stock')) return Package;
@@ -98,10 +98,22 @@ const DEFAULT_BUSINESS_ROLES: Record<string, DynamicRole[]> = {
     { id: '7', role_id: 'Studio Partner / Owner', label: 'Studio Partner / Owner', department: 'Executive', description: 'Studio P&L & audits' },
   ],
   'horeca-essentials': [
-    { id: '1', role_id: 'Store Operations Manager', label: 'Store Operations Manager', department: 'Operations', description: 'Store & warehouse manager' },
-    { id: '2', role_id: 'B2B Sales Executive', label: 'B2B Sales Executive', department: 'Sales', description: 'Commercial kitchen sales' },
-    { id: '3', role_id: 'Crockery Hire Coordinator', label: 'Crockery Hire Coordinator', department: 'Rentals', description: 'Event & banquet hire' },
-    { id: '4', role_id: 'Accountant & Billing', label: 'Accountant & Billing', department: 'Finance', description: 'GST invoicing & ledger' },
+    { id: '1', role_id: 'General Manager', label: 'General Manager', department: 'Management', description: 'Overall management of sales supply and crockery rental' },
+    { id: '2', role_id: 'Rental Logistics Supervisor', label: 'Rental Logistics Supervisor', department: 'Rental', description: 'Banquet and event hire logistics, delivery & return checks' },
+    { id: '3', role_id: 'Banquet Billing & Invoicing', label: 'Banquet Billing & Invoicing', department: 'Finance', description: 'Invoicing, advances, security deposits, and settlement register' },
+    { id: '4', role_id: 'Inventory & Warehousing Desk', label: 'Inventory & Warehousing Desk', department: 'Inventory', description: 'Stock tracking, breakage register, and warehouse audits' },
+    { id: '5', role_id: 'Sales Representative (Essentials)', label: 'Sales Representative (Essentials)', department: 'Sales', description: 'Commercial cutlery, chinaware, glassware & amenities sales' },
+  ],
+  'crockery-rental': [
+    { id: '1', role_id: 'Rental Logistics Supervisor', label: 'Rental Logistics Supervisor', department: 'Rental', description: 'Banquet and event hire logistics, delivery & return checks' },
+    { id: '2', role_id: 'Banquet Billing & Invoicing', label: 'Banquet Billing & Invoicing', department: 'Finance', description: 'Invoicing, advances, security deposits, and settlement register' },
+    { id: '3', role_id: 'Inventory & Warehousing Desk', label: 'Inventory & Warehousing Desk', department: 'Inventory', description: 'Stock tracking, breakage register, and warehouse audits' },
+    { id: '4', role_id: 'General Manager', label: 'General Manager', department: 'Management', description: 'Overall management of sales supply and crockery rental' },
+  ],
+  'essentials-sales': [
+    { id: '1', role_id: 'Sales Representative (Essentials)', label: 'Sales Representative (Essentials)', department: 'Sales', description: 'Commercial cutlery, chinaware, glassware & amenities sales' },
+    { id: '2', role_id: 'Inventory & Warehousing Desk', label: 'Inventory & Warehousing Desk', department: 'Inventory', description: 'Stock tracking, breakage register, and warehouse audits' },
+    { id: '3', role_id: 'General Manager', label: 'General Manager', department: 'Management', description: 'Overall management of sales supply and crockery rental' },
   ],
   'ecolab-distribution': [
     { id: '1', role_id: 'Territory Sales Manager', label: 'Territory Sales Manager', department: 'Sales', description: 'Institutional sales' },
@@ -176,6 +188,8 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const initialDivision =
     divisionParam === 'essentials-sales' || divisionParam === 'crockery-rental'
       ? (divisionParam as 'essentials-sales' | 'crockery-rental')
+      : businessSlug === 'crockery-rental'
+      ? 'crockery-rental'
       : null;
 
   const [selectedDivision, setSelectedDivision] = useState<'essentials-sales' | 'crockery-rental' | null>(initialDivision);
@@ -198,16 +212,23 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const [selectedSubcompany, setSelectedSubcompany] = useState<'printbooth' | null>(initialSubcompany);
 
   // Dynamic roles fetched from Supabase API (pre-populated with catalog defaults)
-  const fallbackRoles = DEFAULT_BUSINESS_ROLES[businessSlug] || DEFAULT_BUSINESS_ROLES['adjs'] || [];
+  const initialDivKey = businessSlug === 'crockery-rental' ? 'crockery-rental' : (initialDivision || businessSlug);
+  const fallbackRoles: DynamicRole[] =
+    DEFAULT_BUSINESS_ROLES[initialDivKey] ||
+    DEFAULT_BUSINESS_ROLES[businessSlug] ||
+    (isHorecaEssentials ? (DEFAULT_BUSINESS_ROLES['crockery-rental'] || []) : (isAdjs ? (DEFAULT_BUSINESS_ROLES['adjs'] || []) : []));
   const [roles, setRoles] = useState<DynamicRole[]>(fallbackRoles);
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0]?.role_id || '');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
-  // Canonicalize /signin/printbooth to /signin/adjs?subcompany=printbooth
+  // Canonicalize /signin/printbooth and /signin/crockery-rental to their respective unified portals
   useEffect(() => {
     if (businessSlug === 'printbooth' && typeof window !== 'undefined') {
       window.location.replace('/signin/adjs?subcompany=printbooth');
+    }
+    if (businessSlug === 'crockery-rental' && typeof window !== 'undefined') {
+      window.location.replace('/signin/horeca-essentials?division=crockery-rental');
     }
   }, [businessSlug]);
 
@@ -335,6 +356,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
       isSubmittingSessionRef.current = true;
       try {
+        const apiSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (isAdjs ? 'adjs' : businessSlug);
         const curEmail = (latestEmailRef.current || '').trim();
         if (!curEmail) {
           setErrorMsg('Please enter your registered staff email address.');
@@ -346,7 +368,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            businessSlug,
+            businessSlug: apiSlug,
             roleId: rRole,
             email: curEmail,
             password: rPass,
@@ -369,7 +391,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              businessSlug,
+              businessSlug: apiSlug,
               role: rRole,
               password: rPass,
               pin: rPin,
@@ -449,11 +471,12 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       setKeyStates((prev) => ({ ...prev, [field]: { status: 'flying' } }));
       setLocks((prev) => ({ ...prev, [field]: { ...prev[field], checking: true } }));
 
+      const apiSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (isAdjs ? 'adjs' : businessSlug);
       // Fetch verification in parallel with flight
       const checkPromise = fetch('/api/auth/role/verify-field', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessSlug, roleId: curRole, field, value: valToVerify }),
+        body: JSON.stringify({ businessSlug: apiSlug, roleId: curRole, field, value: valToVerify }),
       })
         .then((r) => r.json())
         .catch(() => ({ matched: false, error: 'Network error verifying credentials' }));
@@ -531,7 +554,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
       return true;
     },
-    [businessSlug, computeKeyFlightOffset, executeLoginSession]
+    [businessSlug, isAdjs, computeKeyFlightOffset, executeLoginSession]
   );
 
   const handleInputChange = (field: 'password' | 'pin', val: string) => {
@@ -621,13 +644,32 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     async function loadRoles() {
       try {
         setIsLoadingRoles(true);
-        const res = await fetch(`/api/auth/businesses?slug=${businessSlug}`);
+        const apiSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (isAdjs ? 'adjs' : businessSlug);
+        const res = await fetch(`/api/auth/businesses?slug=${apiSlug}`);
         const data = await res.json();
         if (data.success && data.business?.roles) {
-          setRoles(data.business.roles);
-          if (data.business.roles.length > 0) {
-            setSelectedRole(data.business.roles[0].role_id);
-            latestRoleRef.current = data.business.roles[0].role_id;
+          let loadedRoles = data.business.roles;
+          if (isHorecaEssentials) {
+            const currentDiv = selectedDivision || (businessSlug === 'crockery-rental' ? 'crockery-rental' : 'essentials-sales');
+            if (currentDiv === 'crockery-rental') {
+              loadedRoles = loadedRoles.filter((r: any) =>
+                !r.role_id.toLowerCase().includes('sales representative')
+              );
+            } else if (currentDiv === 'essentials-sales') {
+              loadedRoles = loadedRoles.filter((r: any) =>
+                !r.role_id.toLowerCase().includes('rental logistics') &&
+                !r.role_id.toLowerCase().includes('banquet billing')
+              );
+            }
+          }
+          setRoles(loadedRoles);
+          if (loadedRoles.length > 0) {
+            // Keep selected role if valid, else pick first
+            const exists = loadedRoles.some((r: any) => r.role_id === latestRoleRef.current);
+            if (!exists) {
+              setSelectedRole(loadedRoles[0].role_id);
+              latestRoleRef.current = loadedRoles[0].role_id;
+            }
           }
         }
       } catch (err) {
@@ -637,7 +679,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       }
     }
     loadRoles();
-  }, [businessSlug]);
+  }, [businessSlug, selectedDivision, isHorecaEssentials, isAdjs]);
 
   // Update if branchParam or divisionParam changes
   useEffect(() => {
