@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { getAdminClient } from '../../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import { signSession, SUPER_ADMIN_COOKIE } from '../../../../../lib/authSession';
 
 export const dynamic = 'force-dynamic';
@@ -23,29 +23,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const admin = getAdminClient();
-    const { data: adminRecord, error } = await admin
-      .from('super_admin_credentials')
-      .select('*')
-      .eq('id', 'primary')
-      .single();
+    const adminRecord = await prisma.superAdminCredentials.findFirst({
+      where: { id: 'primary' },
+    });
 
-    if (error || !adminRecord) {
-      console.error('Supabase super_admin_credentials query error:', error?.message);
+    if (!adminRecord) {
+      console.error('super_admin_credentials record not found in PostgreSQL');
       return NextResponse.json(
-        { success: false, error: 'Database not initialized. Table "super_admin_credentials" not found. Please run scripts/vps-setup.sql first.' },
+        { success: false, error: 'Super Admin credentials not initialized in database. Please run seed script first.' },
         { status: 503 }
       );
     }
 
     const expectedUsername = adminRecord.username;
-    const expectedPassHash = adminRecord.password_hash;
-    const expectedPin4Hash = adminRecord.pin4_hash;
-    const expectedPin8Hash = adminRecord.pin8_hash;
+    const expectedPassHash = adminRecord.passwordHash;
+    const expectedPin4Hash = adminRecord.pin4Hash;
+    const expectedPin8Hash = adminRecord.pin8Hash;
 
     // Check lockout
-    if (adminRecord?.locked_until) {
-      const lockExpiry = new Date(adminRecord.locked_until).getTime();
+    if (adminRecord.lockedUntil) {
+      const lockExpiry = new Date(adminRecord.lockedUntil).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
         const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
@@ -62,14 +59,15 @@ export async function POST(req: NextRequest) {
     const isPin8Match = bcrypt.compareSync(p8, expectedPin8Hash);
 
     if (!isUserMatch || !isPassMatch || !isPin4Match || !isPin8Match) {
-      if (adminRecord) {
-        const newAttempts = (adminRecord.failed_attempts || 0) + 1;
-        const updatePayload: Record<string, any> = { failed_attempts: newAttempts };
-        if (newAttempts >= 5) {
-          updatePayload.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-        }
-        await admin.from('super_admin_credentials').update(updatePayload).eq('id', 'primary');
+      const newAttempts = (adminRecord.failedAttempts || 0) + 1;
+      const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
+      if (newAttempts >= 5) {
+        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
       }
+      await prisma.superAdminCredentials.update({
+        where: { id: 'primary' },
+        data: updatePayload,
+      });
 
       return NextResponse.json(
         { success: false, error: 'Authentication failed. One or more factors did not match.' },
@@ -78,12 +76,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Success! Reset failed attempts
-    if (adminRecord) {
-      await admin
-        .from('super_admin_credentials')
-        .update({ failed_attempts: 0, locked_until: null })
-        .eq('id', 'primary');
-    }
+    await prisma.superAdminCredentials.update({
+      where: { id: 'primary' },
+      data: { failedAttempts: 0, lockedUntil: null },
+    });
 
     // Sign session token and set HTTP-only cookie
     const token = await signSession({
@@ -103,31 +99,14 @@ export async function POST(req: NextRequest) {
 
     cookies().set(SUPER_ADMIN_COOKIE, token, cookieOptions);
 
-    // Audit log
-    try {
-      await admin.from('audit_logs').insert({
-        actor_type: 'SUPER_ADMIN',
-        actor_identifier: expectedUsername,
-        action: 'super_admin.login',
-        entity_type: 'auth',
-        ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1',
-        user_agent: req.headers.get('user-agent') || 'Browser',
-        metadata: { timestamp: new Date().toISOString() },
-      });
-    } catch {
-      // Ignore if table not created yet
-    }
-
-    const response = NextResponse.json({
+    const res = NextResponse.json({
       success: true,
-      message: 'Master Super Admin authentication verified successfully.',
-      redirect: '/super-admin/credentials',
+      message: 'Master authentication successful. Session active.',
     });
-
-    response.cookies.set(SUPER_ADMIN_COOKIE, token, cookieOptions);
-    return response;
+    res.cookies.set(SUPER_ADMIN_COOKIE, token, cookieOptions);
+    return res;
   } catch (err: any) {
-    console.error('Super admin login error:', err);
+    console.error('Super Admin login error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient } from '../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
 import { hashCredential } from '@/lib/crypto';
 
@@ -15,26 +15,30 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const businessSlug = searchParams.get('businessSlug');
 
-    const admin = getAdminClient();
-    let query = admin
-      .from('business_roles')
-      .select(`
-        id, role_id, label, description, department, is_active, password, pin, created_at, updated_at,
-        businesses!inner(id, name, slug)
-      `);
+    const canonicalSlug = businessSlug
+      ? (businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug))
+      : undefined;
 
-    if (businessSlug) {
-      const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
-      query = query.eq('businesses.slug', canonicalSlug);
-    }
+    const roles = await prisma.businessRole.findMany({
+      ...(canonicalSlug ? { where: { business: { slug: canonicalSlug } } } : {}),
+      include: {
+        business: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+      orderBy: { roleId: 'asc' },
+    });
 
-    const { data: roles, error } = await query.order('role_id');
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
-
-    const sanitizedRoles = (roles || []).map((r: any) => ({
-      ...r,
+    const sanitizedRoles = roles.map((r) => ({
+      id: r.id,
+      role_id: r.roleId,
+      label: r.label,
+      description: r.description,
+      department: r.department,
+      is_active: r.isActive,
+      created_at: r.createdAt.toISOString(),
+      updated_at: r.updatedAt.toISOString(),
+      businesses: r.business,
       hasPassword: !!(r.password && r.password.trim()),
       hasPin: !!(r.pin && r.pin.trim()),
       password: '••••••••',
@@ -56,7 +60,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { action, businessSlug, roleId, label, description, department, password, pin } = body;
-    const admin = getAdminClient();
 
     if (action === 'create-role') {
       if (!businessSlug || !roleId?.trim() || !password?.trim()) {
@@ -65,11 +68,10 @@ export async function POST(req: NextRequest) {
 
       const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
 
-      const { data: b } = await admin
-        .from('businesses')
-        .select('id')
-        .eq('slug', canonicalSlug)
-        .single();
+      const b = await prisma.business.findFirst({
+        where: { slug: canonicalSlug },
+        select: { id: true },
+      });
 
       if (!b) {
         return NextResponse.json({ success: false, error: 'Business not found.' }, { status: 404 });
@@ -78,40 +80,45 @@ export async function POST(req: NextRequest) {
       const passwordHash = await hashCredential(password);
       const pinHash = await hashCredential(pin || '1111');
 
-      const { data: newRole, error } = await admin
-        .from('business_roles')
-        .insert({
-          business_id: b.id,
-          role_id: roleId.trim(),
+      const newRole = await prisma.businessRole.create({
+        data: {
+          businessId: b.id,
+          roleId: roleId.trim(),
           label: (label || roleId).trim(),
           description: description?.trim() || '',
           department: department?.trim() || 'General',
           password: passwordHash,
           pin: pinHash,
-          is_active: true,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-      }
+          isActive: true,
+        },
+      });
 
       try {
-        await admin.from('audit_logs').insert({
-          actor_type: 'SUPER_ADMIN',
-          actor_identifier: session.username,
-          business_slug: businessSlug,
-          action: 'role.created',
-          entity_type: 'role',
-          entity_id: newRole.id,
-          metadata: { roleId, department },
+        await prisma.auditLog.create({
+          data: {
+            actorType: 'SUPER_ADMIN',
+            actorIdentifier: session.username || 'SUPER_ADMIN',
+            businessSlug,
+            action: 'role.created',
+            entityType: 'role',
+            entityId: newRole.id,
+            metadata: { roleId, department },
+          },
         });
       } catch {}
 
       return NextResponse.json({
         success: true,
-        role: { ...newRole, password: '••••••••', pin: '••••' },
+        role: {
+          id: newRole.id,
+          role_id: newRole.roleId,
+          label: newRole.label,
+          description: newRole.description,
+          department: newRole.department,
+          is_active: newRole.isActive,
+          password: '••••••••',
+          pin: '••••',
+        },
       });
     }
 
@@ -121,10 +128,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Role ID is required.' }, { status: 400 });
       }
 
-      const { error } = await admin.from('business_roles').delete().eq('id', id);
-      if (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-      }
+      await prisma.businessRole.delete({
+        where: { id },
+      });
 
       return NextResponse.json({ success: true, message: 'Role deleted successfully.' });
     }

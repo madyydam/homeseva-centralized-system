@@ -211,7 +211,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
   const [selectedSubcompany, setSelectedSubcompany] = useState<'printbooth' | null>(initialSubcompany);
 
-  // Dynamic roles fetched from Supabase API (pre-populated with catalog defaults)
+  // Dynamic roles fetched from PostgreSQL API (pre-populated with catalog defaults)
   const initialDivKey = businessSlug === 'crockery-rental' ? 'crockery-rental' : (initialDivision || businessSlug);
   const fallbackRoles: DynamicRole[] =
     DEFAULT_BUSINESS_ROLES[initialDivKey] ||
@@ -623,7 +623,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     setIsDoorAscending(false);
   };
 
-  // Fetch dynamic roles from Supabase on mount
+  // Fetch dynamic roles from PostgreSQL on mount
   useEffect(() => {
     async function loadRoles() {
       try {
@@ -1929,7 +1929,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                 {/* RIGHT COLUMN: CREDENTIALS FORM */}
                 <div className="md:col-span-8 flex flex-col justify-center">
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* 1. DYNAMIC ROLE DROPDOWN (Fetched from Supabase) */}
+                    {/* 1. DYNAMIC ROLE DROPDOWN (Fetched from PostgreSQL) */}
                     <div className="relative" ref={dropdownRef}>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Select Your Role

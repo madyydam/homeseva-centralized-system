@@ -2,22 +2,9 @@
 // Simulates live caller logins, lead isolation, owner inspection, and daily reporting
 // STRICT PROTOCOL: Automatically tears down and deletes all test leads, reports, and records created during tests.
 
-import { createClient } from '@supabase/supabase-js';
 import { prisma } from '../packages/db/dist/index.js';
 
 const BASE_URL = 'http://localhost:3000';
-
-const DEFAULT_URL = 'https://pxkopnkocescmtqcokda.supabase.co';
-const DEFAULT_SERVICE_ROLE_KEY = Buffer.from(
-  'c2Jfc2VjcmV0X2hQUDdQSThZWmpkZWJOc2RIYWU3MUFfODJCbnY3eGM=',
-  'base64'
-).toString('utf-8');
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
 
 async function runTests() {
   console.log('================================================================');
@@ -45,35 +32,41 @@ async function runTests() {
 
   try {
     // 0. Setup: Ensure temporary test members exist in role_members (will be cleanly deleted in teardown)
-    const { data: gentleBiz } = await supabase.from('businesses').select('id').eq('slug', 'gentle-hair-wigs').single();
-    const { data: adjsBiz } = await supabase.from('businesses').select('id').eq('slug', 'adjs').single();
+    const gentleBiz = await prisma.business.findFirst({ where: { slug: 'gentle-hair-wigs' }, select: { id: true } });
+    const adjsBiz = await prisma.business.findFirst({ where: { slug: 'adjs' }, select: { id: true } });
 
     // Clean any prior stale test members first
-    await supabase.from('role_members').delete().in('email', ['pooja@gentlehairwigs.com', 'aakash@printbooth.in']);
+    await prisma.roleMember.deleteMany({
+      where: { email: { in: ['pooja@gentlehairwigs.com', 'aakash@printbooth.in'] } },
+    });
 
     if (gentleBiz?.id) {
-      const { data: m1 } = await supabase.from('role_members').insert({
-        business_id: gentleBiz.id,
-        role_id: 'Cold Caller',
-        name: 'Pooja',
-        email: 'pooja@gentlehairwigs.com',
-        password: '12345678',
-        pin: '1234',
-        is_active: true,
-      }).select().single();
+      const m1 = await prisma.roleMember.create({
+        data: {
+          businessId: gentleBiz.id,
+          roleId: 'Cold Caller',
+          name: 'Pooja',
+          email: 'pooja@gentlehairwigs.com',
+          password: '12345678',
+          pin: '1234',
+          isActive: true,
+        },
+      });
       if (m1?.id) createdMemberIds.add(m1.id);
     }
 
     if (adjsBiz?.id) {
-      const { data: m2 } = await supabase.from('role_members').insert({
-        business_id: adjsBiz.id,
-        role_id: 'Coldcaller',
-        name: 'Aakash',
-        email: 'aakash@printbooth.in',
-        password: '12345678',
-        pin: '1234',
-        is_active: true,
-      }).select().single();
+      const m2 = await prisma.roleMember.create({
+        data: {
+          businessId: adjsBiz.id,
+          roleId: 'Coldcaller',
+          name: 'Aakash',
+          email: 'aakash@printbooth.in',
+          password: '12345678',
+          pin: '1234',
+          isActive: true,
+        },
+      });
       if (m2?.id) createdMemberIds.add(m2.id);
     }
     // TEST 1: Business List & Active Slugs
@@ -494,10 +487,14 @@ async function runTests() {
       }
 
       // 3. Clean temporary test members from role_members
-      await supabase.from('role_members').delete().in('email', ['pooja@gentlehairwigs.com', 'aakash@printbooth.in']);
+      await prisma.roleMember.deleteMany({
+        where: { email: { in: ['pooja@gentlehairwigs.com', 'aakash@printbooth.in'] } },
+      });
       if (createdMemberIds.size > 0) {
         const memIds = Array.from(createdMemberIds);
-        await supabase.from('role_members').delete().in('id', memIds);
+        await prisma.roleMember.deleteMany({
+          where: { id: { in: memIds } },
+        });
       }
       console.log('  🗑️  Cleaned temporary test members from role_members.');
 

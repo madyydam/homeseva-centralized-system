@@ -157,7 +157,7 @@ export function SuperAdminSidebar({ activeTab }: SuperAdminSidebarProps) {
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-800 leading-none">Authority Active</p>
-                <p className="text-[10px] text-slate-400 truncate mt-1">Live Supabase Sync</p>
+                <p className="text-[10px] text-slate-400 truncate mt-1">PostgreSQL Engine</p>
               </div>
             </div>
 
@@ -174,7 +174,7 @@ export function SuperAdminSidebar({ activeTab }: SuperAdminSidebarProps) {
           <div className="flex flex-col items-center space-y-2">
             <div
               className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-2xs"
-              title="Authority Active (Live Supabase)"
+              title="Authority Active (PostgreSQL)"
             >
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>

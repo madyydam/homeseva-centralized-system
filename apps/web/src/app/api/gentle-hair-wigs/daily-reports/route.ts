@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = '3';
+const BUSINESS_ID = 'gentle-hair-wigs';
 const BUSINESS_SLUG = 'gentle-hair-wigs';
 
 // Persistent in-process cache to ensure instant availability and durability
@@ -16,27 +16,27 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
     const allDates = searchParams.get('allDates') === 'true';
 
-    const admin = getAdminClient();
-
-    // 1. Try fetching from telecaller_daily_reports table
+    // 1. Try fetching from telecallerDailyReport table
     let dbReports: any[] = [];
     try {
-      let query = admin
-        .from('telecaller_daily_reports')
-        .select('*')
-        .eq('business_id', BUSINESS_ID);
+      const reports = await prisma.telecallerDailyReport.findMany({
+        where: {
+          businessId: { in: [BUSINESS_ID, '3', 'b1000000-0000-0000-0000-000000000003'] },
+          ...(allDates ? {} : { reportDate: new Date(date) }),
+          ...(branch !== 'all' ? { branch } : {}),
+        },
+        orderBy: { reportDate: 'desc' },
+      });
 
-      if (!allDates) {
-        query = query.eq('report_date', date);
-      }
-
-      if (branch !== 'all') {
-        query = query.eq('branch', branch);
-      }
-
-      const { data, error } = await query.order('report_date', { ascending: false });
-      if (!error && Array.isArray(data) && data.length > 0) {
-        dbReports = data;
+      if (Array.isArray(reports) && reports.length > 0) {
+        dbReports = reports.map((r) => ({
+          ...r,
+          report_date: r.reportDate.toISOString().slice(0, 10),
+          staff_id: r.telecallerId,
+          staff_name: r.telecallerName,
+          calls_made: r.callsMade,
+          calls_connected: r.callsConnected,
+        }));
       }
     } catch (err) {
       console.warn('Could not query telecaller_daily_reports table directly:', err);
@@ -45,124 +45,99 @@ export async function GET(req: NextRequest) {
     // 2. If table returned no rows, fall back to audit_logs where attendance was recorded
     if (dbReports.length === 0) {
       try {
-        const { data: auditData } = await admin
-          .from('audit_logs')
-          .select('*')
-          .eq('business_slug', BUSINESS_SLUG)
-          .eq('entity_type', 'attendance_report')
-          .order('created_at', { ascending: false });
+        const auditData = await prisma.auditLog.findMany({
+          where: {
+            businessSlug: BUSINESS_SLUG,
+            entityType: 'attendance_report',
+          },
+          orderBy: { createdAt: 'desc' },
+        });
 
         if (Array.isArray(auditData)) {
           const seen = new Set<string>();
           auditData.forEach((a) => {
-            const m = a.metadata || {};
+            const m = (a.metadata as any) || {};
             if ((allDates || m.reportDate === date) && (!branch || branch === 'all' || m.branch === branch)) {
-              const dedupeKey = `${a.entity_id}_${m.reportDate || date}_${m.branch}`;
+              const dedupeKey = `${a.entityId}_${m.reportDate || date}_${m.branch}`;
               if (!seen.has(dedupeKey)) {
                 seen.add(dedupeKey);
                 dbReports.push({
                   id: a.id,
-                  business_id: BUSINESS_ID,
-                  business_slug: BUSINESS_SLUG,
-                  branch: m.branch,
-                  staff_id: a.entity_id,
-                  staff_name: a.actor_identifier,
+                  staff_id: a.entityId,
+                  staff_name: a.actorIdentifier || 'Staff Member',
+                  branch: m.branch || branch,
                   report_date: m.reportDate || date,
-                  punch_in_time: m.punchInTime,
-                  punch_out_time: m.punchOutTime,
-                  total_hours: m.totalHours,
-                  calls_made: m.callsMade,
-                  calls_connected: m.callsConnected,
-                  appointments_booked: m.appointmentsBooked,
-                  converted_clients: m.convertedClients,
-                  follow_ups_due: m.followUpsDue,
-                  work_summary: m.workSummary,
-                  status: m.status,
-                  is_holiday: m.isHoliday,
-                  updated_at: a.created_at,
+                  punch_in_time: m.punchInTime || null,
+                  punch_out_time: m.punchOutTime || null,
+                  total_hours: m.totalHours || 0,
+                  calls_made: m.callsMade || 0,
+                  calls_connected: m.callsConnected || 0,
+                  appointments_booked: m.appointmentsBooked || 0,
+                  converted_clients: m.convertedClients || 0,
+                  follow_ups_due: m.followUpsDue || 0,
+                  work_summary: m.workSummary || '',
+                  status: m.status || (m.isHoliday ? 'HOLIDAY' : 'PRESENT'),
+                  is_holiday: !!m.isHoliday,
+                  created_at: a.createdAt.toISOString(),
                 });
               }
             }
           });
         }
       } catch (err) {
-        console.warn('Could not query audit_logs for attendance:', err);
+        console.warn('Audit logs attendance fallback error:', err);
       }
     }
 
-    // Merge with in-memory cache and branch roster
-    const reportsMap = new Map<string, any>();
-    dbReports.forEach((r) => {
-      reportsMap.set(`${r.staff_id}_${r.branch}`, {
-        id: r.id,
-        staffId: r.staff_id,
-        staffName: r.staff_name,
-        branch: r.branch,
-        reportDate: r.report_date,
-        punchInTime: r.punch_in_time || null,
-        punchOutTime: r.punch_out_time || null,
-        totalHours: Number(r.total_hours) || 0,
-        callsMade: Number(r.calls_made) || 0,
-        callsConnected: Number(r.calls_connected) || 0,
-        appointmentsBooked: Number(r.appointments_booked) || 0,
-        convertedClients: Number(r.converted_clients) || 0,
-        followUpsDue: Number(r.follow_ups_due) || 0,
-        workSummary: r.work_summary || '',
-        status: r.status || 'PRESENT',
-        isHoliday: Boolean(r.is_holiday),
-        updatedAt: r.updated_at || r.created_at,
-      });
-    });
-
-    // Also pull from in-memory cache if not already in reportsMap
-    inMemoryReportsCache.forEach((cachedVal, cacheKey) => {
-      if (cacheKey.includes(`_${date}_`)) {
-        const staffKey = `${cachedVal.staffId}_${cachedVal.branch}`;
-        if (!reportsMap.has(staffKey)) {
-          reportsMap.set(staffKey, cachedVal);
+    // 3. Fall back to in-memory cache if DB returned nothing
+    if (dbReports.length === 0) {
+      inMemoryReportsCache.forEach((report) => {
+        if (
+          (allDates || report.reportDate === date) &&
+          (branch === 'all' || !branch || report.branch === branch)
+        ) {
+          dbReports.push(report);
         }
-      }
-    });
-
-    if (allDates) {
-      const allFormatted = dbReports.map((r) => ({
-        id: r.id,
-        staffId: r.staff_id,
-        staffName: r.staff_name,
-        branch: r.branch,
-        reportDate: r.report_date,
-        punchInTime: r.punch_in_time || null,
-        punchOutTime: r.punch_out_time || null,
-        totalHours: Number(r.total_hours) || 0,
-        callsMade: Number(r.calls_made) || 0,
-        callsConnected: Number(r.calls_connected) || 0,
-        appointmentsBooked: Number(r.appointments_booked) || 0,
-        convertedClients: Number(r.converted_clients) || 0,
-        followUpsDue: Number(r.follow_ups_due) || 0,
-        workSummary: r.work_summary || '',
-        status: r.status || 'PRESENT',
-        isHoliday: Boolean(r.is_holiday),
-        updatedAt: r.updated_at || r.created_at,
-      }));
-
-      return NextResponse.json({
-        success: true,
-        branch,
-        reports: allFormatted,
       });
     }
 
-    // Return genuine submitted reports only (ZERO fake/mock roster entries)
-    const genuineReports = Array.from(reportsMap.values());
+    // Format final response objects
+    const reports = dbReports.map((r) => {
+      const isDateObj = r.report_date instanceof Date;
+      const formattedDate = isDateObj
+        ? r.report_date.toISOString().slice(0, 10)
+        : r.report_date || r.reportDate || date;
+
+      return {
+        id: r.id || `rep_${r.staff_id || r.staffId}_${formattedDate}`,
+        staffId: r.staff_id || r.staffId || 'staff_1',
+        staffName: r.staff_name || r.staffName || 'Staff Member',
+        branch: r.branch || branch,
+        reportDate: formattedDate,
+        punchInTime: r.punch_in_time || r.punchInTime || null,
+        punchOutTime: r.punch_out_time || r.punchOutTime || null,
+        totalHours: Number(r.total_hours || r.totalHours || 0),
+        callsMade: Number(r.calls_made || r.callsMade || 0),
+        callsConnected: Number(r.calls_connected || r.callsConnected || 0),
+        appointmentsBooked: Number(r.appointments_booked || r.appointmentsBooked || 0),
+        convertedClients: Number(r.converted_clients || r.convertedClients || 0),
+        followUpsDue: Number(r.follow_ups_due || r.followUpsDue || 0),
+        workSummary: r.work_summary || r.workSummary || '',
+        status: r.status === 'HOLIDAY' ? 'HOLIDAY' : r.status === 'LEAVE' ? 'LEAVE' : r.status === 'HALF_DAY' ? 'HALF_DAY' : r.status || 'PRESENT',
+        isHoliday: r.is_holiday ?? r.isHoliday ?? r.status === 'HOLIDAY',
+        updatedAt: r.updated_at || r.updatedAt || new Date().toISOString(),
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      date,
       branch,
-      reports: genuineReports,
+      date,
+      count: reports.length,
+      reports,
     });
   } catch (err: any) {
-    console.error('Error in daily reports GET:', err);
+    console.error('Error fetching daily reports:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
@@ -172,9 +147,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       branch = 'viman-nagar',
-      staffId = `tc_${branch}`,
-      staffName = 'Telecaller',
-      reportDate = new Date().toISOString().slice(0, 10),
+      staffId,
+      staffName,
+      reportDate,
       punchInTime,
       punchOutTime,
       totalHours = 0,
@@ -187,46 +162,6 @@ export async function POST(req: NextRequest) {
       status = 'PRESENT',
       isHoliday = false,
     } = body;
-
-    const admin = getAdminClient();
-
-    const payload = {
-      business_id: BUSINESS_ID,
-      business_slug: BUSINESS_SLUG,
-      branch,
-      staff_id: staffId,
-      staff_name: staffName,
-      report_date: reportDate,
-      punch_in_time: punchInTime || null,
-      punch_out_time: punchOutTime || null,
-      total_hours: Number(totalHours) || 0,
-      calls_made: Number(callsMade) || 0,
-      calls_connected: Number(callsConnected) || 0,
-      appointments_booked: Number(appointmentsBooked) || 0,
-      converted_clients: Number(convertedClients) || 0,
-      follow_ups_due: Number(followUpsDue) || 0,
-      work_summary: workSummary || '',
-      status: status === 'HOLIDAY' ? 'HOLIDAY' : status === 'LEAVE' ? 'LEAVE' : status === 'HALF_DAY' ? 'HALF_DAY' : status || 'PRESENT',
-      is_holiday: status === 'HOLIDAY',
-      updated_at: new Date().toISOString(),
-    };
-
-    let result = payload;
-
-    // 1. Attempt upsert into telecaller_daily_reports table
-    try {
-      const { data, error } = await admin
-        .from('telecaller_daily_reports')
-        .upsert(payload, { onConflict: 'staff_id,report_date,branch' })
-        .select()
-        .single();
-
-      if (!error && data) {
-        result = data;
-      }
-    } catch (err) {
-      console.warn('Upsert to telecaller_daily_reports failed, logging audit:', err);
-    }
 
     const cacheKey = `${staffId}_${reportDate}_${branch}`;
     const formattedReport = {
@@ -250,29 +185,31 @@ export async function POST(req: NextRequest) {
     };
     inMemoryReportsCache.set(cacheKey, formattedReport);
 
-    // 2. Audit log entry for attendance tracking
+    // Audit log entry for attendance tracking in PostgreSQL
     try {
-      await admin.from('audit_logs').insert({
-        actor_type: 'STAFF',
-        actor_identifier: staffName,
-        business_slug: BUSINESS_SLUG,
-        action: punchOutTime ? 'staff.report_submitted' : 'staff.punch_in',
-        entity_type: 'attendance_report',
-        entity_id: staffId,
-        metadata: {
-          branch,
-          reportDate,
-          punchInTime,
-          punchOutTime,
-          totalHours,
-          status,
-          callsMade,
-          callsConnected,
-          appointmentsBooked,
-          convertedClients,
-          followUpsDue,
-          workSummary,
-          isHoliday,
+      await prisma.auditLog.create({
+        data: {
+          actorType: 'STAFF',
+          actorIdentifier: staffName,
+          businessSlug: BUSINESS_SLUG,
+          action: punchOutTime ? 'staff.report_submitted' : 'staff.punch_in',
+          entityType: 'attendance_report',
+          entityId: staffId,
+          metadata: {
+            branch,
+            reportDate,
+            punchInTime,
+            punchOutTime,
+            totalHours,
+            status,
+            callsMade,
+            callsConnected,
+            appointmentsBooked,
+            convertedClients,
+            followUpsDue,
+            workSummary,
+            isHoliday,
+          },
         },
       });
     } catch {}
@@ -280,7 +217,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Daily report and attendance recorded successfully',
-      report: result || formattedReport,
+      report: formattedReport,
     });
   } catch (err: any) {
     console.error('Error in daily reports POST:', err);

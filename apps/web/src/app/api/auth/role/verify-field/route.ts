@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient } from '../../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import { verifyCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
@@ -21,32 +21,29 @@ export async function POST(req: NextRequest) {
     const rawSlug = businessSlug.trim();
     const canonicalSlug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
 
-    const admin = getAdminClient();
+    const business = await prisma.business.findFirst({
+      where: { slug: canonicalSlug, isActive: true },
+      select: { id: true, slug: true, isActive: true },
+    });
 
-    const { data: business } = await admin
-      .from('businesses')
-      .select('id, slug, is_active')
-      .eq('slug', canonicalSlug)
-      .single();
-
-    if (!business || !business.is_active) {
+    if (!business || !business.isActive) {
       return NextResponse.json({ success: false, matched: false, error: 'Business workspace not found' }, { status: 404 });
     }
 
-    const { data: dbRole, error } = await admin
-      .from('business_roles')
-      .select('*')
-      .eq('business_id', business.id)
-      .eq('role_id', roleId.trim())
-      .single();
+    const dbRole = await prisma.businessRole.findFirst({
+      where: {
+        businessId: business.id,
+        roleId: roleId.trim(),
+      },
+    });
 
-    if (error || !dbRole) {
+    if (!dbRole) {
       return NextResponse.json({ success: false, matched: false, error: 'Role not found' }, { status: 404 });
     }
 
     // Check lockout status
-    if (dbRole.locked_until) {
-      const lockExpiry = new Date(dbRole.locked_until).getTime();
+    if (dbRole.lockedUntil) {
+      const lockExpiry = new Date(dbRole.lockedUntil).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
         const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
@@ -78,4 +75,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, matched: false, error: err.message }, { status: 500 });
   }
 }
-

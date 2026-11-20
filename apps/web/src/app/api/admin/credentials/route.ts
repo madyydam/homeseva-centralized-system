@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getAdminClient } from '../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
 import { hashCredential } from '@/lib/crypto';
 
@@ -16,28 +16,24 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
 
-    const admin = getAdminClient();
-
     // 1. Fetch Super Admin credentials info
-    const { data: superAdminRow, error: saError } = await admin
-      .from('super_admin_credentials')
-      .select('username, password_hash, pin4_hash, pin8_hash, updated_at')
-      .eq('id', 'primary')
-      .single();
+    const superAdminRow = await prisma.superAdminCredentials.findFirst({
+      where: { id: 'primary' },
+    });
 
-    if (saError || !superAdminRow) {
+    if (!superAdminRow) {
       return NextResponse.json({
         success: false,
-        error: 'Super admin credentials table not found. Please execute scripts/vps-setup.sql first.',
+        error: 'Super admin credentials table not found. Please execute seed script first.',
       }, { status: 503 });
     }
 
     const superAdminConfig = {
       username: superAdminRow.username,
-      hasPassword: !!superAdminRow.password_hash,
-      hasPin4: !!superAdminRow.pin4_hash,
-      hasPin8: !!superAdminRow.pin8_hash,
-      lastUpdated: superAdminRow.updated_at,
+      hasPassword: !!superAdminRow.passwordHash,
+      hasPin4: !!superAdminRow.pin4Hash,
+      hasPin8: !!superAdminRow.pin8Hash,
+      lastUpdated: superAdminRow.updatedAt.toISOString(),
     };
 
     if (action === 'get-super-admin') {
@@ -45,23 +41,18 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Fetch all businesses with their roles (MASKED: NO PASSWORDS OR PINS EVER RETURNED)
-    const { data: businesses, error } = await admin
-      .from('businesses')
-      .select(`
-        id, name, slug, subtitle, is_active,
-        business_roles (
-          id, role_id, label, description, department, password, pin, updated_at
-        )
-      `)
-      .order('name');
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const businesses = await prisma.business.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        businessRoles: {
+          orderBy: { roleId: 'asc' },
+        },
+      },
+    });
 
     const seenSlugs = new Set<string>();
     const companies: any[] = [];
-    for (const b of (businesses || [])) {
+    for (const b of businesses) {
       if (b.slug === 'printbooth' && seenSlugs.has('adjs')) continue;
       if (b.slug === 'adjs' && seenSlugs.has('printbooth')) continue;
       if (seenSlugs.has(b.slug)) continue;
@@ -96,15 +87,14 @@ export async function GET(req: NextRequest) {
         businessSlug: canonicalSlug,
         businessName: displayName,
         subcompanies,
-        roles: (b.business_roles || []).map((r: any) => ({
+        roles: (b.businessRoles || []).map((r) => ({
           id: r.id,
-          role: r.role_id,
-          label: r.label || r.role_id,
+          role: r.roleId,
+          label: r.label || r.roleId,
           department: r.department || 'General',
-          // CRITICAL SECURITY ENFORCEMENT: Never send plaintext passwords or pins to client!
           hasPassword: !!(r.password && r.password.trim()),
           hasPin: !!(r.pin && r.pin.trim()),
-          lastUpdated: r.updated_at,
+          lastUpdated: r.updatedAt.toISOString(),
         })),
       });
     }
@@ -129,7 +119,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { action } = body;
-    const admin = getAdminClient();
 
     // ───────────────────────────────────────────────────────────────────────────
     // ACTION 1: UPDATE SUPER ADMIN CREDENTIALS (BCRYPT HASHED)
@@ -148,31 +137,38 @@ export async function POST(req: NextRequest) {
       const pin4Hash = bcrypt.hashSync(newPin4.trim(), 10);
       const pin8Hash = bcrypt.hashSync(newPin8.trim(), 10);
 
-      const { error: upsertErr } = await admin
-        .from('super_admin_credentials')
-        .upsert({
+      await prisma.superAdminCredentials.upsert({
+        where: { id: 'primary' },
+        update: {
+          username: newUsername.trim(),
+          passwordHash: passHash,
+          pin4Hash,
+          pin8Hash,
+          failedAttempts: 0,
+          lockedUntil: null,
+          updatedAt: new Date(),
+        },
+        create: {
           id: 'primary',
           username: newUsername.trim(),
-          password_hash: passHash,
-          pin4_hash: pin4Hash,
-          pin8_hash: pin8Hash,
-          failed_attempts: 0,
-          locked_until: null,
-          updated_at: new Date().toISOString(),
-        });
+          passwordHash: passHash,
+          pin4Hash,
+          pin8Hash,
+          failedAttempts: 0,
+          lockedUntil: null,
+          updatedAt: new Date(),
+        },
+      });
 
-      if (upsertErr) {
-        return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500 });
-      }
-
-      // Audit log
       try {
-        await admin.from('audit_logs').insert({
-          actor_type: 'SUPER_ADMIN',
-          actor_identifier: session.username,
-          action: 'super_admin.credentials_updated',
-          ip_address: req.headers.get('x-forwarded-for') || '127.0.0.1',
-          user_agent: req.headers.get('user-agent') || 'Browser',
+        await prisma.auditLog.create({
+          data: {
+            actorType: 'SUPER_ADMIN',
+            actorIdentifier: session.username || 'SUPER_ADMIN',
+            action: 'super_admin.credentials_updated',
+            ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
+            userAgent: req.headers.get('user-agent') || 'Browser',
+          },
         });
       } catch {}
 
@@ -197,55 +193,62 @@ export async function POST(req: NextRequest) {
 
       const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
 
-      // Find business
-      const { data: b } = await admin
-        .from('businesses')
-        .select('id')
-        .eq('slug', canonicalSlug)
-        .single();
+      const b = await prisma.business.findFirst({
+        where: { slug: canonicalSlug },
+        select: { id: true },
+      });
 
       if (!b) {
         return NextResponse.json({ success: false, error: 'Business not found.' }, { status: 404 });
       }
 
-      const now = new Date().toISOString();
       const passwordHash = await hashCredential(newPassword);
       const pinHash = newPin && newPin.trim() ? await hashCredential(newPin) : '';
 
-      const { data: updatedRole, error: roleErr } = await admin
-        .from('business_roles')
-        .update({
+      const updatedRole = await prisma.businessRole.updateMany({
+        where: {
+          businessId: b.id,
+          roleId: role,
+        },
+        data: {
           password: passwordHash,
           pin: pinHash,
-          updated_at: now,
-          failed_attempts: 0,
-          locked_until: null,
-        })
-        .eq('business_id', b.id)
-        .eq('role_id', role)
-        .select()
-        .single();
+          updatedAt: new Date(),
+          failedAttempts: 0,
+          lockedUntil: null,
+        },
+      });
 
-      if (roleErr) {
-        return NextResponse.json({ success: false, error: roleErr.message }, { status: 500 });
+      if (updatedRole.count === 0) {
+        await prisma.businessRole.create({
+          data: {
+            businessId: b.id,
+            roleId: role,
+            label: role,
+            password: passwordHash,
+            pin: pinHash,
+            failedAttempts: 0,
+            lockedUntil: null,
+          },
+        });
       }
 
       try {
-        await admin.from('audit_logs').insert({
-          actor_type: 'SUPER_ADMIN',
-          actor_identifier: session.username,
-          business_slug: businessSlug,
-          action: 'role.credentials_updated',
-          entity_type: 'role',
-          entity_id: updatedRole?.id,
-          metadata: { role },
+        await prisma.auditLog.create({
+          data: {
+            actorType: 'SUPER_ADMIN',
+            actorIdentifier: session.username || 'SUPER_ADMIN',
+            businessSlug,
+            action: 'role.credentials_updated',
+            metadata: { role },
+          },
         });
       } catch {}
 
       return NextResponse.json({
         success: true,
         message: `Credentials for "${role}" updated successfully.`,
-        lastUpdated: now,
+        lastUpdated: new Date().toISOString(),
       });
     }
 
@@ -261,42 +264,58 @@ export async function POST(req: NextRequest) {
 
       const canonicalSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (businessSlug === 'printbooth' ? 'adjs' : businessSlug);
 
-      const { data: b } = await admin
-        .from('businesses')
-        .select('id')
-        .eq('slug', canonicalSlug)
-        .single();
+      const b = await prisma.business.findFirst({
+        where: { slug: canonicalSlug },
+        select: { id: true },
+      });
 
       if (!b) {
         return NextResponse.json({ success: false, error: 'Business not found.' }, { status: 404 });
       }
 
-      const now = new Date().toISOString();
       for (const item of credentials) {
         if (!item.role || !item.password) continue;
         const passwordHash = await hashCredential(item.password);
         const pinHash = item.pin && item.pin.trim() ? await hashCredential(item.pin) : '';
 
-        await admin
-          .from('business_roles')
-          .update({
+        const updated = await prisma.businessRole.updateMany({
+          where: {
+            businessId: b.id,
+            roleId: item.role,
+          },
+          data: {
             password: passwordHash,
             pin: pinHash,
-            updated_at: now,
-            failed_attempts: 0,
-            locked_until: null,
-          })
-          .eq('business_id', b.id)
-          .eq('role_id', item.role);
+            updatedAt: new Date(),
+            failedAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+
+        if (updated.count === 0) {
+          await prisma.businessRole.create({
+            data: {
+              businessId: b.id,
+              roleId: item.role,
+              label: item.label || item.role,
+              password: passwordHash,
+              pin: pinHash,
+              failedAttempts: 0,
+              lockedUntil: null,
+            },
+          });
+        }
       }
 
       try {
-        await admin.from('audit_logs').insert({
-          actor_type: 'SUPER_ADMIN',
-          actor_identifier: session.username,
-          business_slug: businessSlug,
-          action: 'role.credentials_batch_updated',
-          metadata: { count: credentials.length },
+        await prisma.auditLog.create({
+          data: {
+            actorType: 'SUPER_ADMIN',
+            actorIdentifier: session.username || 'SUPER_ADMIN',
+            businessSlug,
+            action: 'role.credentials_batch_updated',
+            metadata: { count: credentials.length },
+          },
         });
       } catch {}
 

@@ -109,7 +109,7 @@ export default function SuperAdminCredentialsPage() {
 
       const data = await res.json();
       if (data.success) {
-        showNotification('success', 'Master Super Admin 4-Factor Credentials updated & hashed successfully in Supabase!');
+        showNotification('success', 'Master Super Admin 4-Factor Credentials updated & hashed successfully in PostgreSQL!');
         setAdminPassword('');
         setAdminPin4('');
         setAdminPin8('');

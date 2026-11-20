@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import { signSession, USER_SESSION_COOKIE } from '@/lib/authSession';
 import { verifyCredential, hashCredential } from '@/lib/crypto';
 
@@ -31,16 +31,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Please enter your password.' }, { status: 400 });
     }
 
-    const admin = getAdminClient();
-
     // 1. Resolve business
-    const { data: business } = await admin
-      .from('businesses')
-      .select('id, slug, name, is_active')
-      .eq('slug', slug)
-      .single();
+    const business = await prisma.business.findFirst({
+      where: { slug, isActive: true },
+      select: { id: true, slug: true, name: true, isActive: true },
+    });
 
-    if (!business || !business.is_active) {
+    if (!business || !business.isActive) {
       return NextResponse.json({
         success: false,
         error: `Business workspace "${slug}" is not active or does not exist.`,
@@ -48,15 +45,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Query member by email in this business
-    const { data: memberByEmail, error: memberErr } = await admin
-      .from('role_members')
-      .select('*')
-      .eq('business_id', business.id)
-      .eq('email', em)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    let targetMember = memberByEmail;
+    const targetMember = await prisma.roleMember.findFirst({
+      where: {
+        businessId: business.id,
+        email: em,
+        isActive: true,
+      },
+    });
 
     if (!targetMember) {
       return NextResponse.json({
@@ -80,12 +75,12 @@ export async function POST(req: NextRequest) {
       return norm;
     };
 
-    if (normalizeRole(targetMember.role_id) !== normalizeRole(rId)) {
+    if (normalizeRole(targetMember.roleId) !== normalizeRole(rId)) {
       return NextResponse.json({
         success: false,
-        error: `You are not ${rId}. You are assigned to the role "${targetMember.role_id}". Please select "${targetMember.role_id}" and try again.`,
+        error: `You are not ${rId}. You are assigned to the role "${targetMember.roleId}". Please select "${targetMember.roleId}" and try again.`,
         wrongRole: true,
-        actualRole: targetMember.role_id,
+        actualRole: targetMember.roleId,
       }, { status: 403 });
     }
 
@@ -117,17 +112,20 @@ export async function POST(req: NextRequest) {
         if (p && pinCheck.needsRehash) {
           updatePayload.pin = await hashCredential(p);
         }
-        await admin.from('role_members').update(updatePayload).eq('id', targetMember.id);
+        await prisma.roleMember.update({
+          where: { id: targetMember.id },
+          data: updatePayload,
+        });
       } catch (err) {
         console.warn('Background credential rehash notice:', err);
       }
     }
 
-    // 6. Sign permanent session (99 years lifetime)
-    const LIFETIME_SECONDS = 3124224000; // 99 years
+    // 6. Sign session (8 hours / standard lifetime)
+    const LIFETIME_SECONDS = 28800; // 8 hours
     const token = await signSession({
       sub: targetMember.id,
-      role: targetMember.role_id,
+      role: targetMember.roleId,
       businessSlug: slug,
       isSuperAdmin: false,
       username: targetMember.name,
@@ -149,15 +147,17 @@ export async function POST(req: NextRequest) {
 
     // Audit log (best effort)
     try {
-      await admin.from('audit_logs').insert({
-        actor_type: 'STAFF',
-        actor_identifier: targetMember.email,
-        business_slug: slug,
-        action: 'member.login',
-        entity_type: 'role_member',
-        entity_id: targetMember.id,
-        ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1',
-        user_agent: req.headers.get('user-agent') || 'Browser',
+      await prisma.auditLog.create({
+        data: {
+          actorType: 'STAFF',
+          actorIdentifier: targetMember.email,
+          businessSlug: slug,
+          action: 'member.login',
+          entityType: 'role_member',
+          entityId: targetMember.id,
+          ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1',
+          userAgent: req.headers.get('user-agent') || 'Browser',
+        },
       });
     } catch {}
 
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Authentication successful',
       businessSlug: slug,
-      role: targetMember.role_id,
+      role: targetMember.roleId,
       memberId: targetMember.id,
       memberName: targetMember.name,
       email: targetMember.email,

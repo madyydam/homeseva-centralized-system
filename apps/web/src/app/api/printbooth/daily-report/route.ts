@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,38 +14,61 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'memberId is required' }, { status: 400 });
     }
 
-    const admin = getAdminClient();
-
     if (isHistory) {
-      const { data, error } = await admin
-        .from('printbooth_daily_reports')
-        .select('*')
-        .eq('member_id', memberId)
-        .order('report_date', { ascending: false })
-        .limit(30);
+      const reports = await prisma.printboothDailyReport.findMany({
+        where: { memberId },
+        orderBy: { reportDate: 'desc' },
+        take: 30,
+      });
 
-      if (error) {
-        return NextResponse.json({ success: true, reports: [] });
-      }
-      return NextResponse.json({ success: true, reports: data || [] });
+      const serialized = reports.map((r) => ({
+        id: r.id,
+        member_id: r.memberId,
+        member_name: r.memberName,
+        report_date: r.reportDate.toISOString().slice(0, 10),
+        punch_in: r.punchIn,
+        punch_out: r.punchOut,
+        calls_made: r.callsMade,
+        machines_sold: r.machinesSold,
+        notes: r.notes,
+        created_at: r.createdAt.toISOString(),
+        updated_at: r.updatedAt.toISOString(),
+      }));
+
+      return NextResponse.json({ success: true, reports: serialized });
     }
 
     if (!date) {
       return NextResponse.json({ success: false, error: 'date is required' }, { status: 400 });
     }
 
-    const { data, error } = await admin
-      .from('printbooth_daily_reports')
-      .select('*')
-      .eq('member_id', memberId)
-      .eq('report_date', date)
-      .maybeSingle();
+    const report = await prisma.printboothDailyReport.findFirst({
+      where: {
+        memberId,
+        reportDate: new Date(date),
+      },
+    });
 
-    if (error) {
+    if (!report) {
       return NextResponse.json({ success: true, report: null });
     }
 
-    return NextResponse.json({ success: true, report: data || null });
+    return NextResponse.json({
+      success: true,
+      report: {
+        id: report.id,
+        member_id: report.memberId,
+        member_name: report.memberName,
+        report_date: report.reportDate.toISOString().slice(0, 10),
+        punch_in: report.punchIn,
+        punch_out: report.punchOut,
+        calls_made: report.callsMade,
+        machines_sold: report.machinesSold,
+        notes: report.notes,
+        created_at: report.createdAt.toISOString(),
+        updated_at: report.updatedAt.toISOString(),
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
@@ -63,43 +86,54 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const admin = getAdminClient();
-    const { data, error } = await admin
-      .from('printbooth_daily_reports')
-      .upsert({
-        member_id,
-        member_name: member_name || 'Staff Member',
-        report_date,
-        punch_in: punch_in || null,
-        punch_out: punch_out || null,
-        calls_made: Number(calls_made) || 0,
-        machines_sold: Number(machines_sold) || 0,
-        notes: notes || '',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'member_id,report_date' })
-      .select()
-      .maybeSingle();
+    const reportDateObj = new Date(report_date);
 
-    if (error) {
-      console.warn('Supabase printbooth_daily_reports table pending migration:', error.message);
-      return NextResponse.json({
-        success: true,
-        report: {
-          member_id,
-          member_name: member_name || 'Staff Member',
-          report_date,
-          punch_in: punch_in || null,
-          punch_out: punch_out || null,
-          calls_made: Number(calls_made) || 0,
-          machines_sold: Number(machines_sold) || 0,
-          notes: notes || '',
+    const report = await prisma.printboothDailyReport.upsert({
+      where: {
+        memberId_reportDate: {
+          memberId: member_id,
+          reportDate: reportDateObj,
         },
-        notice: 'Saved in memory. Run scripts/vps-setup.sql for database persistence.',
-      });
-    }
+      },
+      update: {
+        memberName: member_name || 'Staff Member',
+        punchIn: punch_in || null,
+        punchOut: punch_out || null,
+        callsMade: Number(calls_made) || 0,
+        machinesSold: Number(machines_sold) || 0,
+        notes: notes || '',
+        updatedAt: new Date(),
+      },
+      create: {
+        memberId: member_id,
+        memberName: member_name || 'Staff Member',
+        reportDate: reportDateObj,
+        punchIn: punch_in || null,
+        punchOut: punch_out || null,
+        callsMade: Number(calls_made) || 0,
+        machinesSold: Number(machines_sold) || 0,
+        notes: notes || '',
+      },
+    });
 
-    return NextResponse.json({ success: true, report: data });
+    return NextResponse.json({
+      success: true,
+      report: {
+        id: report.id,
+        member_id: report.memberId,
+        member_name: report.memberName,
+        report_date: report.reportDate.toISOString().slice(0, 10),
+        punch_in: report.punchIn,
+        punch_out: report.punchOut,
+        calls_made: report.callsMade,
+        machines_sold: report.machinesSold,
+        notes: report.notes,
+        created_at: report.createdAt.toISOString(),
+        updated_at: report.updatedAt.toISOString(),
+      },
+    });
   } catch (err: any) {
+    console.error('Error in printbooth daily report POST:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

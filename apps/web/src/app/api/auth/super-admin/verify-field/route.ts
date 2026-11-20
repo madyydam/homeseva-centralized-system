@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getAdminClient } from '../../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,25 +18,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, matched: false });
     }
 
-    const admin = getAdminClient();
-    const { data: adminRecord, error } = await admin
-      .from('super_admin_credentials')
-      .select('*')
-      .eq('id', 'primary')
-      .single();
+    const adminRecord = await prisma.superAdminCredentials.findFirst({
+      where: { id: 'primary' },
+    });
 
-    if (error || !adminRecord) {
-      console.error('Supabase super_admin_credentials query error:', error?.message);
+    if (!adminRecord) {
       return NextResponse.json({
         success: false,
         matched: false,
-        error: 'Database not initialized. Table "super_admin_credentials" not found. Please run scripts/vps-setup.sql first.',
+        error: 'Database not initialized. Super Admin credentials not found.',
       }, { status: 503 });
     }
 
     // Check lockout status
-    if (adminRecord.locked_until) {
-      const lockExpiry = new Date(adminRecord.locked_until).getTime();
+    if (adminRecord.lockedUntil) {
+      const lockExpiry = new Date(adminRecord.lockedUntil).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
         const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
@@ -50,15 +46,14 @@ export async function POST(req: NextRequest) {
     }
 
     let matched = false;
-
     if (field === 'username') {
       matched = cleanVal.toLowerCase() === adminRecord.username.trim().toLowerCase();
     } else if (field === 'password') {
-      matched = bcrypt.compareSync(cleanVal, adminRecord.password_hash);
+      matched = bcrypt.compareSync(cleanVal, adminRecord.passwordHash);
     } else if (field === 'pin4') {
-      matched = bcrypt.compareSync(cleanVal, adminRecord.pin4_hash);
+      matched = bcrypt.compareSync(cleanVal, adminRecord.pin4Hash);
     } else if (field === 'pin8') {
-      matched = bcrypt.compareSync(cleanVal, adminRecord.pin8_hash);
+      matched = bcrypt.compareSync(cleanVal, adminRecord.pin8Hash);
     }
 
     return NextResponse.json({ success: true, matched });

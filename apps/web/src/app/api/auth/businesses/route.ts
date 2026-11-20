@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient } from '../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,46 +8,76 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const rawSlug = searchParams.get('slug');
 
-    const admin = getAdminClient();
-
     if (rawSlug) {
       const canonicalSlug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
 
-      // Query specific business and its roles
-      const { data: business } = await admin
-        .from('businesses')
-        .select(`
-          id, name, slug, subtitle, description, theme_color, logo_url, is_active, config,
-          business_roles (
-            id, role_id, label, description, department, is_active
-          ),
-          tabs (
-            id, tab_key, label, description, sort_order, is_active
-          )
-        `)
-        .eq('slug', canonicalSlug)
-        .eq('is_active', true)
-        .single();
+      // Query specific business and its active roles & tabs
+      const business = await prisma.business.findFirst({
+        where: {
+          slug: canonicalSlug,
+          isActive: true,
+        },
+        include: {
+          businessRoles: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              roleId: true,
+              label: true,
+              description: true,
+              department: true,
+              isActive: true,
+            },
+          },
+          tabs: {
+            where: { isActive: true },
+            orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              tabKey: true,
+              label: true,
+              description: true,
+              sortOrder: true,
+              isActive: true,
+            },
+          },
+        },
+      });
 
       if (!business) {
         return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
       }
 
-      // Filter active roles and tabs
-      let activeRoles = (business.business_roles || []).filter((r: any) => r.is_active);
-      const activeTabs = (business.tabs || []).filter((t: any) => t.is_active);
+      // Map roles to client expected shape
+      let activeRoles = (business.businessRoles || []).map((r) => ({
+        id: r.id,
+        role_id: r.roleId,
+        label: r.label,
+        description: r.description,
+        department: r.department,
+        is_active: r.isActive,
+      }));
 
       // Specific division role tailoring for Crockery Rental vs Essentials Sales
       if (rawSlug === 'crockery-rental') {
-        activeRoles = activeRoles.filter((r: any) =>
+        activeRoles = activeRoles.filter((r) =>
           !r.role_id.toLowerCase().includes('sales representative')
         );
       } else if (rawSlug === 'essentials-sales') {
-        activeRoles = activeRoles.filter((r: any) =>
+        activeRoles = activeRoles.filter((r) =>
           !r.role_id.toLowerCase().includes('rental logistics') &&
           !r.role_id.toLowerCase().includes('banquet billing')
         );
       }
+
+      const activeTabs = (business.tabs || []).map((t) => ({
+        id: t.id,
+        tab_key: t.tabKey,
+        label: t.label,
+        description: t.description,
+        sort_order: t.sortOrder,
+        is_active: t.isActive,
+      }));
 
       return NextResponse.json({
         success: true,
@@ -57,8 +87,8 @@ export async function GET(req: NextRequest) {
           slug: rawSlug,
           subtitle: rawSlug === 'crockery-rental' ? 'Banquet Tableware & Buffet Hire Operations' : business.subtitle,
           description: business.description,
-          themeColor: business.theme_color,
-          logoUrl: business.logo_url,
+          themeColor: business.themeColor,
+          logoUrl: business.logoUrl,
           config: business.config,
           roles: activeRoles,
           tabs: activeTabs,
@@ -67,19 +97,24 @@ export async function GET(req: NextRequest) {
     }
 
     // List all active businesses for catalog/homepage with deduplication
-    const { data: businesses, error } = await admin
-      .from('businesses')
-      .select('id, name, slug, subtitle, description, theme_color, logo_url, is_active')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const businesses = await prisma.business.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        subtitle: true,
+        description: true,
+        themeColor: true,
+        logoUrl: true,
+        isActive: true,
+      },
+    });
 
     const seenSlugs = new Set<string>();
     const uniqueBusinesses: any[] = [];
-    for (const b of (businesses || [])) {
+    for (const b of businesses) {
       if (b.slug === 'printbooth' && seenSlugs.has('adjs')) continue;
       if (b.slug === 'adjs' && seenSlugs.has('printbooth')) continue;
       if (seenSlugs.has(b.slug)) continue;
@@ -101,10 +136,14 @@ export async function GET(req: NextRequest) {
       }
 
       uniqueBusinesses.push({
-        ...b,
-        slug: canonicalSlug,
+        id: b.id,
         name: displayName,
+        slug: canonicalSlug,
         subtitle,
+        description: b.description,
+        theme_color: b.themeColor,
+        logo_url: b.logoUrl,
+        is_active: b.isActive,
         subcompanies,
       });
     }

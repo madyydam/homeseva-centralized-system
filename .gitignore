@@ -19,7 +19,6 @@ out/
 **/.env.*
 !.env.example
 !.env.vps.example
-!.env.supabase.example
 
 # logs
 *.log

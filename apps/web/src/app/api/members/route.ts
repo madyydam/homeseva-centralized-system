@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
 import { sendMemberWelcomeCredentialsEmail } from '@/lib/email';
 import { hashCredential } from '@/lib/crypto';
@@ -18,38 +18,41 @@ export async function GET(req: NextRequest) {
     const businessSlug = searchParams.get('businessSlug');
     const roleId = searchParams.get('roleId');
 
-    const admin = getAdminClient();
-
     if (!businessId && businessSlug) {
-      const { data: biz } = await admin
-        .from('businesses')
-        .select('id')
-        .eq('slug', businessSlug)
-        .maybeSingle();
+      const biz = await prisma.business.findFirst({
+        where: { slug: businessSlug },
+        select: { id: true },
+      });
       if (biz?.id) {
         businessId = biz.id;
       }
     }
 
-    let query = admin.from('role_members').select('*').order('created_at', { ascending: true });
-    if (businessId) query = query.eq('business_id', businessId);
-    if (roleId) query = query.eq('role_id', roleId);
-
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const members = await prisma.roleMember.findMany({
+      where: {
+        ...(businessId ? { businessId } : {}),
+        ...(roleId ? { roleId } : {}),
+      },
+      orderBy: { createdAt: 'asc' },
+    });
 
     // Passwords and PINs are strictly masked in all responses (Zero-Trust Security)
-    const members = (data || []).map((m: any) => ({
-      ...m,
+    const sanitizedMembers = members.map((m) => ({
+      id: m.id,
+      business_id: m.businessId,
+      role_id: m.roleId,
+      name: m.name,
+      email: m.email,
+      is_active: m.isActive,
+      created_at: m.createdAt.toISOString(),
+      updated_at: m.updatedAt.toISOString(),
       hasPassword: !!(m.password && m.password.trim()),
       hasPin: !!(m.pin && m.pin.trim()),
       password: '••••••••',
       pin: '••••',
     }));
 
-    return NextResponse.json({ success: true, members });
+    return NextResponse.json({ success: true, members: sanitizedMembers });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
@@ -76,8 +79,6 @@ export async function POST(req: NextRequest) {
       member_id,
     } = body;
 
-    const admin = getAdminClient();
-
     // ── Resend Credentials Email Action ──
     if (action === 'resend_email') {
       const targetId = member_id || body.id;
@@ -85,21 +86,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Member ID is required to resend email' }, { status: 400 });
       }
 
-      const { data: m, error: mErr } = await admin
-        .from('role_members')
-        .select('*')
-        .eq('id', targetId)
-        .single();
+      const m = await prisma.roleMember.findUnique({
+        where: { id: targetId },
+      });
 
-      if (mErr || !m) {
+      if (!m) {
         return NextResponse.json({ success: false, error: 'Member not found' }, { status: 404 });
       }
 
-      const { data: b } = await admin
-        .from('businesses')
-        .select('name, slug')
-        .eq('id', m.business_id)
-        .maybeSingle();
+      const b = await prisma.business.findUnique({
+        where: { id: m.businessId },
+        select: { name: true, slug: true },
+      });
 
       const cName = company_name || b?.name || 'HomeSeva Business';
       const bSlug = b?.slug || 'adjs';
@@ -109,7 +107,7 @@ export async function POST(req: NextRequest) {
         memberName: m.name,
         companyName: cName,
         subcompany: subcompany || undefined,
-        role: m.role_id,
+        role: m.roleId,
         email: m.email,
         password: m.password,
         pin: m.pin,
@@ -142,30 +140,23 @@ export async function POST(req: NextRequest) {
     const passwordHash = await hashCredential(cleanPassword);
     const pinHash = await hashCredential(cleanPin);
 
-    const { data, error } = await admin
-      .from('role_members')
-      .insert({
-        business_id,
-        role_id,
+    const newMember = await prisma.roleMember.create({
+      data: {
+        businessId: business_id,
+        roleId: role_id,
         name: cleanName,
         email: cleanEmail,
         password: passwordHash,
         pin: pinHash,
-        is_active: true,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+        isActive: true,
+      },
+    });
 
     // 1. Fetch business metadata for rich card email
-    const { data: biz } = await admin
-      .from('businesses')
-      .select('name, slug')
-      .eq('id', business_id)
-      .maybeSingle();
+    const biz = await prisma.business.findUnique({
+      where: { id: business_id },
+      select: { name: true, slug: true },
+    });
 
     const targetCompanyName = company_name || biz?.name || 'HomeSeva Business';
     const targetBusinessSlug = biz?.slug || 'adjs';
@@ -198,7 +189,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      member: { ...data, password: '••••••••', pin: '••••' },
+      member: {
+        id: newMember.id,
+        business_id: newMember.businessId,
+        role_id: newMember.roleId,
+        name: newMember.name,
+        email: newMember.email,
+        is_active: newMember.isActive,
+        created_at: newMember.createdAt.toISOString(),
+        updated_at: newMember.updatedAt.toISOString(),
+        password: '••••••••',
+        pin: '••••',
+      },
       emailDispatched,
       emailError,
       message: emailDispatched
@@ -224,7 +226,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Member id is required' }, { status: 400 });
     }
 
-    const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() };
+    const updatePayload: Record<string, any> = { updatedAt: new Date() };
     if (name !== undefined) updatePayload.name = name.trim();
     if (email !== undefined) updatePayload.email = email.trim().toLowerCase();
     if (password !== undefined && password !== '' && password !== '••••••••') {
@@ -233,19 +235,12 @@ export async function PATCH(req: NextRequest) {
     if (pin !== undefined && pin !== '' && pin !== '••••') {
       updatePayload.pin = await hashCredential(pin.trim());
     }
-    if (is_active !== undefined) updatePayload.is_active = is_active;
+    if (is_active !== undefined) updatePayload.isActive = is_active;
 
-    const admin = getAdminClient();
-    const { data, error } = await admin
-      .from('role_members')
-      .update(updatePayload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const data = await prisma.roleMember.update({
+      where: { id },
+      data: updatePayload,
+    });
 
     let emailDispatched = false;
     let emailError: string | null = null;
@@ -253,18 +248,17 @@ export async function PATCH(req: NextRequest) {
     // If credentials updated or resend explicitly requested, dispatch updated card email
     if (resendCredentials || (password && password !== '••••••••') || (pin && pin !== '••••')) {
       try {
-        const { data: biz } = await admin
-          .from('businesses')
-          .select('name, slug')
-          .eq('id', data.business_id)
-          .maybeSingle();
+        const biz = await prisma.business.findUnique({
+          where: { id: data.businessId },
+          select: { name: true, slug: true },
+        });
 
         const mailRes = await sendMemberWelcomeCredentialsEmail({
           to: data.email,
           memberName: data.name,
           companyName: company_name || biz?.name || 'HomeSeva Business',
           subcompany: subcompany || undefined,
-          role: data.role_id,
+          role: data.roleId,
           email: data.email,
           password: (password && password !== '••••••••') ? password.trim() : '(unchanged / confidential)',
           pin: (pin && pin !== '••••') ? pin.trim() : '(unchanged / confidential)',
@@ -279,7 +273,18 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      member: { ...data, password: '••••••••', pin: '••••' },
+      member: {
+        id: data.id,
+        business_id: data.businessId,
+        role_id: data.roleId,
+        name: data.name,
+        email: data.email,
+        is_active: data.isActive,
+        created_at: data.createdAt.toISOString(),
+        updated_at: data.updatedAt.toISOString(),
+        password: '••••••••',
+        pin: '••••',
+      },
       emailDispatched,
       emailError,
     });
@@ -302,12 +307,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Member id is required' }, { status: 400 });
     }
 
-    const admin = getAdminClient();
-    const { error } = await admin.from('role_members').delete().eq('id', id);
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    await prisma.roleMember.delete({
+      where: { id },
+    });
 
     return NextResponse.json({ success: true, message: 'Member deleted successfully' });
   } catch (err: any) {

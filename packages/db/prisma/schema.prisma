@@ -20,15 +20,20 @@ model Business {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  logoUrl     String?
+  subtitle    String?
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  logoUrl     String?  @map("logo_url")
+  themeColor  String?  @default("blue") @map("theme_color")
+  isActive    Boolean  @default(true) @map("is_active")
+  config      Json?    @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Enabled modules stored as a JSON array, e.g. ["attendance","finance","tasks"]
   enabledModules String[] @default([])
 
+  businessRoles    BusinessRole[]
+  roleMembers      RoleMember[]
   users            User[]
   roles            Role[]
   tabs             Tab[]
@@ -53,6 +58,119 @@ model Business {
   gentleCallLogs            GentleHairWigsCallLog[]
 
   @@map("businesses")
+}
+
+// ─── Core Platform & Auth (Multi-Tenant ERP) ──────────────────────────────────
+
+model SuperAdminCredentials {
+  id             String    @id @default("primary")
+  username       String
+  passwordHash   String    @map("password_hash")
+  pin4Hash       String    @map("pin4_hash")
+  pin8Hash       String    @map("pin8_hash")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("super_admin_credentials")
+}
+
+model BusinessRole {
+  id             String          @id @default(uuid())
+  businessId     String          @map("business_id")
+  business       Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roleId         String          @map("role_id")
+  label          String
+  description    String?
+  department     String?         @default("General")
+  password       String
+  pin            String
+  failedAttempts Int             @default(0) @map("failed_attempts")
+  lockedUntil    DateTime?       @map("locked_until")
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  tabAccess      RoleTabAccess[]
+
+  @@unique([businessId, roleId])
+  @@index([businessId])
+  @@map("business_roles")
+}
+
+model RoleMember {
+  id         String   @id @default(uuid())
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  roleId     String   @map("role_id")
+  name       String
+  email      String
+  password   String
+  pin        String
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([businessId, roleId, email], name: "businessRoleEmail")
+  @@index([businessId])
+  @@index([email])
+  @@map("role_members")
+}
+
+model RoleTabAccess {
+  id         String       @id @default(uuid())
+  businessId String       @map("business_id")
+  roleId     String       @map("role_id")
+  role       BusinessRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  tabId      String       @map("tab_id")
+  canView    Boolean      @default(true) @map("can_view")
+  canEdit    Boolean      @default(true) @map("can_edit")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  @@unique([roleId, tabId])
+  @@index([businessId])
+  @@index([roleId])
+  @@map("role_tab_access")
+}
+
+model TelecallerDailyReport {
+  id                 String   @id @default(uuid())
+  businessId         String   @default("gentle-hair-wigs") @map("business_id")
+  telecallerId       String   @map("telecaller_id")
+  telecallerName     String   @map("telecaller_name")
+  branch             String?  @default("viman-nagar")
+  reportDate         DateTime @default(now()) @db.Date @map("report_date")
+  callsMade          Int      @default(0) @map("calls_made")
+  callsConnected     Int      @default(0) @map("calls_connected")
+  interestedCount    Int      @default(0) @map("interested_count")
+  notInterestedCount Int      @default(0) @map("not_interested_count")
+  callbackCount      Int      @default(0) @map("callback_count")
+  closedCount        Int      @default(0) @map("closed_count")
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([businessId, telecallerId, reportDate])
+  @@index([businessId, reportDate])
+  @@map("telecaller_daily_reports")
+}
+
+model PrintboothDailyReport {
+  id           String   @id @default(uuid())
+  memberId     String   @map("member_id")
+  memberName   String   @map("member_name")
+  reportDate   DateTime @db.Date @map("report_date")
+  punchIn      String?  @map("punch_in")
+  punchOut     String?  @map("punch_out")
+  callsMade    Int      @default(0) @map("calls_made")
+  machinesSold Int      @default(0) @map("machines_sold")
+  notes        String?  @default("")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([memberId, reportDate])
+  @@index([memberId])
+  @@map("printbooth_daily_reports")
 }
 
 // ─── Users & Auth ────────────────────────────────────────────────────────────
@@ -153,24 +271,28 @@ model UserRole {
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 
 model Tab {
-  id        String  @id @default(cuid())
-  label     String
-  type      TabType
-  icon      String?
+  id          String   @id @default(cuid())
+  tabKey      String?  @map("tab_key")
+  label       String
+  description String?
+  type        TabType? @default(MODULE)
+  icon        String?
   /// Route path for MODULE tabs, e.g. "/app/business-1/finance"
-  path      String?
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  path        String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
 
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id])
+  businessId  String   @map("business_id")
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   sheetLink     SheetLink?
   userTabAccess UserTabAccess[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  @@unique([businessId, tabKey])
+  @@index([businessId])
   @@map("tabs")
 }
 
@@ -301,27 +423,33 @@ model MonthlySummary {
 // ─── Audit Log ───────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id         String    @id @default(cuid())
-  userId     String?
+  id              String    @id @default(cuid())
+  actorType       String?   @default("SYSTEM") @map("actor_type")
+  actorIdentifier String?   @map("actor_identifier")
+  businessSlug    String?   @map("business_slug")
+  action          String
+  entityType      String?   @map("entity_type")
+  entityId        String?   @map("entity_id")
+  metadata        Json?     @default("{}")
+
+  userId     String?   @map("user_id")
   user       User?     @relation(fields: [userId], references: [id])
-  businessId String?
+  businessId String?   @map("business_id")
   business   Business? @relation(fields: [businessId], references: [id])
 
   /// e.g. "user.login", "employee.create", "finance.export", "backup.create", "backup.restore"
-  action    String
   entity    String?
-  entityId  String?
-  /// Before/after snapshot for edits
   diff      Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
+  ipAddress String?   @map("ip_address")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@index([userId])
   @@index([businessId])
+  @@index([businessSlug])
   @@index([action])
   @@index([createdAt])
-  @@map("audit_log")
+  @@map("audit_logs")
 }
 
 // ─── Backup & Restore ────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
-import { getAdminClient } from '../../../../lib/supabase/admin';
+import { prisma } from '@homeseva/db';
 import {
   signSession,
   verifySession,
@@ -36,35 +36,32 @@ export interface SuperAdminConfig {
   lastUpdated?: string | undefined;
 }
 
-// GET: Securely load business roles and super admin metadata from Supabase
+// GET: Securely load business roles and super admin metadata from PostgreSQL
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action');
 
   try {
-    const admin = getAdminClient();
-
     // Check super admin session
     const saToken = req.cookies.get(SUPER_ADMIN_COOKIE)?.value;
     const session = await verifySession(saToken);
 
     // Fetch Super Admin config metadata (masked, no raw passwords)
-    const { data: adminRecord, error: saError } = await admin
-      .from('super_admin_credentials')
-      .select('username, updated_at')
-      .eq('id', 'primary')
-      .single();
+    const adminRecord = await prisma.superAdminCredentials.findFirst({
+      where: { id: 'primary' },
+      select: { username: true, updatedAt: true },
+    });
 
-    if (saError || !adminRecord) {
+    if (!adminRecord) {
       return NextResponse.json({
         success: false,
-        error: 'Database not initialized. Please run scripts/vps-setup.sql first.',
+        error: 'Database not initialized. Please run seed script first.',
       }, { status: 503 });
     }
 
     const superAdminMeta: SuperAdminConfig = {
       username: adminRecord.username,
-      lastUpdated: adminRecord.updated_at,
+      lastUpdated: adminRecord.updatedAt.toISOString(),
     };
 
     if (action === 'get-super-admin') {
@@ -77,27 +74,36 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
 
-      const { data: businesses } = await admin
-        .from('businesses')
-        .select(`
-          id, name, slug,
-          business_roles (
-            id, role_id, label, description, department, password, pin, updated_at
-          )
-        `)
-        .order('name');
+      const businesses = await prisma.business.findMany({
+        orderBy: { name: 'asc' },
+        include: {
+          businessRoles: {
+            orderBy: { roleId: 'asc' },
+            select: {
+              id: true,
+              roleId: true,
+              label: true,
+              description: true,
+              department: true,
+              password: true,
+              pin: true,
+              updatedAt: true,
+            },
+          },
+        },
+      });
 
-      const companies = (businesses || []).map((b: any) => ({
+      const companies = businesses.map((b) => ({
         businessId: b.id,
         businessSlug: b.slug,
         businessName: b.name,
-        roles: (b.business_roles || []).map((r: any) => ({
-          role: r.role_id,
-          label: r.label || r.role_id,
+        roles: (b.businessRoles || []).map((r) => ({
+          role: r.roleId,
+          label: r.label || r.roleId,
           department: r.department || 'General',
           hasPassword: !!(r.password && r.password.trim()),
           hasPin: !!(r.pin && r.pin.trim()),
-          lastUpdated: r.updated_at,
+          lastUpdated: r.updatedAt.toISOString(),
         })),
       }));
 
@@ -111,12 +117,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Secure verification and updates directly via Supabase
+// POST: Secure verification and updates directly via PostgreSQL
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action } = body;
-    const admin = getAdminClient();
 
     // ───────────────────────────────────────────────────────────────────────────
     // ACTION: LOGOUT
@@ -144,27 +149,25 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const { data: adminRecord, error: saErr } = await admin
-        .from('super_admin_credentials')
-        .select('*')
-        .eq('id', 'primary')
-        .single();
+      const adminRecord = await prisma.superAdminCredentials.findFirst({
+        where: { id: 'primary' },
+      });
 
-      if (saErr || !adminRecord) {
+      if (!adminRecord) {
         return NextResponse.json(
-          { success: false, error: 'Database not initialized. Table "super_admin_credentials" not found. Please run scripts/vps-setup.sql first.' },
+          { success: false, error: 'Database not initialized. Super Admin credentials not found.' },
           { status: 503 }
         );
       }
 
       const expectedUsername = adminRecord.username;
-      const expectedPassHash = adminRecord.password_hash;
-      const expectedPin4Hash = adminRecord.pin4_hash;
-      const expectedPin8Hash = adminRecord.pin8_hash;
+      const expectedPassHash = adminRecord.passwordHash;
+      const expectedPin4Hash = adminRecord.pin4Hash;
+      const expectedPin8Hash = adminRecord.pin8Hash;
 
       // Check lockout
-      if (adminRecord?.locked_until) {
-        const lockExpiry = new Date(adminRecord.locked_until).getTime();
+      if (adminRecord.lockedUntil) {
+        const lockExpiry = new Date(adminRecord.lockedUntil).getTime();
         if (lockExpiry > Date.now()) {
           const remainingMinutes = Math.ceil((lockExpiry - Date.now()) / (60 * 1000));
           return NextResponse.json(
@@ -180,21 +183,23 @@ export async function POST(req: NextRequest) {
       const isPin8Match = bcrypt.compareSync(p8, expectedPin8Hash);
 
       if (!isUserMatch || !isPassMatch || !isPin4Match || !isPin8Match) {
-        if (adminRecord) {
-          const newAttempts = (adminRecord.failed_attempts || 0) + 1;
-          const updatePayload: Record<string, any> = { failed_attempts: newAttempts };
-          if (newAttempts >= 5) {
-            updatePayload.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-          }
-          await admin.from('super_admin_credentials').update(updatePayload).eq('id', 'primary');
+        const newAttempts = (adminRecord.failedAttempts || 0) + 1;
+        const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
+        if (newAttempts >= 5) {
+          updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
         }
+        await prisma.superAdminCredentials.update({
+          where: { id: 'primary' },
+          data: updatePayload,
+        });
         return NextResponse.json({ success: false, error: 'Invalid master credentials. Access denied.' }, { status: 401 });
       }
 
       // Success
-      if (adminRecord) {
-        await admin.from('super_admin_credentials').update({ failed_attempts: 0, locked_until: null }).eq('id', 'primary');
-      }
+      await prisma.superAdminCredentials.update({
+        where: { id: 'primary' },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
 
       const token = await signSession({
         sub: expectedUsername,
@@ -239,20 +244,32 @@ export async function POST(req: NextRequest) {
       const pin4Hash = bcrypt.hashSync(newPin4.trim(), 10);
       const pin8Hash = bcrypt.hashSync(newPin8.trim(), 10);
 
-      await admin.from('super_admin_credentials').upsert({
-        id: 'primary',
-        username: newUsername.trim(),
-        password_hash: passHash,
-        pin4_hash: pin4Hash,
-        pin8_hash: pin8Hash,
-        failed_attempts: 0,
-        locked_until: null,
-        updated_at: new Date().toISOString(),
+      await prisma.superAdminCredentials.upsert({
+        where: { id: 'primary' },
+        update: {
+          username: newUsername.trim(),
+          passwordHash: passHash,
+          pin4Hash,
+          pin8Hash,
+          failedAttempts: 0,
+          lockedUntil: null,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: 'primary',
+          username: newUsername.trim(),
+          passwordHash: passHash,
+          pin4Hash,
+          pin8Hash,
+          failedAttempts: 0,
+          lockedUntil: null,
+          updatedAt: new Date(),
+        },
       });
 
       return NextResponse.json({
         success: true,
-        message: 'Super Admin Master Credentials successfully hashed and updated in Supabase!',
+        message: 'Super Admin Master Credentials successfully hashed and updated in PostgreSQL!',
       });
     }
 
@@ -271,25 +288,29 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Please select a role and enter your password.' }, { status: 400 });
       }
 
-      const { data: b } = await admin.from('businesses').select('id, is_active').eq('slug', slug).single();
-      if (!b || !b.is_active) {
+      const b = await prisma.business.findFirst({
+        where: { slug, isActive: true },
+        select: { id: true, isActive: true },
+      });
+
+      if (!b || !b.isActive) {
         return NextResponse.json({ success: false, error: 'Business workspace not found or inactive.' }, { status: 404 });
       }
 
-      const { data: dbRole } = await admin
-        .from('business_roles')
-        .select('*')
-        .eq('business_id', b.id)
-        .eq('role_id', roleName)
-        .single();
+      const dbRole = await prisma.businessRole.findFirst({
+        where: {
+          businessId: b.id,
+          roleId: roleName,
+        },
+      });
 
       if (!dbRole) {
         return NextResponse.json({ success: false, error: `Role "${roleName}" not configured.` }, { status: 404 });
       }
 
       // Check lockout
-      if (dbRole.locked_until && new Date(dbRole.locked_until).getTime() > Date.now()) {
-        const remainingMinutes = Math.ceil((new Date(dbRole.locked_until).getTime() - Date.now()) / (60 * 1000));
+      if (dbRole.lockedUntil && new Date(dbRole.lockedUntil).getTime() > Date.now()) {
+        const remainingMinutes = Math.ceil((new Date(dbRole.lockedUntil).getTime() - Date.now()) / (60 * 1000));
         return NextResponse.json({ success: false, error: `Account locked after 5 failed attempts. Please retry in ${remainingMinutes} minute(s).` }, { status: 403 });
       }
 
@@ -301,12 +322,15 @@ export async function POST(req: NextRequest) {
       const isPinCorrect = !isPinRequired || pinCheck.isValid;
 
       if (!isPassCorrect || !isPinCorrect) {
-        const attempts = (dbRole.failed_attempts || 0) + 1;
-        const updatePayload: Record<string, any> = { failed_attempts: attempts };
+        const attempts = (dbRole.failedAttempts || 0) + 1;
+        const updatePayload: Record<string, any> = { failedAttempts: attempts };
         if (attempts >= 5) {
-          updatePayload.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+          updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
         }
-        await admin.from('business_roles').update(updatePayload).eq('id', dbRole.id);
+        await prisma.businessRole.update({
+          where: { id: dbRole.id },
+          data: updatePayload,
+        });
 
         const remaining = 5 - attempts;
         const warning = remaining > 0 && remaining <= 3 ? ` (${remaining} attempt(s) remaining)` : '';
@@ -314,7 +338,10 @@ export async function POST(req: NextRequest) {
       }
 
       // Reset attempts
-      await admin.from('business_roles').update({ failed_attempts: 0, locked_until: null }).eq('id', dbRole.id);
+      await prisma.businessRole.update({
+        where: { id: dbRole.id },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
 
       const token = await signSession({
         sub: roleName,
@@ -354,25 +381,48 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Role and new password are required' }, { status: 400 });
       }
 
-      const { data: b } = await admin.from('businesses').select('id').eq('slug', businessSlug).single();
+      const b = await prisma.business.findFirst({
+        where: { slug: businessSlug },
+        select: { id: true },
+      });
       if (!b) return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
 
-      const nowStr = new Date().toISOString();
       const passwordHash = await hashCredential(newPassword);
       const pinHash = newPin && newPin.trim() ? await hashCredential(newPin) : '';
 
-      await admin.from('business_roles').update({
-        password: passwordHash,
-        pin: pinHash,
-        updated_at: nowStr,
-        failed_attempts: 0,
-        locked_until: null,
-      }).eq('business_id', b.id).eq('role_id', role);
+      const updated = await prisma.businessRole.updateMany({
+        where: {
+          businessId: b.id,
+          roleId: role,
+        },
+        data: {
+          password: passwordHash,
+          pin: pinHash,
+          updatedAt: new Date(),
+          failedAttempts: 0,
+          lockedUntil: null,
+        },
+      });
+
+      if (updated.count === 0) {
+        // If role doesn't exist yet, create it
+        await prisma.businessRole.create({
+          data: {
+            businessId: b.id,
+            roleId: role,
+            label: role,
+            password: passwordHash,
+            pin: pinHash,
+            failedAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+      }
 
       return NextResponse.json({
         success: true,
-        message: `Credentials for "${role}" updated in Supabase.`,
-        lastUpdated: nowStr,
+        message: `Credentials for "${role}" updated in PostgreSQL.`,
+        lastUpdated: new Date().toISOString(),
       });
     }
 
@@ -387,27 +437,50 @@ export async function POST(req: NextRequest) {
       }
 
       const { businessSlug, credentials } = body;
-      const { data: b } = await admin.from('businesses').select('id').eq('slug', businessSlug).single();
+      const b = await prisma.business.findFirst({
+        where: { slug: businessSlug },
+        select: { id: true },
+      });
       if (!b) return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
 
-      const nowStr = new Date().toISOString();
       for (const item of (credentials || [])) {
         if (!item.role || !item.password) continue;
         const passwordHash = await hashCredential(item.password);
         const pinHash = item.pin && item.pin.trim() ? await hashCredential(item.pin) : '';
 
-        await admin.from('business_roles').update({
-          password: passwordHash,
-          pin: pinHash,
-          updated_at: nowStr,
-          failed_attempts: 0,
-          locked_until: null,
-        }).eq('business_id', b.id).eq('role_id', item.role);
+        const updated = await prisma.businessRole.updateMany({
+          where: {
+            businessId: b.id,
+            roleId: item.role,
+          },
+          data: {
+            password: passwordHash,
+            pin: pinHash,
+            updatedAt: new Date(),
+            failedAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+
+        if (updated.count === 0) {
+          await prisma.businessRole.create({
+            data: {
+              businessId: b.id,
+              roleId: item.role,
+              label: item.label || item.role,
+              department: item.department || 'General',
+              password: passwordHash,
+              pin: pinHash,
+              failedAttempts: 0,
+              lockedUntil: null,
+            },
+          });
+        }
       }
 
       return NextResponse.json({
         success: true,
-        message: `All credentials for ${businessSlug} updated successfully in Supabase.`,
+        message: `All credentials for ${businessSlug} updated successfully in PostgreSQL.`,
       });
     }
 

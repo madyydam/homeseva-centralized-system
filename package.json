@@ -17,7 +17,6 @@
     "desktop:dist": "pnpm --filter @homeseva/desktop dist"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.118.0",
     "eslint": "^8.57.0",
     "prettier": "^3.2.0",
     "turbo": "^2.0.0",
