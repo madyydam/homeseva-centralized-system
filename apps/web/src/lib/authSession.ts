@@ -1,17 +1,24 @@
 // Cryptographic Web-Crypto based Session Engine for Edge Middleware & Node Runtime
 // Zero external dependencies; 100% secure HMAC-SHA256 signatures with expiry.
 
-const SECRET_KEY_RAW =
-  process.env.AUTH_SECRET ||
-  process.env.SUPABASE_SECRET_KEY ||
-  'homeseva_production_super_secret_master_key_2026_secured_v4';
+function getSecretKeyRaw(): string {
+  const secret = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL SECURITY ERROR: AUTH_SECRET environment variable is missing.');
+    }
+    // Safe development-only fallback
+    return 'dev_insecure_auth_secret_key_minimum_32_characters_long_for_hmac';
+  }
+  return secret;
+}
 
 const encoder = new TextEncoder();
 
 async function getCryptoKey(): Promise<CryptoKey> {
   return await crypto.subtle.importKey(
     'raw',
-    encoder.encode(SECRET_KEY_RAW),
+    encoder.encode(getSecretKeyRaw()),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify']

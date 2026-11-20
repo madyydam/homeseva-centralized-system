@@ -9,7 +9,6 @@ import { firstMoverAdvantageModule } from './first-mover-advantage';
 import { printboothModule } from './printbooth';
 import { adjsModule } from './adjs';
 import { dvrEnterpriseModule } from './dvr-enterprise';
-import { dveEnterprisesModule } from './dve-enterprises';
 import { ndaServicesModule } from './nda-services';
 import { hsRealEstateModule } from './hs-real-estate';
 
@@ -26,7 +25,7 @@ export const BUSINESS_MODULES: Record<string, BusinessModule> = {
   'printbooth': adjsModule,
   'dvr-enterprise': dvrEnterpriseModule,
   'dvr-enterprises': dvrEnterpriseModule,
-  'dve-enterprises': dveEnterprisesModule,
+  'dve-enterprises': dvrEnterpriseModule,
   'nda-services': ndaServicesModule,
   'hs-real-estate': hsRealEstateModule,
 
@@ -52,7 +51,6 @@ export function getAllBusinessModules(): BusinessModule[] {
     firstMoverAdvantageModule,
     printboothModule,
     dvrEnterpriseModule,
-    dveEnterprisesModule,
     ndaServicesModule,
     hsRealEstateModule,
   ];

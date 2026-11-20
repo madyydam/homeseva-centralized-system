@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '../../../../../lib/supabase/admin';
+import { verifyCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,9 +61,15 @@ export async function POST(req: NextRequest) {
 
     let matched = false;
     if (field === 'password') {
-      matched = cleanVal === dbRole.password?.trim();
+      const res = await verifyCredential(cleanVal, dbRole.password);
+      matched = res.isValid;
     } else if (field === 'pin') {
-      matched = !dbRole.pin || cleanVal === dbRole.pin?.trim();
+      if (!dbRole.pin) {
+        matched = true;
+      } else {
+        const res = await verifyCredential(cleanVal, dbRole.pin);
+        matched = res.isValid;
+      }
     }
 
     return NextResponse.json({ success: true, matched });

@@ -8,6 +8,7 @@ import {
   SUPER_ADMIN_COOKIE,
   USER_SESSION_COOKIE,
 } from '../../../../lib/authSession';
+import { hashCredential, verifyCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -292,8 +293,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: `Account locked after 5 failed attempts. Please retry in ${remainingMinutes} minute(s).` }, { status: 403 });
       }
 
-      const isPassCorrect = pass === dbRole.password.trim();
-      const isPinCorrect = !dbRole.pin || p === dbRole.pin.trim();
+      const passCheck = await verifyCredential(pass, dbRole.password);
+      const isPinRequired = !!(dbRole.pin && dbRole.pin.trim());
+      const pinCheck = isPinRequired && p ? await verifyCredential(p, dbRole.pin) : { isValid: !isPinRequired || !dbRole.pin, needsRehash: false };
+
+      const isPassCorrect = passCheck.isValid;
+      const isPinCorrect = !isPinRequired || pinCheck.isValid;
 
       if (!isPassCorrect || !isPinCorrect) {
         const attempts = (dbRole.failed_attempts || 0) + 1;
@@ -353,9 +358,12 @@ export async function POST(req: NextRequest) {
       if (!b) return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
 
       const nowStr = new Date().toISOString();
+      const passwordHash = await hashCredential(newPassword);
+      const pinHash = newPin && newPin.trim() ? await hashCredential(newPin) : '';
+
       await admin.from('business_roles').update({
-        password: newPassword.trim(),
-        pin: (newPin || '').trim(),
+        password: passwordHash,
+        pin: pinHash,
         updated_at: nowStr,
         failed_attempts: 0,
         locked_until: null,
@@ -385,9 +393,12 @@ export async function POST(req: NextRequest) {
       const nowStr = new Date().toISOString();
       for (const item of (credentials || [])) {
         if (!item.role || !item.password) continue;
+        const passwordHash = await hashCredential(item.password);
+        const pinHash = item.pin && item.pin.trim() ? await hashCredential(item.pin) : '';
+
         await admin.from('business_roles').update({
-          password: item.password.trim(),
-          pin: (item.pin || '').trim(),
+          password: passwordHash,
+          pin: pinHash,
           updated_at: nowStr,
           failed_attempts: 0,
           locked_until: null,

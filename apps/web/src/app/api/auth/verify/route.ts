@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getAdminClient } from '../../../../lib/supabase/admin';
 import { signSession, USER_SESSION_COOKIE, PERMANENT_SESSION_LIFETIME } from '../../../../lib/authSession';
+import { verifyCredential, hashCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,9 +78,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 2. Validate password & pin (Strict 1:1 security verification against Supabase database)
-      const isPassCorrect = enteredPass === targetRole.password?.trim();
-      const isPinCorrect = !targetRole.pin || enteredPin === targetRole.pin?.trim();
+      // 2. Validate password & pin (Bcrypt cryptographic verification with zero-downtime auto-upgrade)
+      const passCheck = await verifyCredential(enteredPass, targetRole.password);
+      const isPinRequired = !!(targetRole.pin && targetRole.pin.trim());
+      const pinCheck = isPinRequired && enteredPin
+        ? await verifyCredential(enteredPin, targetRole.pin)
+        : { isValid: !isPinRequired || !targetRole.pin, needsRehash: false };
+
+      const isPassCorrect = passCheck.isValid;
+      const isPinCorrect = !isPinRequired || pinCheck.isValid;
 
       if (!isPassCorrect || !isPinCorrect) {
         const newAttempts = (targetRole.failed_attempts || 0) + 1;
@@ -103,10 +110,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: `${errMsg}${warningMsg}` }, { status: 401 });
       }
 
-      // Success! Reset attempts
+      // Success! Reset attempts and auto-upgrade legacy plaintext credentials to Bcrypt hashes
+      const resetPayload: Record<string, any> = { failed_attempts: 0, locked_until: null };
+      if (passCheck.needsRehash) {
+        resetPayload.password = await hashCredential(enteredPass);
+      }
+      if (enteredPin && pinCheck.needsRehash) {
+        resetPayload.pin = await hashCredential(enteredPin);
+      }
+
       await admin
         .from('business_roles')
-        .update({ failed_attempts: 0, locked_until: null })
+        .update(resetPayload)
         .eq('id', targetRole.id);
 
       // Set permanent cookie via authSession (until explicit logout)

@@ -8,8 +8,8 @@ export function getMailTransporter() {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 587;
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-  const user = (process.env.SMTP_USER || 'madhurdhadve7@gmail.com').trim();
-  const pass = (process.env.SMTP_PASS || 'ocfpvxposnxevbhg').replace(/\s+/g, '').trim();
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '').trim();
 
   return nodemailer.createTransport({
     host,
@@ -20,7 +20,7 @@ export function getMailTransporter() {
       pass,
     },
     tls: {
-      rejectUnauthorized: false,
+      rejectUnauthorized: process.env.NODE_ENV === 'production',
     },
   });
 }
@@ -39,7 +39,7 @@ export interface SendEmailOptions {
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const transporter = getMailTransporter();
-    const fromAddress = options.from || process.env.SMTP_FROM || `"HomeSeva ERP" <${process.env.SMTP_USER || 'madhurdhadve7@gmail.com'}>`;
+    const fromAddress = options.from || process.env.SMTP_FROM || `"HomeSeva ERP" <${process.env.SMTP_USER || 'no-reply@homeseva.internal'}>`;
 
     const info = await transporter.sendMail({
       from: fromAddress,
@@ -379,11 +379,11 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
       </p>
     </div>
 
-    <!-- Footer with small regards at very last -->
+    <!-- Footer with corporate signature -->
     <div class="footer">
       <div><strong>Confidential Enterprise Document</strong></div>
-      <div>This message was automatically dispatched by HomeSeva ERP on behalf of Super Administration.</div>
-      <div class="signature">regards - madhur dhadve</div>
+      <div>This message was automatically dispatched by HomeSeva Central ERP on behalf of Super Administration.</div>
+      <div class="signature">HomeSeva Enterprise Administration</div>
     </div>
   </div>
 </body>

@@ -48,3 +48,5 @@ cookie.txt
 # VPS deploy secrets (contains real passwords)
 .env.vps
 nginx/certs/
+apps/desktop/*.txt
+

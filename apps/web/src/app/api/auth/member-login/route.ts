@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { signSession, USER_SESSION_COOKIE } from '@/lib/authSession';
+import { verifyCredential, hashCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,8 +89,9 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    // 4. Validate password
-    if (targetMember.password.trim() !== pw) {
+    // 4. Validate password (Bcrypt cryptographic verification with zero-downtime auto-upgrade)
+    const passCheck = await verifyCredential(pw, targetMember.password);
+    if (!passCheck.isValid) {
       return NextResponse.json({
         success: false,
         error: 'Authentication failed. Password does not match.',
@@ -97,11 +99,28 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Validate PIN (if required)
-    if (targetMember.pin && p && targetMember.pin.trim() !== p) {
+    const pinCheck = targetMember.pin && p ? await verifyCredential(p, targetMember.pin) : { isValid: true, needsRehash: false };
+    if (targetMember.pin && p && !pinCheck.isValid) {
       return NextResponse.json({
         success: false,
         error: 'Authentication failed. Security PIN does not match.',
       }, { status: 401 });
+    }
+
+    // Auto-upgrade legacy plaintext to secure Bcrypt hashes in PostgreSQL
+    if (passCheck.needsRehash || (p && pinCheck.needsRehash)) {
+      try {
+        const updatePayload: Record<string, string> = {};
+        if (passCheck.needsRehash) {
+          updatePayload.password = await hashCredential(pw);
+        }
+        if (p && pinCheck.needsRehash) {
+          updatePayload.pin = await hashCredential(p);
+        }
+        await admin.from('role_members').update(updatePayload).eq('id', targetMember.id);
+      } catch (err) {
+        console.warn('Background credential rehash notice:', err);
+      }
     }
 
     // 6. Sign permanent session (99 years lifetime)

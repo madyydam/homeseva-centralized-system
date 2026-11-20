@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getAdminClient } from '../../../../lib/supabase/admin';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
+import { hashCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -208,11 +209,14 @@ export async function POST(req: NextRequest) {
       }
 
       const now = new Date().toISOString();
+      const passwordHash = await hashCredential(newPassword);
+      const pinHash = newPin && newPin.trim() ? await hashCredential(newPin) : '';
+
       const { data: updatedRole, error: roleErr } = await admin
         .from('business_roles')
         .update({
-          password: newPassword.trim(),
-          pin: (newPin || '').trim(),
+          password: passwordHash,
+          pin: pinHash,
           updated_at: now,
           failed_attempts: 0,
           locked_until: null,
@@ -270,11 +274,14 @@ export async function POST(req: NextRequest) {
       const now = new Date().toISOString();
       for (const item of credentials) {
         if (!item.role || !item.password) continue;
+        const passwordHash = await hashCredential(item.password);
+        const pinHash = item.pin && item.pin.trim() ? await hashCredential(item.pin) : '';
+
         await admin
           .from('business_roles')
           .update({
-            password: item.password.trim(),
-            pin: (item.pin || '').trim(),
+            password: passwordHash,
+            pin: pinHash,
             updated_at: now,
             failed_attempts: 0,
             locked_until: null,

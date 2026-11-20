@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMailTransporter, sendMemberWelcomeCredentialsEmail } from '@/lib/email';
+import { getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getCurrentSuperAdminSession();
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Super Admin access required' }, { status: 401 });
+    }
+
     const transporter = getMailTransporter();
     
     // Verify connection configuration
@@ -32,7 +38,7 @@ export async function GET(req: NextRequest) {
       success: true,
       smtpConnected: true,
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      user: process.env.SMTP_USER || 'madhurdhadve7@gmail.com',
+      user: process.env.SMTP_USER || '',
       sendResult,
       message: to ? `Test email dispatched to ${to}` : 'SMTP connection verified successfully. Pass ?to=your_email to dispatch a sample credentials email.',
     });

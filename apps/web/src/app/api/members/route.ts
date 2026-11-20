@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
 import { sendMemberWelcomeCredentialsEmail } from '@/lib/email';
+import { hashCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getCurrentSuperAdminSession();
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Super Admin access required' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     let businessId = searchParams.get('businessId');
     const businessSlug = searchParams.get('businessSlug');
@@ -35,12 +40,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    // For authenticated Super Admin, return the real passwords and PINs so console can reveal them
-    const isSuperAdmin = !!session;
+    // Passwords and PINs are strictly masked in all responses (Zero-Trust Security)
     const members = (data || []).map((m: any) => ({
       ...m,
-      password: isSuperAdmin ? m.password : '••••••••',
-      pin: isSuperAdmin ? m.pin : '••••',
+      hasPassword: !!(m.password && m.password.trim()),
+      hasPin: !!(m.pin && m.pin.trim()),
+      password: '••••••••',
+      pin: '••••',
     }));
 
     return NextResponse.json({ success: true, members });
@@ -133,6 +139,9 @@ export async function POST(req: NextRequest) {
     const cleanPin = pin.trim();
     const cleanName = name.trim();
 
+    const passwordHash = await hashCredential(cleanPassword);
+    const pinHash = await hashCredential(cleanPin);
+
     const { data, error } = await admin
       .from('role_members')
       .insert({
@@ -140,8 +149,8 @@ export async function POST(req: NextRequest) {
         role_id,
         name: cleanName,
         email: cleanEmail,
-        password: cleanPassword,
-        pin: cleanPin,
+        password: passwordHash,
+        pin: pinHash,
         is_active: true,
       })
       .select()
@@ -219,10 +228,10 @@ export async function PATCH(req: NextRequest) {
     if (name !== undefined) updatePayload.name = name.trim();
     if (email !== undefined) updatePayload.email = email.trim().toLowerCase();
     if (password !== undefined && password !== '' && password !== '••••••••') {
-      updatePayload.password = password.trim();
+      updatePayload.password = await hashCredential(password.trim());
     }
     if (pin !== undefined && pin !== '' && pin !== '••••') {
-      updatePayload.pin = pin.trim();
+      updatePayload.pin = await hashCredential(pin.trim());
     }
     if (is_active !== undefined) updatePayload.is_active = is_active;
 
@@ -257,8 +266,8 @@ export async function PATCH(req: NextRequest) {
           subcompany: subcompany || undefined,
           role: data.role_id,
           email: data.email,
-          password: data.password,
-          pin: data.pin,
+          password: (password && password !== '••••••••') ? password.trim() : '(unchanged / confidential)',
+          pin: (pin && pin !== '••••') ? pin.trim() : '(unchanged / confidential)',
           businessSlug: biz?.slug || 'adjs',
         });
         emailDispatched = mailRes.success;

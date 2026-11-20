@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '../../../../lib/supabase/admin';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
+import { hashCredential } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, roles: roles || [] });
+    const sanitizedRoles = (roles || []).map((r: any) => ({
+      ...r,
+      hasPassword: !!(r.password && r.password.trim()),
+      hasPin: !!(r.pin && r.pin.trim()),
+      password: '••••••••',
+      pin: '••••',
+    }));
+
+    return NextResponse.json({ success: true, roles: sanitizedRoles });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
@@ -66,6 +75,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Business not found.' }, { status: 404 });
       }
 
+      const passwordHash = await hashCredential(password);
+      const pinHash = await hashCredential(pin || '1111');
+
       const { data: newRole, error } = await admin
         .from('business_roles')
         .insert({
@@ -74,8 +86,8 @@ export async function POST(req: NextRequest) {
           label: (label || roleId).trim(),
           description: description?.trim() || '',
           department: department?.trim() || 'General',
-          password: password.trim(),
-          pin: (pin || '1111').trim(),
+          password: passwordHash,
+          pin: pinHash,
           is_active: true,
         })
         .select()
@@ -97,7 +109,10 @@ export async function POST(req: NextRequest) {
         });
       } catch {}
 
-      return NextResponse.json({ success: true, role: newRole });
+      return NextResponse.json({
+        success: true,
+        role: { ...newRole, password: '••••••••', pin: '••••' },
+      });
     }
 
     if (action === 'delete-role') {
