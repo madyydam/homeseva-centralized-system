@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: false,
         matched: false,
-        error: 'Database not initialized. Table "super_admin_credentials" not found in Supabase. Please run scripts/supabase_master_setup.sql in your Supabase SQL editor first.',
+        error: 'Database not initialized. Table "super_admin_credentials" not found. Please run scripts/vps-setup.sql first.',
       }, { status: 503 });
     }
 

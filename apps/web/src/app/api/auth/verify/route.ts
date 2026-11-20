@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     if (!business) {
       return NextResponse.json({
         success: false,
-        error: `Business "${slug}" not found in Supabase. Please ensure scripts/supabase_master_setup.sql has been run.`,
+        error: `Business "${slug}" not found in database. Please ensure scripts/vps-setup.sql has been run.`,
       }, { status: 503 });
     }
 

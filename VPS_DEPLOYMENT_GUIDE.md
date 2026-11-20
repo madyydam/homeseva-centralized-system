@@ -54,7 +54,7 @@ Execute the all-in-one idempotent master setup script on your database (via Supa
 
 ```bash
 # Via local / VPS psql:
-docker compose -f docker-compose.vps.yml exec -T postgres psql -U homeseva -d homeseva_db < scripts/supabase_master_setup.sql
+docker compose -f docker-compose.vps.yml exec -T postgres psql -U homeseva -d homeseva_db < scripts/vps-setup.sql
 ```
 This script automatically sets up:
 - **10 Core Companies**: Gentle Hair Wigs, ADJS - PRINTBOOTH™, Horeca Essentials, Ecolab Distribution, HS Coworking, HS Real Estate, Prefab Construction, NDA Services, DVE Enterprises, First Mover Advantage.

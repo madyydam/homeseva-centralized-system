@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
           machines_sold: Number(machines_sold) || 0,
           notes: notes || '',
         },
-        notice: 'Saved in memory. Run scripts/002_member_system.sql in Supabase SQL editor for cloud persistence.',
+        notice: 'Saved in memory. Run scripts/vps-setup.sql for database persistence.',
       });
     }
 

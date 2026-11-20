@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     if (saError || !superAdminRow) {
       return NextResponse.json({
         success: false,
-        error: 'Super admin credentials table not found in Supabase. Please execute scripts/supabase_master_setup.sql first.',
+        error: 'Super admin credentials table not found. Please execute scripts/vps-setup.sql first.',
       }, { status: 503 });
     }
 

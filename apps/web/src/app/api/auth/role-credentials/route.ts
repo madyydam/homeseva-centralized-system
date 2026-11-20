@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     if (saError || !adminRecord) {
       return NextResponse.json({
         success: false,
-        error: 'Database not initialized. Please run scripts/supabase_master_setup.sql in Supabase first.',
+        error: 'Database not initialized. Please run scripts/vps-setup.sql first.',
       }, { status: 503 });
     }
 
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
 
       if (saErr || !adminRecord) {
         return NextResponse.json(
-          { success: false, error: 'Database not initialized. Table "super_admin_credentials" not found in Supabase. Please run scripts/supabase_master_setup.sql first.' },
+          { success: false, error: 'Database not initialized. Table "super_admin_credentials" not found. Please run scripts/vps-setup.sql first.' },
           { status: 503 }
         );
       }
