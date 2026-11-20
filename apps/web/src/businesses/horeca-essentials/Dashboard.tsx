@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   LayoutDashboard,
   UtensilsCrossed,
-  Wine,
   Boxes,
   Receipt,
   Plus,
@@ -23,17 +22,18 @@ import { horecaEssentialsConfig } from './config';
 import { horecaEssentialsDb } from './db';
 import {
   EssentialsSaleItem,
-  CrockeryRentalBookingItem,
   HorecaStockItem,
   HorecaEssentialsData,
 } from './types';
-import { logoutUser } from '@/lib/clientAuth';export default function HorecaEssentialsDashboard({
+import { logoutUser } from '@/lib/clientAuth';
+
+export default function HorecaEssentialsDashboard({
   division = 'essentials-sales',
   role = 'Wholesale Sales Executive',
 }: BusinessDashboardProps) {
   const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'sales' | 'rentals' | 'stock'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sales' | 'stock'>('overview');
   const [data, setData] = useState<HorecaEssentialsData>({
     salesOrders: [],
     rentalBookings: [],
@@ -50,7 +50,6 @@ import { logoutUser } from '@/lib/clientAuth';export default function HorecaEsse
 
   // Modals state
   const [showSaleModal, setShowSaleModal] = useState(false);
-  const [showRentalModal, setShowRentalModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
 
   // Form states: Sale
@@ -58,15 +57,6 @@ import { logoutUser } from '@/lib/clientAuth';export default function HorecaEsse
   const [salePhone, setSalePhone] = useState('');
   const [saleItems, setSaleItems] = useState('Stainless Steel Commercial Cookware Set + Buffet Chafers');
   const [saleSubtotal, setSaleSubtotal] = useState('48000');
-
-  // Form states: Rental
-  const [rentalEvent, setRentalEvent] = useState('Grand Wedding Banquet (500 Pax)');
-  const [rentalCaterer, setRentalCaterer] = useState('');
-  const [rentalPhone, setRentalPhone] = useState('');
-  const [rentalItems, setRentalItems] = useState('500 Bone China Dinner Plates + 500 Wine Goblets + Cutlery');
-  const [rentalCharges, setRentalCharges] = useState('35000');
-  const [rentalDeposit, setRentalDeposit] = useState('15000');
-  const [rentalReturnDate, setRentalReturnDate] = useState('');
 
   // Form states: Stock
   const [stockName, setStockName] = useState('');
@@ -100,29 +90,6 @@ import { logoutUser } from '@/lib/clientAuth';export default function HorecaEsse
     setShowSaleModal(false);
     setSaleClient('');
     setSalePhone('');
-  };
-
-  const handleCreateRental = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rentalCaterer.trim()) return;
-    const newRental: CrockeryRentalBookingItem = {
-      id: `CRK-RENT-${String(data.rentalBookings.length + 1).padStart(3, '0')}`,
-      bookingRef: `RENT/2026/${String(data.rentalBookings.length + 101)}`,
-      eventName: rentalEvent.trim(),
-      catererOrClient: rentalCaterer.trim(),
-      phone: rentalPhone.trim(),
-      eventDate: new Date().toISOString().split('T')[0] || '',
-      returnDate: rentalReturnDate || 'Next Day',
-      itemsRented: rentalItems.trim(),
-      rentalCharges: Number(rentalCharges) || 0,
-      securityDeposit: Number(rentalDeposit) || 0,
-      status: 'Booked',
-      breakagesRecorded: 0,
-    };
-    horecaEssentialsDb.addRentalBooking(newRental);
-    refreshData();
-    setShowRentalModal(false);
-    setRentalCaterer('');
   };
 
   const handleCreateStock = (e: React.FormEvent) => {
@@ -240,33 +207,7 @@ import { logoutUser } from '@/lib/clientAuth';export default function HorecaEsse
                     )
                   )}
                 </button>
-                <button
-                  onClick={() => setActiveTab('rentals')}
-                  title={isSidebarCollapsed ? `Banquet Crockery Rentals (${data.rentalBookings.length})` : undefined}
-                  className={`w-full flex items-center rounded-xl transition ${
-                    isSidebarCollapsed ? 'justify-center p-2.5 relative' : 'space-x-2.5 px-3 py-2 text-xs font-semibold'
-                  } ${
-                    activeTab === 'rentals'
-                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200/80 font-bold shadow-2xs'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <Wine className="h-4 w-4 text-emerald-600 shrink-0" />
-                  {!isSidebarCollapsed ? (
-                    <>
-                      <span>Banquet Crockery Rentals</span>
-                      <span className="ml-auto rounded-full bg-slate-100 text-slate-700 px-1.5 text-[10px] font-mono font-bold">
-                        {data.rentalBookings.length}
-                      </span>
-                    </>
-                  ) : (
-                    data.rentalBookings.length > 0 && (
-                      <span className="absolute top-1 right-1 flex h-2 w-2">
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-500" />
-                      </span>
-                    )
-                  )}
-                </button>
+
                 <button
                   onClick={() => setActiveTab('stock')}
                   title={isSidebarCollapsed ? `Inventory Catalog (${data.stockItems.length})` : undefined}
@@ -415,62 +356,6 @@ import { logoutUser } from '@/lib/clientAuth';export default function HorecaEsse
             </div>
           )}
 
-          {/* RENTALS TABLE */}
-          {(activeTab === 'overview' || activeTab === 'rentals') && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">Crockery &amp; Banquet Event Rental Roster</h3>
-                  <p className="text-xs text-slate-500">Event hires, security deposits, and return inspections</p>
-                </div>
-                <button onClick={() => setShowRentalModal(true)} className="text-xs font-bold text-emerald-700 hover:text-emerald-800">
-                  + Book Hire
-                </button>
-              </div>
-
-              {data.rentalBookings.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
-                  <Wine className="mx-auto h-8 w-8 text-slate-300" />
-                  <h4 className="mt-2 text-xs font-bold text-slate-700">No crockery rental bookings</h4>
-                  <p className="mt-1 text-[11px] text-slate-400">Book banquet plates, wine glasses, and chafers for events.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-bold border-y border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3">Booking #</th>
-                        <th className="py-2.5 px-3">Event &amp; Caterer</th>
-                        <th className="py-2.5 px-3">Items Hired</th>
-                        <th className="py-2.5 px-3 font-mono">Rental Fee</th>
-                        <th className="py-2.5 px-3 font-mono">Security Deposit</th>
-                        <th className="py-2.5 px-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                      {data.rentalBookings.map((r) => (
-                        <tr key={r.id} className="hover:bg-slate-50/70 transition">
-                          <td className="py-3 px-3 font-mono font-bold text-emerald-700">{r.bookingRef}</td>
-                          <td className="py-3 px-3">
-                            <span className="font-bold text-slate-900 block">{r.eventName}</span>
-                            <span className="text-[10px] text-slate-500">Caterer: {r.catererOrClient}</span>
-                          </td>
-                          <td className="py-3 px-3 text-slate-700 max-w-[220px] truncate">{r.itemsRented}</td>
-                          <td className="py-3 px-3 font-mono font-bold">₹ {r.rentalCharges.toLocaleString('en-IN')}</td>
-                          <td className="py-3 px-3 font-mono text-emerald-700">₹ {r.securityDeposit.toLocaleString('en-IN')}</td>
-                          <td className="py-3 px-3">
-                            <span className="rounded bg-emerald-50 text-emerald-800 px-2 py-0.5 text-[10px] font-bold border border-emerald-200">
-                              {r.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </main>
 
@@ -539,72 +424,7 @@ import { logoutUser } from '@/lib/clientAuth';export default function HorecaEsse
         </div>
       )}
 
-      {/* Modal: Rental */}
-      {showRentalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 text-slate-900">
-            <h3 className="text-base font-extrabold text-slate-900 mb-3">Book Banquet Crockery Rental</h3>
-            <form onSubmit={handleCreateRental} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Event Name *</label>
-                <input
-                  type="text"
-                  value={rentalEvent}
-                  onChange={(e) => setRentalEvent(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Caterer / Client Name *</label>
-                <input
-                  type="text"
-                  value={rentalCaterer}
-                  onChange={(e) => setRentalCaterer(e.target.value)}
-                  placeholder="e.g. Royal Caterers"
-                  required
-                  className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Rental Charges (₹)</label>
-                  <input
-                    type="number"
-                    value={rentalCharges}
-                    onChange={(e) => setRentalCharges(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-emerald-500 focus:outline-none font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Deposit (₹)</label>
-                  <input
-                    type="number"
-                    value={rentalDeposit}
-                    onChange={(e) => setRentalDeposit(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 focus:border-emerald-500 focus:outline-none font-mono"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowRentalModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 font-bold text-white shadow-sm"
-                >
-                  Confirm Rental Booking
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

@@ -46,6 +46,21 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
     }
   }, [businessSlug, searchParams]);
 
+  // If user navigated to /app/horeca-essentials/dashboard with crockery-rental division, route to /app/crockery-rental/dashboard
+  useEffect(() => {
+    if (
+      businessSlug === 'horeca-essentials' &&
+      (divisionParam === 'crockery-rental' || subcompanyParam === 'crockery-rental') &&
+      typeof window !== 'undefined'
+    ) {
+      const q = new URLSearchParams(searchParams.toString());
+      q.delete('division');
+      q.delete('subcompany');
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      window.location.replace(`/app/crockery-rental/dashboard${qs}`);
+    }
+  }, [businessSlug, divisionParam, subcompanyParam, searchParams]);
+
   useEffect(() => {
     // 1. Instant local cache hydration for zero layout shift
     if (typeof window !== 'undefined') {

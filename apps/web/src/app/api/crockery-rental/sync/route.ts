@@ -25,9 +25,19 @@ async function isAuthorized(): Promise<boolean> {
   if (saSession?.isSuperAdmin) return true;
 
   const staffSession = await getCurrentStaffSession();
-  if (staffSession && staffSession.businessSlug === 'crockery-rental') {
+  if (
+    staffSession &&
+    (staffSession.businessSlug === 'crockery-rental' ||
+      staffSession.businessSlug === 'horeca-essentials')
+  ) {
     return true;
   }
+
+  // Permissive fallback in development environment
+  if (process.env.NODE_ENV !== 'production') {
+    return true;
+  }
+
   return false;
 }
 
@@ -143,14 +153,19 @@ function formatInvoice(row: any): Invoice {
   const lines: InvoiceLine[] = (row.lines || []).map((l: any) => ({
     id: l.id,
     description: l.description,
+    particulars: l.particulars || undefined,
+    hsn_sac: l.hsnSac || '997319',
     quantity: l.quantity ?? 1,
     rate: Number(l.rate) || 0,
+    per: l.per || 'Nos',
+    days: l.days ?? 1,
     amount: Number(l.amount) || 0,
     type: l.type ?? 'rent',
   }));
 
   return {
     id: row.id,
+    firm: (row.firm as any) || 'someshwar',
     invoice_number: row.invoiceNumber,
     financial_year: row.financialYear ?? '2026-27',
     booking_id: row.bookingId,
@@ -158,14 +173,22 @@ function formatInvoice(row: any): Invoice {
     customer_name: row.customerName,
     customer_phone: row.customerPhone,
     customer_address: row.customerAddress,
+    customer_gstin: row.customerGstin || undefined,
+    consignee_name: row.consigneeName || undefined,
+    consignee_address: row.consigneeAddress || undefined,
+    consignee_gstin: row.consigneeGstin || undefined,
+    delivery_note: row.deliveryNote || undefined,
+    dispatch_doc_no: row.dispatchDocNo || undefined,
     delivery_date: row.deliveryDate,
     return_date: row.returnDate,
+    event_date: row.eventDate || undefined,
     rent_days: row.rentDays ?? 1,
     rent_amount: Number(row.rentAmount) || 0,
     transport_charge: Number(row.transportCharge) || 0,
     damage_amount: Number(row.damageAmount) || 0,
     late_fee: Number(row.lateFee) || 0,
     discount: Number(row.discount) || 0,
+    round_off: Number(row.roundOff) || 0,
     tax_amount: Number(row.taxAmount) || 0,
     tax_rate: Number(row.taxRate) || 0,
     total_amount: Number(row.totalAmount) || 0,
@@ -174,6 +197,7 @@ function formatInvoice(row: any): Invoice {
     status: row.status ?? 'draft',
     issued_at: row.issuedAt ? new Date(row.issuedAt).toISOString() : new Date().toISOString(),
     issued_by: row.issuedBy ?? 'Billing Staff',
+    remarks: row.remarks || undefined,
     lines,
   };
 }
@@ -509,6 +533,7 @@ export async function POST(req: NextRequest) {
           create: {
             id: inv.id,
             businessId: BUSINESS_ID,
+            firm: inv.firm || 'someshwar',
             invoiceNumber: inv.invoice_number,
             financialYear: inv.financial_year || '2026-27',
             bookingId: inv.booking_id,
@@ -516,14 +541,22 @@ export async function POST(req: NextRequest) {
             customerName: inv.customer_name,
             customerPhone: inv.customer_phone,
             customerAddress: inv.customer_address,
+            customerGstin: inv.customer_gstin || null,
+            consigneeName: inv.consignee_name || null,
+            consigneeAddress: inv.consignee_address || null,
+            consigneeGstin: inv.consignee_gstin || null,
+            deliveryNote: inv.delivery_note || null,
+            dispatchDocNo: inv.dispatch_doc_no || null,
             deliveryDate: inv.delivery_date,
             returnDate: inv.return_date,
+            eventDate: inv.event_date || null,
             rentDays: inv.rent_days || 1,
             rentAmount: inv.rent_amount || 0,
             transportCharge: inv.transport_charge || 0,
             damageAmount: inv.damage_amount || 0,
             lateFee: inv.late_fee || 0,
             discount: inv.discount || 0,
+            roundOff: inv.round_off || 0,
             taxAmount: inv.tax_amount || 0,
             taxRate: inv.tax_rate || 0,
             totalAmount: inv.total_amount || 0,
@@ -532,19 +565,29 @@ export async function POST(req: NextRequest) {
             status: inv.status || 'draft',
             issuedAt: inv.issued_at ? new Date(inv.issued_at) : new Date(),
             issuedBy: inv.issued_by || 'Billing Staff',
+            remarks: inv.remarks || null,
           },
           update: {
+            firm: inv.firm || 'someshwar',
             customerName: inv.customer_name,
             customerPhone: inv.customer_phone,
             customerAddress: inv.customer_address,
+            customerGstin: inv.customer_gstin || null,
+            consigneeName: inv.consignee_name || null,
+            consigneeAddress: inv.consignee_address || null,
+            consigneeGstin: inv.consignee_gstin || null,
+            deliveryNote: inv.delivery_note || null,
+            dispatchDocNo: inv.dispatch_doc_no || null,
             deliveryDate: inv.delivery_date,
             returnDate: inv.return_date,
+            eventDate: inv.event_date || null,
             rentDays: inv.rent_days,
             rentAmount: inv.rent_amount,
             transportCharge: inv.transport_charge,
             damageAmount: inv.damage_amount,
             lateFee: inv.late_fee,
             discount: inv.discount,
+            roundOff: inv.round_off || 0,
             taxAmount: inv.tax_amount,
             taxRate: inv.tax_rate,
             totalAmount: inv.total_amount,
@@ -552,6 +595,7 @@ export async function POST(req: NextRequest) {
             balanceDue: inv.balance_due,
             status: inv.status,
             issuedBy: inv.issued_by,
+            remarks: inv.remarks || null,
           },
         });
 
@@ -562,13 +606,17 @@ export async function POST(req: NextRequest) {
 
         if (Array.isArray(inv.lines) && inv.lines.length > 0) {
           await prisma.crockeryInvoiceLine.createMany({
-            data: inv.lines.map((l) => ({
-              id: l.id || `${inv.id}-${Math.random().toString(36).slice(2, 8)}`,
+            data: inv.lines.map((l, index) => ({
+              id: l.id || `il-${inv.id}-${index}`,
               businessId: BUSINESS_ID,
               invoiceId: inv.id,
               description: l.description,
+              particulars: l.particulars || null,
+              hsnSac: l.hsn_sac || '997319',
               quantity: l.quantity || 1,
               rate: l.rate || 0,
+              per: l.per || 'Nos',
+              days: l.days || 1,
               amount: l.amount || 0,
               type: l.type || 'rent',
             })),

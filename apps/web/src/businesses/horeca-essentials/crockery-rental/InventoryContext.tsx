@@ -61,8 +61,11 @@ interface InventoryContextType {
     bookingId: string,
     taxRate?: number,
     damageWaiverAmount?: number,
-    discountAmount?: number
+    discountAmount?: number,
+    firm?: 'someshwar' | 'homeseva'
   ) => Invoice;
+  createInvoice: (invoice: Invoice) => Invoice;
+  updateInvoice: (id: string, updates: Partial<Invoice>) => void;
   recordPayment: (payment: Omit<Payment, 'id'>) => void;
   addItem: (item: Omit<Item, 'id' | 'in_godown' | 'out_on_rent' | 'in_cleaning' | 'written_off'>) => void;
   updateItem: (item: Item) => void;
@@ -74,17 +77,17 @@ interface InventoryContextType {
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
-// v2 storage keys ensure any legacy mock data in browser localStorage is discarded
+// v3 storage keys ensure any legacy mock data in browser localStorage is discarded
 const STORAGE_KEYS = {
-  ROLE: 'crockery_role_v2',
-  PROFILE: 'crockery_profile_v2',
-  ITEMS: 'crockery_items_v2',
-  CUSTOMERS: 'crockery_customers_v2',
-  BOOKINGS: 'crockery_bookings_v2',
-  LEDGER: 'crockery_ledger_v2',
-  INVOICES: 'crockery_invoices_v2',
-  PAYMENTS: 'crockery_payments_v2',
-  PACKAGES: 'crockery_packages_v2',
+  ROLE: 'crockery_role_v3',
+  PROFILE: 'crockery_profile_v3',
+  ITEMS: 'crockery_items_v3',
+  CUSTOMERS: 'crockery_customers_v3',
+  BOOKINGS: 'crockery_bookings_v3',
+  LEDGER: 'crockery_ledger_v3',
+  INVOICES: 'crockery_invoices_v3',
+  PAYMENTS: 'crockery_payments_v3',
+  PACKAGES: 'crockery_packages_v3',
 };
 
 // Asynchronous helper to sync changes with PostgreSQL backend
@@ -186,7 +189,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
 
   // Authoritative PostgreSQL initial synchronization
   useEffect(() => {
-    // 1. Wipe legacy mock localStorage entries from v1
+    // 1. Wipe legacy mock localStorage entries from v1 and v2
     if (typeof window !== 'undefined') {
       try {
         const legacyKeys = [
@@ -199,6 +202,15 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
           'crockery_invoices_v1',
           'crockery_payments_v1',
           'crockery_packages_v1',
+          'crockery_role_v2',
+          'crockery_profile_v2',
+          'crockery_items_v2',
+          'crockery_customers_v2',
+          'crockery_bookings_v2',
+          'crockery_ledger_v2',
+          'crockery_invoices_v2',
+          'crockery_payments_v2',
+          'crockery_packages_v2',
         ];
         legacyKeys.forEach((k) => localStorage.removeItem(k));
       } catch (_) {}
@@ -644,7 +656,8 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
     bookingId: string,
     taxRate: number = 18,
     damageWaiverAmount: number = 0,
-    discountAmount?: number
+    discountAmount?: number,
+    firm: 'someshwar' | 'homeseva' = 'someshwar'
   ): Invoice => {
     const booking = bookings.find((b) => b.id === bookingId);
     if (!booking) throw new Error('Booking not found');
@@ -665,8 +678,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       invoiceLines.push({
         id: `il-${Date.now()}-${item.id}`,
         description: `${item.item_name} (${count} pcs ${item.rent_basis === 'per_day' ? `x ${days} days` : 'event rate'})`,
+        particulars: `${item.item_name} ${count}nos @${item.rate_snapshot}per Nos X${days}day`,
+        hsn_sac: '997319',
         quantity: count,
-        rate: item.rate_snapshot * days,
+        rate: item.rate_snapshot,
+        per: 'Nos',
+        days: days,
         amount: lineAmount,
         type: 'rent',
       });
@@ -676,8 +693,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       invoiceLines.push({
         id: `il-${Date.now()}-transport`,
         description: 'Transport & Delivery Logistics Charge',
+        particulars: 'Transport & Delivery Logistics Charge',
+        hsn_sac: '997319',
         quantity: 1,
         rate: booking.transport_charge,
+        per: 'Trip',
+        days: 1,
         amount: booking.transport_charge,
         type: 'transport',
       });
@@ -687,8 +708,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       invoiceLines.push({
         id: `il-${Date.now()}-late`,
         description: 'Overdue / Late Return Surcharge Fee',
+        particulars: 'Overdue / Late Return Surcharge Fee',
+        hsn_sac: '997319',
         quantity: 1,
         rate: booking.late_fee,
+        per: 'Day',
+        days: 1,
         amount: booking.late_fee,
         type: 'late_fee',
       });
@@ -699,8 +724,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       invoiceLines.push({
         id: `il-${Date.now()}-damage`,
         description: `Breakage & Missing Items Replacement${damageWaiverAmount > 0 ? ` (after waiver ₹${damageWaiverAmount})` : ''}`,
+        particulars: `Breakage & Missing Items Replacement`,
+        hsn_sac: '997319',
         quantity: 1,
         rate: netDamage,
+        per: 'Nos',
+        days: 1,
         amount: netDamage,
         type: 'damage',
       });
@@ -711,8 +740,11 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       invoiceLines.push({
         id: `il-${Date.now()}-discount`,
         description: 'Customer Discount / Promotional Allowance',
+        particulars: 'Customer Discount / Promotional Allowance',
         quantity: 1,
         rate: -disc,
+        per: 'Ls',
+        days: 1,
         amount: -disc,
         type: 'discount',
       });
@@ -720,23 +752,19 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
 
     const subtotal = rentTotal + booking.transport_charge + booking.late_fee + netDamage - disc;
     const taxAmount = taxRate > 0 ? Math.round((subtotal * taxRate) / 100 * 100) / 100 : 0;
-    if (taxAmount > 0) {
-      invoiceLines.push({
-        id: `il-${Date.now()}-tax`,
-        description: `GST @ ${taxRate}% (CGST ${taxRate / 2}% + SGST ${taxRate / 2}%)`,
-        quantity: 1,
-        rate: taxAmount,
-        amount: taxAmount,
-        type: 'tax',
-      });
-    }
-
-    const totalAmount = Math.max(0, subtotal + taxAmount);
+    const rawTotal = subtotal + taxAmount;
+    const roundedTotal = Math.round(rawTotal);
+    const roundOff = Math.round((roundedTotal - rawTotal) * 100) / 100;
+    const totalAmount = Math.max(0, roundedTotal);
     const balanceDue = Math.max(0, totalAmount - (booking.advance_paid || 0));
 
-    const invNum = `26-27/${String(invoices.length + 86).padStart(4, '0')}`;
+    const invNum = firm === 'someshwar'
+      ? `${invoices.filter((i) => i.firm === 'someshwar').length + 28}`
+      : `26-27/CCG/${invoices.filter((i) => i.firm === 'homeseva').length + 377}`;
+
     const newInvoice: Invoice = {
       id: `inv-${Date.now()}`,
+      firm,
       invoice_number: invNum,
       financial_year: '2026-2027',
       booking_id: booking.id,
@@ -744,14 +772,22 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       customer_name: booking.customer_name,
       customer_phone: booking.customer_phone,
       customer_address: booking.customer_address,
+      customer_gstin: '',
+      consignee_name: booking.customer_name,
+      consignee_address: booking.customer_address,
+      consignee_gstin: '',
+      delivery_note: '',
+      dispatch_doc_no: `DC NO-${invoices.length + 352}`,
       delivery_date: booking.delivery_date,
       return_date: booking.actual_return_date || booking.expected_return_date,
+      event_date: booking.delivery_date,
       rent_days: diffDays,
       rent_amount: rentTotal,
       transport_charge: booking.transport_charge,
       damage_amount: netDamage,
       late_fee: booking.late_fee,
       discount: disc,
+      round_off: roundOff,
       tax_amount: taxAmount,
       tax_rate: taxRate,
       total_amount: totalAmount,
@@ -760,12 +796,29 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       status: balanceDue === 0 ? 'paid' : 'final',
       issued_at: new Date().toISOString(),
       issued_by: role === 'owner' ? 'Owner' : 'Manager',
+      remarks: `${invNum} / ${new Date().toLocaleDateString('en-IN')}`,
       lines: invoiceLines,
     };
 
     saveInvoices([newInvoice, ...invoices]);
     syncToPostgres('upsert_invoice', newInvoice);
     return newInvoice;
+  };
+
+  const createInvoice = (inv: Invoice): Invoice => {
+    const next = [inv, ...invoices.filter((i) => i.id !== inv.id)];
+    saveInvoices(next);
+    syncToPostgres('upsert_invoice', inv);
+    return inv;
+  };
+
+  const updateInvoice = (id: string, updates: Partial<Invoice>) => {
+    const existing = invoices.find((i) => i.id === id);
+    if (!existing) return;
+    const updated: Invoice = { ...existing, ...updates };
+    const next = invoices.map((i) => (i.id === id ? updated : i));
+    saveInvoices(next);
+    syncToPostgres('upsert_invoice', updated);
   };
 
   // Record payment
@@ -973,6 +1026,8 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       dispatchBooking,
       returnBooking,
       generateInvoice,
+      createInvoice,
+      updateInvoice,
       recordPayment,
       addItem,
       updateItem,

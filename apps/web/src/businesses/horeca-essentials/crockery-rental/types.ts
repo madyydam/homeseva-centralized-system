@@ -121,17 +121,24 @@ export interface StockMovement {
   created_at: string;
 }
 
+export type InvoiceFirm = 'someshwar' | 'homeseva';
+
 export interface InvoiceLine {
   id: string;
   description: string;
+  particulars?: string | undefined;
+  hsn_sac?: string | undefined;
   quantity: number;
   rate: number;
+  per?: string | undefined;
+  days?: number | undefined;
   amount: number;
   type: 'rent' | 'transport' | 'damage' | 'late_fee' | 'discount' | 'tax';
 }
 
 export interface Invoice {
   id: string;
+  firm?: InvoiceFirm | undefined;
   invoice_number: string;
   financial_year: string;
   booking_id: string;
@@ -139,14 +146,22 @@ export interface Invoice {
   customer_name: string;
   customer_phone: string;
   customer_address: string;
+  customer_gstin?: string | undefined;
+  consignee_name?: string | undefined;
+  consignee_address?: string | undefined;
+  consignee_gstin?: string | undefined;
+  delivery_note?: string | undefined;
+  dispatch_doc_no?: string | undefined;
   delivery_date: string;
   return_date: string;
+  event_date?: string | undefined;
   rent_days: number;
   rent_amount: number;
   transport_charge: number;
   damage_amount: number;
   late_fee: number;
   discount: number;
+  round_off?: number | undefined;
   tax_amount: number;
   tax_rate: number;
   total_amount: number;
@@ -155,6 +170,7 @@ export interface Invoice {
   status: 'draft' | 'final' | 'paid';
   issued_at: string;
   issued_by: string;
+  remarks?: string | undefined;
   lines: InvoiceLine[];
 }
 

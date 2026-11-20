@@ -265,7 +265,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           if (isGentleHairWigs && selectedBranch) {
             target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(data.role || '')}`;
           } else if (isHorecaEssentials && selectedDivision) {
-            target = `/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(data.role || '')}`;
+            target =
+              selectedDivision === 'crockery-rental'
+                ? `/app/crockery-rental/dashboard?role=${encodeURIComponent(data.role || '')}`
+                : `/app/horeca-essentials/dashboard?division=essentials-sales&role=${encodeURIComponent(data.role || '')}`;
           } else if (isAdjs && selectedSubcompany) {
             target = `/app/adjs/dashboard?subcompany=${selectedSubcompany}&role=${encodeURIComponent(data.role || '')}`;
           }
@@ -412,7 +415,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
           if (isGentleHairWigs && selectedBranch) {
             target = `/app/gentle-hair-wigs/dashboard?branch=${selectedBranch}&role=${encodeURIComponent(rRole)}`;
           } else if (isHorecaEssentials && selectedDivision) {
-            target = `/app/horeca-essentials/dashboard?division=${selectedDivision}&role=${encodeURIComponent(rRole)}`;
+            target =
+              selectedDivision === 'crockery-rental'
+                ? `/app/crockery-rental/dashboard?role=${encodeURIComponent(rRole)}`
+                : `/app/horeca-essentials/dashboard?division=essentials-sales&role=${encodeURIComponent(rRole)}`;
           } else if (isAdjs && selectedSubcompany) {
             target = `/app/adjs/dashboard?subcompany=${selectedSubcompany}&role=${encodeURIComponent(rRole)}`;
           }
