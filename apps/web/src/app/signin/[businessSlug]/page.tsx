@@ -221,6 +221,29 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0]?.role_id || '');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (divisionParam === 'essentials-sales' || divisionParam === 'crockery-rental') {
+      setSelectedDivision(divisionParam as 'essentials-sales' | 'crockery-rental');
+    }
+  }, [divisionParam]);
+
+  useEffect(() => {
+    if (branchParam === 'viman-nagar' || branchParam === 'ravet' || branchParam === 'kolhapur') {
+      setSelectedBranch(branchParam);
+    }
+  }, [branchParam]);
+
+  useEffect(() => {
+    if (subcompanyParam === 'printbooth') {
+      setSelectedSubcompany('printbooth');
+    }
+  }, [subcompanyParam]);
 
   // Canonicalize /signin/printbooth and /signin/crockery-rental to their respective unified portals
   useEffect(() => {
@@ -995,8 +1018,59 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     );
   };
 
+  if (!mounted) {
+    return (
+      <main
+        suppressHydrationWarning
+        className="relative min-h-screen bg-[#06080e] text-white flex flex-col justify-between p-3 sm:p-6 overflow-y-auto font-sans selection:bg-amber-500 selection:text-white"
+      >
+        <WaveBackground />
+        <div className="relative z-10 w-full max-w-4xl mx-auto my-auto py-2 sm:py-3 shrink-0 px-1 sm:px-4">
+          <div className="rounded-3xl border border-slate-700/80 bg-white text-slate-900 shadow-2xl overflow-hidden">
+            <div className={`px-6 py-4 text-white flex items-center justify-between ${theme.bannerGrad}`}>
+              <div className="flex items-center space-x-3.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white font-extrabold shadow-sm shrink-0">
+                  <UtensilsCrossed className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl font-black tracking-tight leading-tight">
+                    {isGentleHairWigs
+                      ? 'Gentle Hair Wigs Studio'
+                      : isHorecaEssentials
+                      ? 'HORECA Essentials'
+                      : isAdjs
+                      ? 'ADJS Enterprise'
+                      : isEcolab
+                      ? 'Ecolab Distribution'
+                      : 'Business Workspace Sign In'}
+                  </h1>
+                  <p className="text-xs text-white/90 font-medium mt-0.5">
+                    {isGentleHairWigs
+                      ? 'Custom Hair Systems & Aesthetic Studios'
+                      : isHorecaEssentials
+                      ? 'Commercial Kitchenware Supply & Crockery Rentals'
+                      : isAdjs
+                      ? 'Smart Self-Service Printing Kiosks & Autonomous Tech'
+                      : isEcolab
+                      ? 'Hygiene, Chemical Solutions & Commercial Sanitization'
+                      : 'Authorized Personnel Access'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-12 flex flex-col items-center justify-center space-y-3 min-h-[360px]">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Opening Security Vault...</p>
+            </div>
+          </div>
+        </div>
+        <div className="relative z-10" />
+      </main>
+    );
+  }
+
   return (
-    <main className="relative min-h-screen bg-[#06080e] text-white flex flex-col justify-between p-3 sm:p-6 overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
+    <main suppressHydrationWarning className="relative min-h-screen bg-[#06080e] text-white flex flex-col justify-between p-3 sm:p-6 overflow-y-auto font-sans selection:bg-amber-500 selection:text-white">
       {/* 3D Keyframes & Bomb Detonation Physics (Optimized for Light Mode Vault) */}
       <style>{`
         @keyframes bomb3DLightDetonation {
