@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@homeseva/db';
 import { getCurrentSuperAdminSession } from '@/lib/authSession';
 import { sendMemberWelcomeCredentialsEmail } from '@/lib/email';
-import { hashCredential } from '@/lib/crypto';
+import { hashCredential, isBcryptHash } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,8 +109,8 @@ export async function POST(req: NextRequest) {
         subcompany: subcompany || undefined,
         role: m.roleId,
         email: m.email,
-        password: m.password,
-        pin: m.pin,
+        password: isBcryptHash(m.password) ? '(already encrypted / confidential)' : m.password,
+        pin: isBcryptHash(m.pin) ? '(already encrypted / confidential)' : m.pin,
         businessSlug: bSlug,
       });
 
