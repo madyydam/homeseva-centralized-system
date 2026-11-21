@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       const newAttempts = (targetMember.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
-        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        updatePayload.lockedUntil = new Date(Date.now() + 1 * 60 * 1000);
       }
       await prisma.roleMember.update({
         where: { id: targetMember.id },
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       });
 
       const remaining = 5 - newAttempts;
-      const warning = remaining > 0 && remaining <= 3 ? ` (${remaining} attempt(s) remaining before 15m lock)` : '';
+      const warning = remaining > 0 && remaining <= 3 ? ` (${remaining} attempt(s) remaining before 1m lock)` : '';
       return NextResponse.json({
         success: false,
         matched: false,

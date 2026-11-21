@@ -83,11 +83,14 @@ export async function POST(req: NextRequest) {
       const lockExpiry = new Date(adminRecord.lockedUntil).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
-        const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
+        const remainingSeconds = Math.max(1, Math.ceil((lockExpiry - now) / 1000));
+        const timeMsg = remainingSeconds >= 60
+          ? `${Math.ceil(remainingSeconds / 60)} minute(s)`
+          : `${remainingSeconds} second(s)`;
         return NextResponse.json(
           {
             success: false,
-            error: `Super Admin account is locked due to consecutive failed attempts. Please retry in ${remainingMinutes} minute(s).`,
+            error: `Super Admin account is locked due to consecutive failed attempts. Please retry in ${timeMsg}.`,
           },
           { status: 403 }
         );
@@ -104,7 +107,7 @@ export async function POST(req: NextRequest) {
       const newAttempts = (adminRecord.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
-        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        updatePayload.lockedUntil = new Date(Date.now() + 1 * 60 * 1000);
       }
       await prisma.superAdminCredentials.update({
         where: { id: 'primary' },
@@ -113,7 +116,7 @@ export async function POST(req: NextRequest) {
 
       const remaining = 5 - newAttempts;
       const warningMsg = remaining > 0 && remaining <= 3
-        ? ` (${remaining} attempt(s) remaining before 15-minute lockout)`
+        ? ` (${remaining} attempt(s) remaining before 1-minute lockout)`
         : '';
 
       return NextResponse.json(

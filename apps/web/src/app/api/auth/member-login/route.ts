@@ -85,15 +85,18 @@ export async function POST(req: NextRequest) {
       }, { status: 401 });
     }
 
-    // Check lockout status (5 failed attempts = 15 minute lock)
+    // Check lockout status (5 failed attempts = 1 minute lock)
     if (targetMember.lockedUntil) {
       const lockExpiry = new Date(targetMember.lockedUntil).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
-        const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
+        const remainingSeconds = Math.max(1, Math.ceil((lockExpiry - now) / 1000));
+        const timeMsg = remainingSeconds >= 60
+          ? `${Math.ceil(remainingSeconds / 60)} minute(s)`
+          : `${remainingSeconds} second(s)`;
         return NextResponse.json({
           success: false,
-          error: `Account locked after 5 failed attempts. Please retry in ${remainingMinutes} minute(s).`,
+          error: `Account locked after 5 failed attempts. Please retry in ${timeMsg}.`,
         }, { status: 403 });
       }
     }
@@ -109,7 +112,7 @@ export async function POST(req: NextRequest) {
         const newAttempts = (targetMember.failedAttempts || 0) + 1;
         const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
         if (newAttempts >= 5) {
-          updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+          updatePayload.lockedUntil = new Date(Date.now() + 1 * 60 * 1000);
         }
         await prisma.roleMember.update({
           where: { id: targetMember.id },
@@ -118,7 +121,7 @@ export async function POST(req: NextRequest) {
 
         const remaining = 5 - newAttempts;
         const warningMsg = remaining > 0 && remaining <= 3
-          ? ` (${remaining} attempt(s) remaining before 15-minute lock)`
+          ? ` (${remaining} attempt(s) remaining before 1-minute lock)`
           : '';
 
         return NextResponse.json({
@@ -136,7 +139,7 @@ export async function POST(req: NextRequest) {
       const newAttempts = (targetMember.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
-        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        updatePayload.lockedUntil = new Date(Date.now() + 1 * 60 * 1000);
       }
       await prisma.roleMember.update({
         where: { id: targetMember.id },
@@ -149,7 +152,7 @@ export async function POST(req: NextRequest) {
         : 'Authentication failed. Security PIN does not match.';
 
       const warningMsg = remaining > 0 && remaining <= 3
-        ? ` (${remaining} attempt(s) remaining before 15-minute lock)`
+        ? ` (${remaining} attempt(s) remaining before 1-minute lock)`
         : '';
 
       return NextResponse.json({

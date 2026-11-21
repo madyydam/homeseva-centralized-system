@@ -45,9 +45,12 @@ export async function POST(req: NextRequest) {
       const lockExpiry = new Date(adminRecord.lockedUntil).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
-        const remainingMinutes = Math.ceil((lockExpiry - now) / (60 * 1000));
+        const remainingSeconds = Math.max(1, Math.ceil((lockExpiry - now) / 1000));
+        const timeMsg = remainingSeconds >= 60
+          ? `${Math.ceil(remainingSeconds / 60)} minute(s)`
+          : `${remainingSeconds} second(s)`;
         return NextResponse.json(
-          { success: false, error: `Account locked due to 5 failed attempts. Please retry in ${remainingMinutes} minute(s).` },
+          { success: false, error: `Account locked due to 5 failed attempts. Please retry in ${timeMsg}.` },
           { status: 403 }
         );
       }
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
       const newAttempts = (adminRecord.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
-        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        updatePayload.lockedUntil = new Date(Date.now() + 1 * 60 * 1000);
       }
       await prisma.superAdminCredentials.update({
         where: { id: 'primary' },

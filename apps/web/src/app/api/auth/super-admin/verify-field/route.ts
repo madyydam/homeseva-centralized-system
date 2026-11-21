@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
           success: false,
           matched: false,
           locked: true,
-          error: 'Account has been locked for 15 minutes due to 5 consecutive failed attempts.',
+          error: 'Account has been locked for 1 minute due to 5 consecutive failed attempts.',
         }, { status: 403 });
       }
     }
