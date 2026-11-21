@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!matched && (field === 'password' || field === 'pin')) {
+    if (!matched) {
       const newAttempts = (targetMember.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
@@ -128,19 +128,19 @@ export async function POST(req: NextRequest) {
       });
 
       const remaining = 5 - newAttempts;
-      const warning = remaining > 0 && remaining <= 3 ? ` (${remaining} attempt(s) remaining before 1m lock)` : '';
+      const warningMsg = remaining > 0 && remaining <= 3
+        ? ` (${remaining} attempt(s) remaining before 1-minute lock)`
+        : '';
+
       return NextResponse.json({
-        success: false,
+        success: true,
         matched: false,
-        locked: newAttempts >= 5,
-        error: newAttempts >= 5
-          ? 'Account locked for 15 minutes due to 5 consecutive failed attempts.'
-          : (field === 'password' ? `Incorrect password${warning}.` : `Incorrect 4-digit PIN${warning}.`),
-      }, { status: 401 });
+        error: `Credential does not match.${warningMsg}`,
+      });
     }
 
-    // On match: Reset failed attempts for this member
-    if (targetMember.failedAttempts > 0 || targetMember.lockedUntil) {
+    // Success! Reset failed attempts if any
+    if (targetMember.failedAttempts > 0) {
       await prisma.roleMember.update({
         where: { id: targetMember.id },
         data: { failedAttempts: 0, lockedUntil: null },

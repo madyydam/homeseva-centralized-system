@@ -1056,14 +1056,15 @@ export default function AdjsDashboard(props: BusinessDashboardProps) {
   let role = props.role;
   if (!role && typeof window !== 'undefined') {
     try {
-      const match = document.cookie.match(/homeseva_user_session=([^;]+)/) || document.cookie.match(/homeseva_session=([^;]+)/);
-      if (match && match[1]) {
-        const parts = match[1].split('.');
-        if (parts[0]) {
-          const json = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
-          const payload = JSON.parse(json);
-          if (payload.role) role = payload.role;
-        }
+      // Canonical session cookie: homeseva_user_session
+      const hasUserSession = typeof document !== 'undefined' && document.cookie.includes('homeseva_user_session');
+      const cached =
+        localStorage.getItem('homeseva_session_adjs') ||
+        localStorage.getItem('homeseva_session_printbooth') ||
+        localStorage.getItem('homeseva_current_user');
+      if (cached) {
+        const payload = JSON.parse(cached);
+        if (payload.role) role = payload.role;
       }
     } catch {}
   }

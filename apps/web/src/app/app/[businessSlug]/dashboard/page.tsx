@@ -22,6 +22,7 @@ export default function BusinessDashboardPage({ params }: DashboardPageProps) {
   const roleParam = searchParams.get('role') || undefined;
 
   const [activeRole, setActiveRole] = useState<string | undefined>(() => {
+    if (roleParam) return roleParam;
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem(`homeseva_session_${businessSlug}`) || localStorage.getItem('homeseva_current_user');

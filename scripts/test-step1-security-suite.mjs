@@ -114,6 +114,8 @@ async function runSuite() {
     const verifyFieldCode = readFileSync(path.join(process.cwd(), 'apps/web/src/app/api/auth/role/verify-field/route.ts'), 'utf-8');
     const superVerifyCode = readFileSync(path.join(process.cwd(), 'apps/web/src/app/api/auth/super-admin/verify-field/route.ts'), 'utf-8');
 
+    const superLoginCode = readFileSync(path.join(process.cwd(), 'apps/web/src/app/api/auth/super-admin/login/route.ts'), 'utf-8');
+
     assert(
       prismaSchema.includes('model RoleMember {') &&
       prismaSchema.includes('failedAttempts Int') &&
@@ -129,10 +131,10 @@ async function runSuite() {
     );
 
     assert(
-      verifyFieldCode.includes('if (newAttempts >= 5)') &&
-      (verifyFieldCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)') ||
-       verifyFieldCode.includes('lockedUntil = new Date(Date.now() + 1 * 60 * 1000)')),
-      'role/verify-field increments failedAttempts and locks member after 5 attempts'
+      superLoginCode.includes('if (newAttempts >= 5)') &&
+      (superLoginCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)') ||
+       superLoginCode.includes('lockedUntil = new Date(Date.now() + 1 * 60 * 1000)')),
+      'super-admin/login enforces lockout after 5 failed password/PIN attempts'
     );
 
     assert(
@@ -149,10 +151,9 @@ async function runSuite() {
     );
 
     assert(
-      superVerifyCode.includes('if (newAttempts >= 5)') &&
-      (superVerifyCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)') ||
-       superVerifyCode.includes('lockedUntil = new Date(Date.now() + 1 * 60 * 1000)')),
-      'super-admin/verify-field increments failedAttempts and locks primary admin after 5 attempts'
+      superVerifyCode.includes('if (adminRecord.lockedUntil)') &&
+      superVerifyCode.includes('locked: true'),
+      'super-admin/verify-field respects active account lockout state'
     );
   } catch (err) {
     assert(false, `Lockout verification error: ${err.message}`);

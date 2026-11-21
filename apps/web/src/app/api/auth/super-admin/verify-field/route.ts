@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       matched = await bcrypt.compare(cleanVal, adminRecord.pin8Hash).catch(() => false);
     }
 
-    if (!matched && (field === 'password' || field === 'pin4' || field === 'pin8')) {
+    if (!matched) {
       const newAttempts = (adminRecord.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
@@ -67,17 +67,27 @@ export async function POST(req: NextRequest) {
         data: updatePayload,
       });
 
-      if (newAttempts >= 5) {
-        return NextResponse.json({
-          success: false,
-          matched: false,
-          locked: true,
-          error: 'Account has been locked for 1 minute due to 5 consecutive failed attempts.',
-        }, { status: 403 });
-      }
+      const remaining = 5 - newAttempts;
+      const warningMsg = remaining > 0 && remaining <= 3
+        ? ` (${remaining} attempt(s) remaining before 1-minute lock)`
+        : '';
+
+      return NextResponse.json({
+        success: true,
+        matched: false,
+        error: `Credential does not match.${warningMsg}`,
+      });
     }
 
-    return NextResponse.json({ success: true, matched });
+    // Success! Reset failed attempts if any
+    if (adminRecord.failedAttempts > 0) {
+      await prisma.superAdminCredentials.update({
+        where: { id: 'primary' },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
+    }
+
+    return NextResponse.json({ success: true, matched: true });
   } catch (err: any) {
     console.error('Error verifying super admin field:', err);
     return NextResponse.json({ success: false, matched: false, error: err.message }, { status: 500 });
