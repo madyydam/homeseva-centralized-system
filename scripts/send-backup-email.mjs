@@ -58,7 +58,13 @@ function getArg(flag, fallback) {
   return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
 }
 
-const targetEmail = getArg('--to', user); // Defaults to same SMTP email for safety/demo
+const defaultRecipients = 'rohan.taware@homeseva.co.in, madhurdhadve7@gmail.com';
+const targetEmail = getArg('--to', defaultRecipients);
+const recipientsList = targetEmail
+  .split(',')
+  .map((e) => e.trim())
+  .filter(Boolean);
+
 const fileName = getArg('--file', 'homeseva_weekly_demo.dump');
 const fileSize = getArg('--size', '3.4 MB');
 const checksum = getArg('--checksum', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
@@ -169,19 +175,19 @@ const emailHtml = `
 async function main() {
   console.log(`🚀 Sending Backup Notification Email via SMTP (${host}:${port})...`);
   console.log(`   From: "HomeSeva ERP Infrastructure" <${user}>`);
-  console.log(`   To:   ${targetEmail}`);
+  console.log(`   To:   ${recipientsList.join(', ')}`);
   console.log(`   Subject: Weekly Backup Done for HomeSeva ERP`);
 
   const info = await transporter.sendMail({
     from: `"HomeSeva ERP Infrastructure" <${user}>`,
-    to: targetEmail,
+    to: recipientsList,
     subject: `Weekly Backup Done for HomeSeva ERP - ${new Date().toISOString().slice(0, 10)}`,
     html: emailHtml,
   });
 
   console.log(`✅ Email dispatched successfully!`);
   console.log(`   Message ID: ${info.messageId}`);
-  console.log(`   Recipient: ${targetEmail}`);
+  console.log(`   Recipients: ${recipientsList.join(', ')}`);
 }
 
 main().catch((err) => {

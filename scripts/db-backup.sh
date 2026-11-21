@@ -89,7 +89,7 @@ echo "✅ Cleanup finished. Total backup archives currently retained: ${REMAININ
 
 # 6. Weekly Backup Completion Email Notification
 CHECKSUM_VAL=$(cut -d' ' -f1 < "${FILEPATH}.sha256")
-NOTIFY_RECIPIENT="${BACKUP_NOTIFY_EMAIL:-rohan.taware@homeseva.co.in}"
+NOTIFY_RECIPIENT="${BACKUP_NOTIFY_EMAIL:-rohan.taware@homeseva.co.in,madhurdhadve7@gmail.com}"
 echo "Sending backup completion email to ${NOTIFY_RECIPIENT}..."
 node "$SCRIPT_DIR/send-backup-email.mjs" \
   --to "$NOTIFY_RECIPIENT" \
