@@ -1,6 +1,12 @@
 export { prisma } from './client';
 export { PrismaClient } from '../generated/client';
 export {
+  resolveBusiness,
+  resolveBusinessId,
+  CANONICAL_BUSINESS_DIRECTORY,
+  type CanonicalBusinessInfo,
+} from './businessResolver';
+export {
   IsolatedBusinessDatabase,
   getIsolatedBusinessDb,
   type BusinessTenantContext,
