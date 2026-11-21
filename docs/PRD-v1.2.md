@@ -42,19 +42,19 @@ The heading reads “Welcome to HomeSeva, the centralized system”. Below it, t
 **Sign-in flow**
 
 1. The person opens HomeSeva and sees the 10 business cards.
-2. They select their business.
-3. The sign-in screen for that business opens and asks for Role ID and password.
-4. The server checks the credentials and that the Role ID belongs to the selected business.
-5. After a successful sign-in the person lands in that business and sees only the tabs the Super Admin assigned to them.
+2. They select their business (and studio branch if applicable).
+3. The sign-in screen for that business opens and asks for their assigned Role, Email, Password, and Security PIN.
+4. The server validates the credentials against `role_members` strictly matching the selected business and role.
+5. After a successful sign-in, the server issues a 30-day persistent session cookie (`homeseva_user_session`) and the person lands in that business, seeing only the tabs the Super Admin assigned to them.
 
 **Authentication requirements**
 
-- AUTH-1: Role IDs and passwords are created by the Super Admin only. Nobody can register themselves.
-- AUTH-2: A Role ID works only for the business it was created for. A valid sign-in for one business never opens another.
-- AUTH-3: Passwords are stored hashed (argon2 or bcrypt), never in plain text, and the first password must be changed at first sign-in.
-- AUTH-4: Sessions use secure, HttpOnly cookies, end after a period of inactivity, and the Super Admin can end any session.
-- AUTH-5: Failed sign-ins are rate limited and lock the account after repeated failures. Every attempt is written to the audit log.
-- AUTH-6: Two-factor authentication is mandatory for the Super Admin and Owners.
+- AUTH-1: Member accounts, roles, and initial credentials are created by the Super Admin only. Nobody can register themselves.
+- AUTH-2: A member's access works only for the business and role it was assigned to. A valid sign-in for one business never opens another.
+- AUTH-3: Passwords and PINs are stored securely hashed with Bcrypt (cost factor 10), never in plain text, with automatic rehash support for legacy credentials.
+- AUTH-4: Sessions use secure, HttpOnly, SameSite=Lax cookies with a 30-day persistent lifetime for operational staff convenience (24 hours for Super Admin).
+- AUTH-5: Failed sign-ins are rate limited with an automatic 15-minute lockout after 5 consecutive failed attempts. Every attempt is written to the audit log.
+- AUTH-6: Multi-factor authentication is mandatory for the Super Admin (4-factor: Username, Password, 4-digit PIN, 8-digit Master Key) with interactive 3D verification and master credential reset capability.
 - AUTH-7: The server checks the session, the business and the tab permission on every request; hiding a tab on screen is never the only protection.
 
 **Tabs and the Super Admin**
@@ -269,15 +269,16 @@ Teams can keep working in Google Sheets while HomeSeva controls who sees which s
 
 | Layer | Choice |
 | --- | --- |
-| Frontend | Next.js, React, TypeScript, Tailwind CSS, shadcn/ui |
-| Backend | Node.js, TypeScript, NestJS (modular) |
-| Database | PostgreSQL with Prisma |
-| Permissions | CASL (shared rules for backend and frontend) |
-| Auth | Auth.js or Better Auth with 2FA |
-| Cache | Redis |
-| Files | S3-compatible storage, one folder per business |
-| Backup | Per-business packages made by HomeSeva itself; whole-database backups with pg\_dump or pgBackRest; encrypted copies in S3-compatible storage outside the main server |
-| Hosting | Docker on a VPS with Nginx |
+| Frontend | Next.js 14 (App Router), React, TypeScript, Tailwind CSS, Lucide Icons |
+| Backend | Next.js 14 Route Handlers (Node.js runtime, asynchronous non-blocking event loop) |
+| Database | Self-Hosted PostgreSQL 16 with Prisma ORM (`@homeseva/db`) |
+| Containerization | Docker & Docker Compose with Next.js `output: 'standalone'` (56 MB minimal runner) |
+| Reverse Proxy & SSL | Caddy v2 (Automated Let's Encrypt TLS for `erphomeseva.tech`) |
+| Auth & Crypto | Asynchronous Bcrypt (`bcryptjs`), Web Crypto API JWTs (`jose`) with 30-day session cookies |
+| Resource Safeguards | Node.js 1024 MB heap cap, PostgreSQL 15 connection pool limit, safe query pagination |
+| Client Optimization | HTML5 Page Visibility API to pause intervals when tabs are minimized |
+| Backup | Automated nightly `pg_dump` with gzip and 7-day retention (`scripts/backup-db.sh`), plus Super Admin authenticated backup API (`/api/admin/backup`) |
+| Hosting | Hostinger KVM 2 VPS (2 vCPU, 8 GB RAM, Ubuntu 24.04 LTS) |
 
 ## 12. Roadmap
 
