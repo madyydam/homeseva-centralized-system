@@ -187,7 +187,7 @@ async function runTests() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      businessSlug: 'gentle',
+      businessSlug: 'gentle-hair-wigs',
       roleId: 'caller',
       email: 'abc@xyz.com',
       password: '12345678',
@@ -215,10 +215,10 @@ async function runTests() {
   console.log('\n--- 4. Testing Multi-Tenant Role Isolation & Allocation ---');
 
   // Fetch businesses to get real IDs for ADJS and Gentle
-  const businessesRes = await fetch(`${BASE_URL}/api/businesses`, { headers: adminHeaders });
+  const businessesRes = await fetch(`${BASE_URL}/api/auth/businesses`, { headers: adminHeaders });
   const businessesData = await businessesRes.json();
   const adjsBiz = businessesData.businesses?.find((b) => b.slug === 'adjs' || b.slug === 'printbooth');
-  const gentleBiz = businessesData.businesses?.find((b) => b.slug === 'gentle');
+  const gentleBiz = businessesData.businesses?.find((b) => b.slug === 'gentle' || b.slug === 'gentle-hair-wigs');
 
   assert(adjsBiz, 'ADJS business exists');
   assert(gentleBiz, 'Gentle business exists');
@@ -281,7 +281,7 @@ async function runTests() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        businessSlug: 'gentle',
+        businessSlug: 'gentle-hair-wigs',
         roleId: 'Cold Caller',
         email: testEmail2,
         password: 'PassBeta@123',
@@ -313,7 +313,7 @@ async function runTests() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        businessSlug: 'gentle',
+        businessSlug: 'gentle-hair-wigs',
         roleId: 'manager',
         email: testEmail1,
         password: 'PassAlpha@123',
@@ -348,7 +348,7 @@ async function runTests() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        businessSlug: 'gentle',
+        businessSlug: 'gentle-hair-wigs',
         roleId: 'Studio Manager',
         email: testEmail1,
         password: 'AlphaGentlePass@456',

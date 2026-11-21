@@ -90,7 +90,8 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
     ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '')
     : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
 
-  const loginUrl = params.loginUrl || `${appBase}/signin/${businessSlug}`;
+  // Base domain link only (clean root domain, no deep / direct slug link)
+  const loginUrl = params.loginUrl || appBase;
   const displayUrl = loginUrl.replace(/^https?:\/\//, '');
 
   const targetSubcompany = subcompany || companyName;
@@ -367,6 +368,7 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
         <div class="steps-title">🔑 How to Sign In:</div>
         <ol class="steps-list">
           <li>Open browser and go to: <a href="${loginUrl}" style="color: #2563eb; font-weight: 700; text-decoration: underline;">${displayUrl}</a></li>
+          <li>Select your company: <strong>${companyName}</strong></li>
           <li>Select your role: <strong>${role}</strong></li>
           <li>Enter your email: <strong>${email}</strong></li>
           <li>Enter your password and PIN to access your workspace</li>
@@ -374,7 +376,7 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
       </div>
 
       <p style="font-size: 11.5px; color: #64748b; line-height: 1.5; margin: 18px 0 0; text-align: center;">
-        Direct link: <a href="${loginUrl}" style="color: #2563eb; word-break: break-all; font-weight: 600;">${displayUrl}</a>
+        Portal Link: <a href="${loginUrl}" style="color: #2563eb; word-break: break-all; font-weight: 600;">${displayUrl}</a>
       </p>
     </div>
 
