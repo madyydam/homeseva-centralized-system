@@ -130,7 +130,20 @@ async function runSuite() {
     assert(
       verifyFieldCode.includes('if (newAttempts >= 5)') &&
       verifyFieldCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)'),
-      'role/verify-field increments failedAttempts and locks role after 5 attempts'
+      'role/verify-field increments failedAttempts and locks member after 5 attempts'
+    );
+
+    assert(
+      verifyFieldCode.includes('prisma.roleMember.findFirst') &&
+      verifyFieldCode.includes('email: cleanEmail'),
+      'role/verify-field strictly verifies credentials against individual roleMember'
+    );
+
+    const signinPageCode = readFileSync(path.join(process.cwd(), 'apps/web/src/app/signin/[businessSlug]/page.tsx'), 'utf-8');
+    assert(
+      signinPageCode.includes("fetch('/api/auth/role/verify-field'") &&
+      signinPageCode.includes('email: curEmail'),
+      'signin page passes individual member email to 3D lock verification'
     );
 
     assert(

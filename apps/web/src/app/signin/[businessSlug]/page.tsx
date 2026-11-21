@@ -430,6 +430,12 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       const curRole = latestRoleRef.current;
       if (!curRole) return false;
 
+      const curEmail = (latestEmailRef.current || '').trim();
+      if (!curEmail) {
+        setErrorMsg('Please enter your registered staff email address first.');
+        return false;
+      }
+
       // Ensure coordinate variables are applied directly on DOM
       computeKeyFlightOffset(field);
       setKeyStates((prev) => ({ ...prev, [field]: { status: 'flying' } }));
@@ -440,7 +446,14 @@ function BusinessSignInContent({ params }: SignInPageProps) {
       const checkPromise = fetch('/api/auth/role/verify-field', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ businessSlug: apiSlug, roleId: curRole, field, value: valToVerify }),
+        body: JSON.stringify({
+          businessSlug: apiSlug,
+          subcompany: (selectedBranch || selectedDivision || selectedSubcompany || '').trim(),
+          roleId: curRole,
+          email: curEmail,
+          field,
+          value: valToVerify,
+        }),
       })
         .then((r) => r.json())
         .catch(() => ({ matched: false, error: 'Network error verifying credentials' }));
@@ -518,7 +531,7 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
       return true;
     },
-    [businessSlug, isAdjs, computeKeyFlightOffset, executeLoginSession]
+    [businessSlug, isAdjs, selectedBranch, selectedDivision, selectedSubcompany, computeKeyFlightOffset, executeLoginSession]
   );
 
   const handleInputChange = (field: 'password' | 'pin', val: string) => {
@@ -2034,6 +2047,19 @@ function BusinessSignInContent({ params }: SignInPageProps) {
                             setMemberEmail(e.target.value);
                             latestEmailRef.current = e.target.value;
                             setErrorMsg('');
+                            // Reset locks if email changes
+                            setLocks({
+                              password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+                              pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+                            });
+                            latestLocksRef.current = {
+                              password: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+                              pin: { unlocked: false, bursting: false, checking: false, falling: false, fallen: false },
+                            };
+                            setKeyStates({
+                              password: { status: 'idle' },
+                              pin: { status: 'idle' },
+                            });
                           }}
                           placeholder="Enter your registered email"
                           required
