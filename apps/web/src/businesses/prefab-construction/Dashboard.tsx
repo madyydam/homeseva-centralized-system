@@ -58,6 +58,8 @@ export default function PrefabConstructionDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = prefabConstructionDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   // Modals state

@@ -13,17 +13,18 @@ BEGIN
   IF b_id IS NULL THEN RETURN; END IF;
 
   -- 1. BUSINESS ROLES
-  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-  (b_id, 'Distribution Manager', 'Distribution Manager', 'Institutional distribution and order dispatch oversight', 'Operations', '12345678', '1234'),
-  (b_id, 'Institutional Key Account Executive', 'Key Account Executive', 'Hotel, hospital and catering corporate accounts', 'Sales', '12345678', '1234'),
-  (b_id, 'Chemical Safety & Stock Auditor', 'Safety & Stock Auditor', 'Hazardous storage compliance, expiration tracking & QA', 'Compliance', '12345678', '1234'),
-  (b_id, 'Billing & Dispatch Desk', 'Billing & Dispatch Desk', 'Tax invoices, e-way bills, and dispatch manifests', 'Logistics', '12345678', '1234')
+  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin, subcompany_slug) VALUES
+  (b_id, 'Distribution Manager', 'Distribution Manager', 'Institutional distribution and order dispatch oversight', 'Operations', '12345678', '1234', 'SHARED'),
+  (b_id, 'Institutional Key Account Executive', 'Key Account Executive', 'Hotel, hospital and catering corporate accounts', 'Sales', '12345678', '1234', 'SHARED'),
+  (b_id, 'Chemical Safety & Stock Auditor', 'Safety & Stock Auditor', 'Hazardous storage compliance, expiration tracking & QA', 'Compliance', '12345678', '1234', 'SHARED'),
+  (b_id, 'Billing & Dispatch Desk', 'Billing & Dispatch Desk', 'Tax invoices, e-way bills, and dispatch manifests', 'Logistics', '12345678', '1234', 'SHARED')
   ON CONFLICT (business_id, role_id) DO UPDATE SET
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     department = EXCLUDED.department,
     password = EXCLUDED.password,
     pin = EXCLUDED.pin,
+    subcompany_slug = EXCLUDED.subcompany_slug,
     updated_at = NOW();
 
   -- 2. TABS & MODULE NAVIGATION

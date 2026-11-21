@@ -44,6 +44,8 @@ export default function NdaServicesDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = ndaServicesDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   const [showGuardModal, setShowGuardModal] = useState(false);

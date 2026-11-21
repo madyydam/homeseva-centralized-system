@@ -44,6 +44,8 @@ export default function HsRealEstateDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = hsRealEstateDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   const [showPropertyModal, setShowPropertyModal] = useState(false);

@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     let businessId = searchParams.get('businessId');
     const businessSlug = searchParams.get('businessSlug');
     const roleId = searchParams.get('roleId');
+    const subcompany = searchParams.get('subcompany') || searchParams.get('subcompanySlug');
 
     if (!businessId && businessSlug) {
       const biz = await prisma.business.findFirst({
@@ -32,15 +33,17 @@ export async function GET(req: NextRequest) {
       where: {
         ...(businessId ? { businessId } : {}),
         ...(roleId ? { roleId } : {}),
+        ...(subcompany && subcompany !== 'ALL' ? { subcompanySlug: subcompany } : {}),
       },
       orderBy: { createdAt: 'asc' },
     });
 
     // Passwords and PINs are strictly masked in all responses (Zero-Trust Security)
-    const sanitizedMembers = members.map((m) => ({
+    const sanitizedMembers = members.map((m: any) => ({
       id: m.id,
       business_id: m.businessId,
       role_id: m.roleId,
+      subcompany_slug: m.subcompanySlug || 'SHARED',
       name: m.name,
       email: m.email,
       is_active: m.isActive,
@@ -139,11 +142,13 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await hashCredential(cleanPassword);
     const pinHash = await hashCredential(cleanPin);
+    const targetSubcompany = (body.subcompany_slug || subcompany || 'SHARED').trim();
 
     const newMember = await prisma.roleMember.create({
       data: {
         businessId: business_id,
         roleId: role_id,
+        subcompanySlug: targetSubcompany,
         name: cleanName,
         email: cleanEmail,
         password: passwordHash,
@@ -193,6 +198,7 @@ export async function POST(req: NextRequest) {
         id: newMember.id,
         business_id: newMember.businessId,
         role_id: newMember.roleId,
+        subcompany_slug: newMember.subcompanySlug || 'SHARED',
         name: newMember.name,
         email: newMember.email,
         is_active: newMember.isActive,

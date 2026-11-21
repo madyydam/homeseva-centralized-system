@@ -14,20 +14,21 @@ BEGIN
   IF b_id IS NULL THEN RETURN; END IF;
 
   -- 1. BUSINESS ROLES
-  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-  (b_id, 'Studio Manager', 'Studio Manager', 'Studio operations, staff roster & desk oversight', 'Operations', '12345678', '1234'),
-  (b_id, 'Cold Caller', 'Cold Caller / Telecaller', 'Dedicated telecalling, follow-ups & monthly lead sheets CRM', 'Telecalling', '12345678', '1234'),
-  (b_id, 'Senior Wig Specialist & Stylist', 'Senior Wig Specialist & Stylist', 'Custom hair fittings, styling & cutting suites', 'Styling', '12345678', '1234'),
-  (b_id, 'Scalp & Measurement Consultant', 'Scalp & Measurement Consultant', 'Head contouring, base templates & scalp scans', 'Consultation', '12345678', '1234'),
-  (b_id, 'Billing & Front Desk', 'Billing & Front Desk', 'Counter POS, appointments & invoicing register', 'Front Desk', '12345678', '1234'),
-  (b_id, 'Inventory Coordinator (Wigs & Patches)', 'Inventory Coordinator (Wigs & Patches)', 'Lace systems, patch stock, tapes & adhesives', 'Inventory', '12345678', '1234'),
-  (b_id, 'Studio Partner / Owner', 'Studio Partner / Owner', 'Executive P&L oversight, studio audits & reports', 'Executive', '12345678', '1234')
+  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin, subcompany_slug) VALUES
+  (b_id, 'Studio Manager', 'Studio Manager', 'Studio operations, staff roster & desk oversight', 'Operations', '12345678', '1234', 'SHARED'),
+  (b_id, 'Cold Caller', 'Cold Caller / Telecaller', 'Dedicated telecalling, follow-ups & monthly lead sheets CRM', 'Telecalling', '12345678', '1234', 'SHARED'),
+  (b_id, 'Senior Wig Specialist & Stylist', 'Senior Wig Specialist & Stylist', 'Custom hair fittings, styling & cutting suites', 'Styling', '12345678', '1234', 'SHARED'),
+  (b_id, 'Scalp & Measurement Consultant', 'Scalp & Measurement Consultant', 'Head contouring, base templates & scalp scans', 'Consultation', '12345678', '1234', 'SHARED'),
+  (b_id, 'Billing & Front Desk', 'Billing & Front Desk', 'Counter POS, appointments & invoicing register', 'Front Desk', '12345678', '1234', 'SHARED'),
+  (b_id, 'Inventory Coordinator (Wigs & Patches)', 'Inventory Coordinator (Wigs & Patches)', 'Lace systems, patch stock, tapes & adhesives', 'Inventory', '12345678', '1234', 'SHARED'),
+  (b_id, 'Studio Partner / Owner', 'Studio Partner / Owner', 'Executive P&L oversight, studio audits & reports', 'Executive', '12345678', '1234', 'SHARED')
   ON CONFLICT (business_id, role_id) DO UPDATE SET
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     department = EXCLUDED.department,
     password = EXCLUDED.password,
     pin = EXCLUDED.pin,
+    subcompany_slug = EXCLUDED.subcompany_slug,
     updated_at = NOW();
 
   -- 2. TABS & MODULE NAVIGATION

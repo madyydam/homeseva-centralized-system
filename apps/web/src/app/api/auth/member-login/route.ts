@@ -180,6 +180,7 @@ export async function POST(req: NextRequest) {
       sub: targetMember.id,
       role: targetMember.roleId,
       businessSlug: slug,
+      subcompanySlug: targetMember.subcompanySlug || 'SHARED',
       isSuperAdmin: false,
       username: targetMember.name,
       memberId: targetMember.id,

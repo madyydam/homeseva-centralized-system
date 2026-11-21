@@ -4,63 +4,63 @@ import {
   RentReceiptItem,
   HsRealEstateData,
 } from './types';
+import { WorkspaceSyncClient } from '@/lib/workspaceSync';
 
-const DB_STORAGE_PREFIX = 'homeseva_db_hs_real_estate_';
+const DB_STORAGE_PREFIX = 'homeseva_db_hs_real_estate_main';
 
 export class HsRealEstateDatabase {
-  private inMemoryCache: HsRealEstateData = {
-    properties: [],
-    leases: [],
-    receipts: [],
-  };
+  private syncClient: WorkspaceSyncClient<HsRealEstateData>;
 
   constructor() {
-    this.hydrateFromStorage();
-  }
-
-  private hydrateFromStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`${DB_STORAGE_PREFIX}main`);
-      if (raw) {
-        this.inMemoryCache = JSON.parse(raw);
+    this.syncClient = new WorkspaceSyncClient<HsRealEstateData>(
+      'hs-real-estate',
+      DB_STORAGE_PREFIX,
+      {
+        properties: [],
+        leases: [],
+        receipts: [],
       }
-    } catch {
-      // Fallback
-    }
+    );
   }
 
-  private persist() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(`${DB_STORAGE_PREFIX}main`, JSON.stringify(this.inMemoryCache));
-    } catch {
-      // Ignore
-    }
+  subscribe(callback: () => void): () => void {
+    return this.syncClient.subscribe(callback);
+  }
+
+  syncFromRemote(): Promise<void> {
+    return this.syncClient.syncFromRemote();
+  }
+
+  pushToRemote(): Promise<void> {
+    return this.syncClient.pushToRemote();
   }
 
   getData(): HsRealEstateData {
-    return this.inMemoryCache;
+    return this.syncClient.getData();
   }
 
   addProperty(property: PropertyUnitItem) {
-    this.inMemoryCache.properties.unshift(property);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.properties.unshift(property);
+    });
   }
 
   addLease(lease: TenantLeaseAgreementItem) {
-    this.inMemoryCache.leases.unshift(lease);
-    this.inMemoryCache.properties = this.inMemoryCache.properties.map((p) =>
-      p.propertyCode === lease.propertyCode ? { ...p, occupancyStatus: 'Leased', tenantName: lease.tenantName } : p
-    );
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.leases.unshift(lease);
+      current.properties = current.properties.map((p) =>
+        p.propertyCode === lease.propertyCode
+          ? { ...p, occupancyStatus: 'Leased', tenantName: lease.tenantName }
+          : p
+      );
+    });
   }
 
   addReceipt(receipt: RentReceiptItem) {
-    this.inMemoryCache.receipts.unshift(receipt);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.receipts.unshift(receipt);
+    });
   }
 }
 
 export const hsRealEstateDb = new HsRealEstateDatabase();
-

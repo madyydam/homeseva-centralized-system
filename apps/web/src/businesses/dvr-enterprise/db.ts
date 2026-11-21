@@ -3,52 +3,50 @@ import {
   TradingSalesOrderItem,
   DvrEnterpriseData,
 } from './types';
+import { WorkspaceSyncClient } from '@/lib/workspaceSync';
 
-const DB_STORAGE_PREFIX = 'homeseva_db_dvr_enterprise_';
+const DB_STORAGE_PREFIX = 'homeseva_db_dvr_enterprise_main';
 
 export class DvrEnterpriseDatabase {
-  private inMemoryCache: DvrEnterpriseData = {
-    purchaseOrders: [],
-    salesOrders: [],
-  };
+  private syncClient: WorkspaceSyncClient<DvrEnterpriseData>;
 
   constructor() {
-    this.hydrateFromStorage();
-  }
-
-  private hydrateFromStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`${DB_STORAGE_PREFIX}main`) || localStorage.getItem('homeseva_db_dve_enterprises_main');
-      if (raw) {
-        this.inMemoryCache = JSON.parse(raw);
+    this.syncClient = new WorkspaceSyncClient<DvrEnterpriseData>(
+      'dvr-enterprise',
+      DB_STORAGE_PREFIX,
+      {
+        purchaseOrders: [],
+        salesOrders: [],
       }
-    } catch {
-      // Fallback
-    }
+    );
   }
 
-  private persist() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(`${DB_STORAGE_PREFIX}main`, JSON.stringify(this.inMemoryCache));
-    } catch {
-      // Ignore
-    }
+  subscribe(callback: () => void): () => void {
+    return this.syncClient.subscribe(callback);
+  }
+
+  syncFromRemote(): Promise<void> {
+    return this.syncClient.syncFromRemote();
+  }
+
+  pushToRemote(): Promise<void> {
+    return this.syncClient.pushToRemote();
   }
 
   getData(): DvrEnterpriseData {
-    return this.inMemoryCache;
+    return this.syncClient.getData();
   }
 
   addPurchaseOrder(po: TradingPurchaseOrderItem) {
-    this.inMemoryCache.purchaseOrders.unshift(po);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.purchaseOrders.unshift(po);
+    });
   }
 
   addSalesOrder(order: TradingSalesOrderItem) {
-    this.inMemoryCache.salesOrders.unshift(order);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.salesOrders.unshift(order);
+    });
   }
 }
 

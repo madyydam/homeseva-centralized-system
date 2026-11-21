@@ -30,7 +30,7 @@ model Business {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Enabled modules stored as a JSON array, e.g. ["attendance","finance","tasks"]
-  enabledModules String[] @default([])
+  enabledModules String[] @default([]) @map("enabled_modules")
 
   businessRoles    BusinessRole[]
   roleMembers      RoleMember[]
@@ -43,6 +43,7 @@ model Business {
   monthlySummaries MonthlySummary[]
   financeEntries   FinanceEntry[]
   backupPackages   BackupPackage[]
+  workspaceData    BusinessWorkspaceData[]
 
   // ─── Gentle Hair Wigs Relations ───────────────────────────────────────────
   gentleLeads               GentleHairWigsLead[]
@@ -88,6 +89,7 @@ model BusinessRole {
   failedAttempts Int             @default(0) @map("failed_attempts")
   lockedUntil    DateTime?       @map("locked_until")
   isActive       Boolean         @default(true) @map("is_active")
+  subcompanySlug String?         @default("SHARED") @map("subcompany_slug")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
 
@@ -110,6 +112,7 @@ model RoleMember {
   failedAttempts Int       @default(0) @map("failed_attempts")
   lockedUntil    DateTime? @map("locked_until")
   isActive   Boolean  @default(true) @map("is_active")
+  subcompanySlug String? @default("SHARED") @map("subcompany_slug")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -509,6 +512,22 @@ enum BackupStatus {
   COMPLETED
   FAILED
   PARTIAL
+}
+
+// ─── Universal Multi-Tenant Workspace Persistence (Future-Scalable) ──────────
+
+model BusinessWorkspaceData {
+  id         String   @id @default(uuid())
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  section    String   @default("main")
+  data       Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([businessId, section])
+  @@index([businessId])
+  @@map("business_workspace_data")
 }
 
 // ─── Gentle Hair Wigs Models (Business ID: 3) ────────────────────────────────

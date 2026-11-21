@@ -12,23 +12,29 @@ BEGIN
   SELECT id::text INTO b_id FROM public.businesses WHERE slug = 'horeca-essentials';
   IF b_id IS NULL THEN RETURN; END IF;
 
-  -- 1. BUSINESS ROLES
-  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-  (b_id, 'Owner', 'Owner', 'Complete business oversight, revenue P&L & expansion', 'Executive', '12345678', '1234'),
-  (b_id, 'Store Manager', 'Store Manager', 'Daily orders, stock coordination & customer requests', 'Operations', '12345678', '1234'),
-  (b_id, 'Logistics & Dispatch', 'Logistics & Dispatch', 'Delivery manifests, pickup scheduling & vehicle tracking', 'Logistics', '12345678', '1234'),
-  (b_id, 'Billing & Accounts', 'Billing & Accounts', 'Invoices, GST returns, security deposits & payments', 'Finance', '12345678', '1234'),
-  (b_id, 'General Manager', 'General Manager', 'Overall management of sales supply and crockery rental', 'Management', '12345678', '1234'),
-  (b_id, 'Sales Representative (Essentials)', 'Sales Representative (Essentials)', 'Commercial cutlery, chinaware, glassware & amenities sales', 'Sales', '12345678', '1234'),
-  (b_id, 'Rental Logistics Supervisor', 'Rental Logistics Supervisor', 'Banquet and event hire logistics, delivery & return checks', 'Rental', '12345678', '1234'),
-  (b_id, 'Inventory & Warehousing Desk', 'Inventory & Warehousing Desk', 'Stock tracking, breakage register, and warehouse audits', 'Inventory', '12345678', '1234'),
-  (b_id, 'Banquet Billing & Invoicing', 'Banquet Billing & Invoicing', 'Invoicing, advances, security deposits, and settlement register', 'Finance', '12345678', '1234')
+  -- 1. BUSINESS ROLES (STRICT ZERO-SHARED SUB-COMPANY VERTICAL ISOLATION)
+  -- A. Crockery Rental Vertical Roles
+  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin, subcompany_slug) VALUES
+  (b_id, 'Owner', 'Owner (Crockery Rental)', 'Complete business oversight, banquet revenue P&L & rental expansion', 'Executive', '12345678', '1234', 'crockery-rental'),
+  (b_id, 'General Manager', 'General Manager (Crockery)', 'Overall operations and logistics management for banquet crockery rentals', 'Management', '12345678', '1234', 'crockery-rental'),
+  (b_id, 'Rental Logistics Supervisor', 'Rental Logistics Supervisor', 'Banquet and event hire logistics, delivery & return checks', 'Rental', '12345678', '1234', 'crockery-rental'),
+  (b_id, 'Inventory & Warehousing Desk', 'Inventory & Warehousing Desk', 'Stock tracking, breakage register, and warehouse audits', 'Inventory', '12345678', '1234', 'crockery-rental'),
+  (b_id, 'Banquet Billing & Invoicing', 'Banquet Billing & Invoicing', 'Invoicing, advances, security deposits, and settlement register', 'Finance', '12345678', '1234', 'crockery-rental'),
+
+  -- B. Essentials Sales Vertical Roles
+  (b_id, 'Store Manager', 'Store Manager (Sales)', 'Daily B2B orders, kitchenware stock coordination & customer requests', 'Operations', '12345678', '1234', 'essentials-sales'),
+  (b_id, 'Sales Representative (Essentials)', 'Sales Representative (Essentials)', 'Commercial cutlery, chinaware, glassware & amenities sales', 'Sales', '12345678', '1234', 'essentials-sales'),
+  (b_id, 'Billing & Accounts', 'Billing & Accounts (Sales)', 'Invoices, GST returns, accounts receivables & payment reconciliation', 'Finance', '12345678', '1234', 'essentials-sales'),
+  (b_id, 'Logistics & Dispatch', 'Logistics & Dispatch (Sales)', 'Commercial kitchenware delivery manifests, transport logistics & LR receipts', 'Logistics', '12345678', '1234', 'essentials-sales'),
+  (b_id, 'General Manager (Sales)', 'General Manager (Essentials Sales)', 'Commercial kitchenware sales oversight, wholesale distribution & expansion', 'Management', '12345678', '1234', 'essentials-sales'),
+  (b_id, 'Owner (Sales)', 'Owner (Essentials Sales)', 'Executive P&L oversight, enterprise kitchenware contracts & growth', 'Executive', '12345678', '1234', 'essentials-sales')
   ON CONFLICT (business_id, role_id) DO UPDATE SET
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     department = EXCLUDED.department,
     password = EXCLUDED.password,
     pin = EXCLUDED.pin,
+    subcompany_slug = EXCLUDED.subcompany_slug,
     updated_at = NOW();
 
   -- 2. TABS & MODULE NAVIGATION

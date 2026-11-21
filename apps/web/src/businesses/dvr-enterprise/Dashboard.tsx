@@ -41,6 +41,8 @@ export default function DvrEnterpriseDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = dvrEnterpriseDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   const [showSaleModal, setShowSaleModal] = useState(false);

@@ -13,16 +13,17 @@ BEGIN
   IF b_id IS NULL THEN RETURN; END IF;
 
   -- 1. BUSINESS ROLES
-  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-  (b_id, 'Trading Manager', 'Trading Manager', 'Supplier procurement, pricing margins, wholesale orders', 'Trade', '12345678', '1234'),
-  (b_id, 'Dispatch Coordinator', 'Dispatch Coordinator', 'Warehouse loading, transporter booking, LR receipts', 'Logistics', '12345678', '1234'),
-  (b_id, 'Accounts Desk', 'Accounts Desk', 'Vendor ledgers, receivables collections, and reconciliation', 'Finance', '12345678', '1234')
+  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin, subcompany_slug) VALUES
+  (b_id, 'Trading Manager', 'Trading Manager', 'Supplier procurement, pricing margins, wholesale orders', 'Trade', '12345678', '1234', 'SHARED'),
+  (b_id, 'Dispatch Coordinator', 'Dispatch Coordinator', 'Warehouse loading, transporter booking, LR receipts', 'Logistics', '12345678', '1234', 'SHARED'),
+  (b_id, 'Accounts Desk', 'Accounts Desk', 'Vendor ledgers, receivables collections, and reconciliation', 'Finance', '12345678', '1234', 'SHARED')
   ON CONFLICT (business_id, role_id) DO UPDATE SET
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     department = EXCLUDED.department,
     password = EXCLUDED.password,
     pin = EXCLUDED.pin,
+    subcompany_slug = EXCLUDED.subcompany_slug,
     updated_at = NOW();
 
   -- 2. TABS & MODULE NAVIGATION

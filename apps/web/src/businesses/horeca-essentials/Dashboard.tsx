@@ -46,6 +46,8 @@ export default function HorecaEssentialsDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = horecaEssentialsDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   // Modals state

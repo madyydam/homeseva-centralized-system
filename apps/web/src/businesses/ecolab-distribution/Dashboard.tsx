@@ -45,6 +45,8 @@ export default function EcolabDistributionDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = ecolabDistributionDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   // Modals state

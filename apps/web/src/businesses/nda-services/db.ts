@@ -4,60 +4,58 @@ import {
   SecurityIncidentLogItem,
   NdaServicesData,
 } from './types';
+import { WorkspaceSyncClient } from '@/lib/workspaceSync';
 
-const DB_STORAGE_PREFIX = 'homeseva_db_nda_services_';
+const DB_STORAGE_PREFIX = 'homeseva_db_nda_services_main';
 
 export class NdaServicesDatabase {
-  private inMemoryCache: NdaServicesData = {
-    guards: [],
-    clientSites: [],
-    incidents: [],
-  };
+  private syncClient: WorkspaceSyncClient<NdaServicesData>;
 
   constructor() {
-    this.hydrateFromStorage();
-  }
-
-  private hydrateFromStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`${DB_STORAGE_PREFIX}main`);
-      if (raw) {
-        this.inMemoryCache = JSON.parse(raw);
+    this.syncClient = new WorkspaceSyncClient<NdaServicesData>(
+      'nda-services',
+      DB_STORAGE_PREFIX,
+      {
+        guards: [],
+        clientSites: [],
+        incidents: [],
       }
-    } catch {
-      // Fallback
-    }
+    );
   }
 
-  private persist() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(`${DB_STORAGE_PREFIX}main`, JSON.stringify(this.inMemoryCache));
-    } catch {
-      // Ignore
-    }
+  subscribe(callback: () => void): () => void {
+    return this.syncClient.subscribe(callback);
+  }
+
+  syncFromRemote(): Promise<void> {
+    return this.syncClient.syncFromRemote();
+  }
+
+  pushToRemote(): Promise<void> {
+    return this.syncClient.pushToRemote();
   }
 
   getData(): NdaServicesData {
-    return this.inMemoryCache;
+    return this.syncClient.getData();
   }
 
   addGuard(guard: SecurityGuardItem) {
-    this.inMemoryCache.guards.unshift(guard);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.guards.unshift(guard);
+    });
   }
 
   addClientSite(site: ClientFacilitySiteItem) {
-    this.inMemoryCache.clientSites.unshift(site);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.clientSites.unshift(site);
+    });
   }
 
   addIncident(incident: SecurityIncidentLogItem) {
-    this.inMemoryCache.incidents.unshift(incident);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.incidents.unshift(incident);
+    });
   }
 }
 
 export const ndaServicesDb = new NdaServicesDatabase();
-

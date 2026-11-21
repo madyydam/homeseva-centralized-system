@@ -1520,7 +1520,7 @@ export function ManagerDashboard({
                       crmLeads={data.crmLeads || []}
                       callLogs={data.callLogs || []}
                       onRefresh={refreshData}
-                      onConvertToOrder={(clientName, phone) => {
+                      onConvertToOrder={(clientName: string, phone: string) => {
                         setClientNameInput(clientName?.trim() || "Don't know");
                         setPhoneInput(phone);
                         setShowOrderModal(true);

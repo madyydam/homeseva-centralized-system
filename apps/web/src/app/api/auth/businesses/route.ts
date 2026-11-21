@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
               label: true,
               description: true,
               department: true,
+              subcompanySlug: true,
               isActive: true,
             },
           },
@@ -49,25 +50,21 @@ export async function GET(req: NextRequest) {
       }
 
       // Map roles to client expected shape
-      let activeRoles = (business.businessRoles || []).map((r) => ({
+      let activeRoles = (business.businessRoles || []).map((r: any) => ({
         id: r.id,
         role_id: r.roleId,
         label: r.label,
         description: r.description,
         department: r.department,
+        subcompany_slug: r.subcompanySlug || 'SHARED',
         is_active: r.isActive,
       }));
 
-      // Specific division role tailoring for Crockery Rental vs Essentials Sales
+      // Strict sub-company vertical role isolation for Crockery Rental vs Essentials Sales
       if (rawSlug === 'crockery-rental') {
-        activeRoles = activeRoles.filter((r) =>
-          !r.role_id.toLowerCase().includes('sales representative')
-        );
+        activeRoles = activeRoles.filter((r) => r.subcompany_slug === 'crockery-rental');
       } else if (rawSlug === 'essentials-sales') {
-        activeRoles = activeRoles.filter((r) =>
-          !r.role_id.toLowerCase().includes('rental logistics') &&
-          !r.role_id.toLowerCase().includes('banquet billing')
-        );
+        activeRoles = activeRoles.filter((r) => r.subcompany_slug === 'essentials-sales');
       }
 
       const activeTabs = (business.tabs || []).map((t) => ({

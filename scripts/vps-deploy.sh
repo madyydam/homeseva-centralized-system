@@ -44,8 +44,11 @@ echo "⏳ Waiting for PostgreSQL and Next.js services to become healthy..."
 sleep 12
 
 # 5. Apply & Verify Master Database Schema
-echo "🔍 Applying master database schema (idempotent)..."
-docker compose -f docker-compose.vps.yml exec -T postgres psql -U ${POSTGRES_USER:-homeseva} -d ${POSTGRES_DB:-homeseva_db} < scripts/vps-setup.sql || true
+echo "🔍 Applying master database schema from database/*.sql (idempotent)..."
+for sql_file in $(ls -1 database/*.sql | sort); do
+    echo "Applying $sql_file..."
+    docker compose -f docker-compose.vps.yml exec -T postgres psql -U ${POSTGRES_USER:-homeseva} -d ${POSTGRES_DB:-homeseva_db} < "$sql_file" || true
+done
 
 echo "🔍 Checking database connectivity and tables..."
 docker compose -f docker-compose.vps.yml exec -T postgres psql -U ${POSTGRES_USER:-homeseva} -d ${POSTGRES_DB:-homeseva_db} -c "\dt"

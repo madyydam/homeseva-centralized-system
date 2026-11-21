@@ -51,6 +51,7 @@ export interface SessionPayload {
   sub: string;
   role: string;
   businessSlug?: string;
+  subcompanySlug?: string;
   isSuperAdmin?: boolean;
   username?: string;
   memberId?: string;

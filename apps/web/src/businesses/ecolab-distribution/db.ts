@@ -4,60 +4,58 @@ import {
   DispatchOrderItem,
   EcolabDistributionData,
 } from './types';
+import { WorkspaceSyncClient } from '@/lib/workspaceSync';
 
-const DB_STORAGE_PREFIX = 'homeseva_db_ecolab_distribution_';
+const DB_STORAGE_PREFIX = 'homeseva_db_ecolab_distribution_main';
 
 export class EcolabDistributionDatabase {
-  private inMemoryCache: EcolabDistributionData = {
-    chemicals: [],
-    accounts: [],
-    dispatches: [],
-  };
+  private syncClient: WorkspaceSyncClient<EcolabDistributionData>;
 
   constructor() {
-    this.hydrateFromStorage();
-  }
-
-  private hydrateFromStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`${DB_STORAGE_PREFIX}main`);
-      if (raw) {
-        this.inMemoryCache = JSON.parse(raw);
+    this.syncClient = new WorkspaceSyncClient<EcolabDistributionData>(
+      'ecolab-distribution',
+      DB_STORAGE_PREFIX,
+      {
+        chemicals: [],
+        accounts: [],
+        dispatches: [],
       }
-    } catch {
-      // Storage fallback
-    }
+    );
   }
 
-  private persist() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(`${DB_STORAGE_PREFIX}main`, JSON.stringify(this.inMemoryCache));
-    } catch {
-      // Ignore write errors
-    }
+  subscribe(callback: () => void): () => void {
+    return this.syncClient.subscribe(callback);
+  }
+
+  syncFromRemote(): Promise<void> {
+    return this.syncClient.syncFromRemote();
+  }
+
+  pushToRemote(): Promise<void> {
+    return this.syncClient.pushToRemote();
   }
 
   getData(): EcolabDistributionData {
-    return this.inMemoryCache;
+    return this.syncClient.getData();
   }
 
   addChemical(item: ChemicalProductItem) {
-    this.inMemoryCache.chemicals.unshift(item);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.chemicals.unshift(item);
+    });
   }
 
   addAccount(account: InstitutionalAccountItem) {
-    this.inMemoryCache.accounts.unshift(account);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.accounts.unshift(account);
+    });
   }
 
   addDispatch(dispatch: DispatchOrderItem) {
-    this.inMemoryCache.dispatches.unshift(dispatch);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.dispatches.unshift(dispatch);
+    });
   }
 }
 
 export const ecolabDistributionDb = new EcolabDistributionDatabase();
-

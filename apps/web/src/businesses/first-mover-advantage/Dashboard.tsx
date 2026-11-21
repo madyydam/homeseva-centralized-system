@@ -45,6 +45,8 @@ export default function FirstMoverAdvantageDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = firstMoverAdvantageDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   const [showTenantModal, setShowTenantModal] = useState(false);

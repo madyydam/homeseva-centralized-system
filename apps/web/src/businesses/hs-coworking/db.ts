@@ -4,60 +4,58 @@ import {
   DayPassItem,
   HsCoworkingData,
 } from './types';
+import { WorkspaceSyncClient } from '@/lib/workspaceSync';
 
-const DB_STORAGE_PREFIX = 'homeseva_db_hs_coworking_';
+const DB_STORAGE_PREFIX = 'homeseva_db_hs_coworking_main';
 
 export class HsCoworkingDatabase {
-  private inMemoryCache: HsCoworkingData = {
-    members: [],
-    roomBookings: [],
-    dayPasses: [],
-  };
+  private syncClient: WorkspaceSyncClient<HsCoworkingData>;
 
   constructor() {
-    this.hydrateFromStorage();
-  }
-
-  private hydrateFromStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`${DB_STORAGE_PREFIX}main`);
-      if (raw) {
-        this.inMemoryCache = JSON.parse(raw);
+    this.syncClient = new WorkspaceSyncClient<HsCoworkingData>(
+      'hs-coworking',
+      DB_STORAGE_PREFIX,
+      {
+        members: [],
+        roomBookings: [],
+        dayPasses: [],
       }
-    } catch {
-      // Fallback
-    }
+    );
   }
 
-  private persist() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(`${DB_STORAGE_PREFIX}main`, JSON.stringify(this.inMemoryCache));
-    } catch {
-      // Ignore
-    }
+  subscribe(callback: () => void): () => void {
+    return this.syncClient.subscribe(callback);
+  }
+
+  syncFromRemote(): Promise<void> {
+    return this.syncClient.syncFromRemote();
+  }
+
+  pushToRemote(): Promise<void> {
+    return this.syncClient.pushToRemote();
   }
 
   getData(): HsCoworkingData {
-    return this.inMemoryCache;
+    return this.syncClient.getData();
   }
 
   addMember(member: CoworkingMemberItem) {
-    this.inMemoryCache.members.unshift(member);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.members.unshift(member);
+    });
   }
 
   addRoomBooking(booking: MeetingRoomBookingItem) {
-    this.inMemoryCache.roomBookings.unshift(booking);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.roomBookings.unshift(booking);
+    });
   }
 
   addDayPass(pass: DayPassItem) {
-    this.inMemoryCache.dayPasses.unshift(pass);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.dayPasses.unshift(pass);
+    });
   }
 }
 
 export const hsCoworkingDb = new HsCoworkingDatabase();
-

@@ -62,4 +62,5 @@ export type {
   CrockeryPayment,
   CrockeryPackageCombo,
   CrockeryBusinessProfile,
+  BusinessWorkspaceData,
 } from '../generated/client';

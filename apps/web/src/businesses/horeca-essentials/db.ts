@@ -4,67 +4,66 @@ import {
   HorecaStockItem,
   HorecaEssentialsData,
 } from './types';
+import { WorkspaceSyncClient } from '@/lib/workspaceSync';
 
-const DB_STORAGE_PREFIX = 'homeseva_db_horeca_essentials_';
+const DB_STORAGE_PREFIX = 'homeseva_db_horeca_essentials_main';
 
 export class HorecaEssentialsDatabase {
-  private inMemoryCache: HorecaEssentialsData = {
-    salesOrders: [],
-    rentalBookings: [],
-    stockItems: [],
-  };
+  private syncClient: WorkspaceSyncClient<HorecaEssentialsData>;
 
   constructor() {
-    this.hydrateFromStorage();
-  }
-
-  private hydrateFromStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`${DB_STORAGE_PREFIX}main`);
-      if (raw) {
-        this.inMemoryCache = JSON.parse(raw);
+    this.syncClient = new WorkspaceSyncClient<HorecaEssentialsData>(
+      'horeca-essentials',
+      DB_STORAGE_PREFIX,
+      {
+        salesOrders: [],
+        rentalBookings: [],
+        stockItems: [],
       }
-    } catch {
-      // Storage fallback
-    }
+    );
   }
 
-  private persist() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem(`${DB_STORAGE_PREFIX}main`, JSON.stringify(this.inMemoryCache));
-    } catch {
-      // Ignore write errors
-    }
+  subscribe(callback: () => void): () => void {
+    return this.syncClient.subscribe(callback);
+  }
+
+  syncFromRemote(): Promise<void> {
+    return this.syncClient.syncFromRemote();
+  }
+
+  pushToRemote(): Promise<void> {
+    return this.syncClient.pushToRemote();
   }
 
   getData(): HorecaEssentialsData {
-    return this.inMemoryCache;
+    return this.syncClient.getData();
   }
 
   addSaleOrder(order: EssentialsSaleItem) {
-    this.inMemoryCache.salesOrders.unshift(order);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.salesOrders.unshift(order);
+    });
   }
 
   addRentalBooking(booking: CrockeryRentalBookingItem) {
-    this.inMemoryCache.rentalBookings.unshift(booking);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.rentalBookings.unshift(booking);
+    });
   }
 
   updateRentalStatus(bookingId: string, status: CrockeryRentalBookingItem['status'], breakages = 0) {
-    this.inMemoryCache.rentalBookings = this.inMemoryCache.rentalBookings.map((b) =>
-      b.id === bookingId ? { ...b, status, breakagesRecorded: breakages } : b
-    );
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.rentalBookings = current.rentalBookings.map((b) =>
+        b.id === bookingId ? { ...b, status, breakagesRecorded: breakages } : b
+      );
+    });
   }
 
   addStockItem(item: HorecaStockItem) {
-    this.inMemoryCache.stockItems.unshift(item);
-    this.persist();
+    this.syncClient.setData((current) => {
+      current.stockItems.unshift(item);
+    });
   }
 }
 
 export const horecaEssentialsDb = new HorecaEssentialsDatabase();
-

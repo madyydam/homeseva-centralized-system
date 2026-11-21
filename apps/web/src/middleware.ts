@@ -224,6 +224,18 @@ export async function middleware(req: NextRequest) {
           { status: 403 }
         );
       }
+    } else if (pathname.startsWith('/api/business/')) {
+      const parts = pathname.split('/');
+      const requestedSlug = parts[3];
+      if (requestedSlug) {
+        const requestedCanonical = normalizeBusinessSlug(requestedSlug);
+        if (requestedCanonical !== sessionCanonical) {
+          return NextResponse.json(
+            { success: false, error: 'Forbidden: Cross-tenant access denied.' },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     return NextResponse.next();

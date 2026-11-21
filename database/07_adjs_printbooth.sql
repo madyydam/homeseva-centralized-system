@@ -13,18 +13,19 @@ BEGIN
   IF b_id IS NULL THEN RETURN; END IF;
 
   -- 1. BUSINESS ROLES
-  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin) VALUES
-  (b_id, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', '12345678', '1234'),
-  (b_id, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', '12345678', '1234'),
-  (b_id, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', '12345678', '1234'),
-  (b_id, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', '12345678', '1234'),
-  (b_id, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', '12345678', '1234')
+  INSERT INTO public.business_roles (business_id, role_id, label, description, department, password, pin, subcompany_slug) VALUES
+  (b_id, 'Owner', 'Owner', 'Business P&L, kiosk unit economics & expansion', 'Executive', '12345678', '1234', 'SHARED'),
+  (b_id, 'Manager', 'Manager', 'Machine orders, merchant onboarding & dispatch', 'Operations', '12345678', '1234', 'SHARED'),
+  (b_id, 'Coldcaller', 'Coldcaller', 'B2B merchant prospecting & kiosk placement CRM', 'Sales / CRM', '12345678', '1234', 'SHARED'),
+  (b_id, 'Developer', 'Developer', 'Kiosk touchscreen OS, Cloud Print APIs & payment gateways', 'Engineering', '12345678', '1234', 'SHARED'),
+  (b_id, 'Staff', 'Staff', 'Freight dispatch logistics & merchant helpdesk', 'Support', '12345678', '1234', 'SHARED')
   ON CONFLICT (business_id, role_id) DO UPDATE SET
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     department = EXCLUDED.department,
     password = EXCLUDED.password,
     pin = EXCLUDED.pin,
+    subcompany_slug = EXCLUDED.subcompany_slug,
     updated_at = NOW();
 
   -- 2. TABS & MODULE NAVIGATION

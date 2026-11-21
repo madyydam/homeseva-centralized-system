@@ -29,6 +29,7 @@ interface Member {
   id: string;
   business_id: string;
   role_id: string;
+  subcompany_slug?: string;
   name: string;
   email: string;
   password: string;
@@ -41,6 +42,7 @@ interface Role {
   role: string;
   label: string;
   department: string;
+  subcompanySlug?: string;
 }
 
 interface SubcompanyInfo {
@@ -71,6 +73,9 @@ export default function CompaniesPage() {
   const [notification, setNotification] = useState('');
 
   const [isSendingEmailId, setIsSendingEmailId] = useState<string | null>(null);
+
+  const [selectedSubcompany, setSelectedSubcompany] = useState<string>('ALL');
+  const [newMemberSubcompany, setNewMemberSubcompany] = useState<string>('SHARED');
 
   // Password visibility map { [memberId]: boolean }
   const [showPassMap, setShowPassMap] = useState<Record<string, boolean>>({});
@@ -182,6 +187,20 @@ export default function CompaniesPage() {
     return companies.filter((c) => c.businessName.toLowerCase().includes(q));
   }, [companies, searchQuery]);
 
+  // Filtered roles by subcompany vertical (e.g. Crockery Rental vs Essentials Sales)
+  const visibleRoles = useMemo(() => {
+    if (!selectedCompany?.roles) return [];
+    if (!selectedCompany.subcompanies || selectedCompany.subcompanies.length === 0) {
+      return selectedCompany.roles;
+    }
+    if (selectedSubcompany === 'ALL') {
+      return selectedCompany.roles;
+    }
+    return selectedCompany.roles.filter(
+      (r) => r.subcompanySlug === selectedSubcompany
+    );
+  }, [selectedCompany, selectedSubcompany]);
+
   // Handle Add Member
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,6 +213,10 @@ export default function CompaniesPage() {
     setError('');
     const roleId = selectedRole.role || selectedRole.label;
 
+    const targetSub = (selectedCompany.subcompanies && selectedCompany.subcompanies.length > 0)
+      ? newMemberSubcompany
+      : 'SHARED';
+
     try {
       const res = await fetch('/api/members', {
         method: 'POST',
@@ -201,12 +224,13 @@ export default function CompaniesPage() {
         body: JSON.stringify({
           business_id: selectedCompany.businessId,
           role_id: roleId,
+          subcompany_slug: targetSub,
           name: newName,
           email: newEmail,
           password: newPassword,
           pin: newPin,
           company_name: selectedCompany.businessName,
-          subcompany: selectedRole.department || '',
+          subcompany: targetSub !== 'SHARED' ? targetSub : (selectedRole.department || ''),
         }),
       }).then((r) => r.json());
 
@@ -421,6 +445,7 @@ export default function CompaniesPage() {
                       type="button"
                       onClick={() => {
                         setSelectedCompany(c);
+                        setSelectedSubcompany('ALL');
                         if (c.roles && c.roles.length > 0 && c.roles[0]) {
                           setSelectedRole(c.roles[0]);
                         } else {
@@ -485,33 +510,67 @@ export default function CompaniesPage() {
                 <p className="text-xs text-slate-800 font-semibold truncate mt-0.5">
                   {selectedCompany ? selectedCompany.businessName : 'Select a company'}
                 </p>
-                {selectedCompany?.subcompanies && selectedCompany.subcompanies.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {selectedCompany.subcompanies.map((sub) => (
-                      <span
-                        key={sub.slug}
-                        className="inline-flex items-center rounded-md bg-purple-50 border border-purple-200 text-purple-700 px-1.5 py-0.5 text-[10px] font-bold"
-                      >
-                        Sub-Co: {sub.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
               <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                {selectedCompany?.roles?.length || 0}
+                {visibleRoles.length} / {selectedCompany?.roles?.length || 0}
               </span>
             </div>
+
+            {/* Sub-Company Selector Tabs (Strict Isolation for HoReCa Essentials) */}
+            {selectedCompany?.subcompanies && selectedCompany.subcompanies.length > 0 && (
+              <div className="p-2.5 bg-slate-50 border-b border-slate-200/80 flex items-center space-x-1.5 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubcompany('ALL');
+                    if (selectedCompany.roles.length > 0) setSelectedRole(selectedCompany.roles[0] || null);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer ${
+                    selectedSubcompany === 'ALL'
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  All ({selectedCompany.roles.length})
+                </button>
+                {selectedCompany.subcompanies.map((sub) => {
+                  const count = selectedCompany.roles.filter(
+                    (r) => r.subcompanySlug === sub.slug
+                  ).length;
+                  const isActive = selectedSubcompany === sub.slug;
+                  return (
+                    <button
+                      key={sub.slug}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSubcompany(sub.slug);
+                        const match = selectedCompany.roles.find(
+                          (r) => r.subcompanySlug === sub.slug
+                        ) || null;
+                        setSelectedRole(match);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-2xs'
+                          : 'bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-200'
+                      }`}
+                    >
+                      {sub.name} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {!selectedCompany ? (
                 <div className="py-12 text-center text-slate-400 text-xs">
                   Choose a company to see its roles
                 </div>
-              ) : selectedCompany.roles.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">No roles registered</div>
+              ) : visibleRoles.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">No roles registered for this selection</div>
               ) : (
-                selectedCompany.roles.map((r) => {
+                visibleRoles.map((r) => {
                   const isSelected = selectedRole?.role === r.role;
                   return (
                     <button
@@ -538,6 +597,16 @@ export default function CompaniesPage() {
                           <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                             {r.department}
                           </span>
+                          {r.subcompanySlug === 'crockery-rental' && (
+                            <span className="text-[9.5px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
+                              Crockery
+                            </span>
+                          )}
+                          {r.subcompanySlug === 'essentials-sales' && (
+                            <span className="text-[9.5px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200 px-1.5 py-0.2 rounded">
+                              Sales
+                            </span>
+                          )}
                           <span className="text-[10px] text-slate-400 font-mono">
                             {r.role}
                           </span>
@@ -575,7 +644,18 @@ export default function CompaniesPage() {
               {selectedRole && (
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(true)}
+                  onClick={() => {
+                    if (selectedRole?.subcompanySlug && selectedRole.subcompanySlug !== 'SHARED') {
+                      setNewMemberSubcompany(selectedRole.subcompanySlug);
+                    } else if (selectedSubcompany !== 'ALL') {
+                      setNewMemberSubcompany(selectedSubcompany);
+                    } else if (selectedCompany?.subcompanies && selectedCompany.subcompanies[0]) {
+                      setNewMemberSubcompany(selectedCompany.subcompanies[0].slug);
+                    } else {
+                      setNewMemberSubcompany('SHARED');
+                    }
+                    setShowAddModal(true);
+                  }}
                   className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -624,6 +704,17 @@ export default function CompaniesPage() {
                             <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
                               Active
                             </span>
+                            {m.subcompany_slug && m.subcompany_slug !== 'SHARED' && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                m.subcompany_slug === 'crockery-rental'
+                                  ? 'text-amber-800 bg-amber-50 border-amber-200'
+                                  : m.subcompany_slug === 'essentials-sales'
+                                  ? 'text-cyan-800 bg-cyan-50 border-cyan-200'
+                                  : 'text-indigo-800 bg-indigo-50 border-indigo-200'
+                              }`}>
+                                {m.subcompany_slug === 'crockery-rental' ? 'Crockery Rental' : m.subcompany_slug === 'essentials-sales' ? 'Essentials Sales' : m.subcompany_slug}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -736,6 +827,33 @@ export default function CompaniesPage() {
             </div>
 
             <form onSubmit={handleAddMember} className="p-5 space-y-4">
+              {selectedCompany?.subcompanies && selectedCompany.subcompanies.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Target Sub-Company Vertical
+                  </label>
+                  <select
+                    value={
+                      selectedRole?.subcompanySlug && selectedRole.subcompanySlug !== 'SHARED'
+                        ? selectedRole.subcompanySlug
+                        : newMemberSubcompany
+                    }
+                    onChange={(e) => setNewMemberSubcompany(e.target.value)}
+                    disabled={!!(selectedRole?.subcompanySlug && selectedRole.subcompanySlug !== 'SHARED')}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-85 disabled:bg-slate-100"
+                  >
+                    {selectedCompany.subcompanies.map((sub) => (
+                      <option key={sub.slug} value={sub.slug}>
+                        {sub.name} ({sub.subtitle || sub.slug})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10.5px] text-slate-500 mt-1">
+                    This member will strictly and exclusively be granted operational access to this specific vertical.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Full Name

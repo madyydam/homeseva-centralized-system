@@ -63,22 +63,10 @@ export async function GET(req: NextRequest) {
       let displayName = b.name;
       let subcompanies: any[] = [];
 
-      if (b.slug === 'adjs' || b.slug === 'printbooth') {
-        canonicalSlug = 'adjs';
-        displayName = 'ADJS';
+      if (b.slug === 'horeca-essentials') {
         subcompanies = [
-          { slug: 'printbooth', name: 'PRINTBOOTH™', subtitle: 'Smart Self-Service Printing Kiosks', badge: 'Self-Service Kiosk' },
-        ];
-      } else if (b.slug === 'gentle-hair-wigs') {
-        subcompanies = [
-          { slug: 'viman-nagar', name: 'Studio of Viman Nagar', subtitle: 'Phoenix Marketcity corridor' },
-          { slug: 'ravet', name: 'Studio of Ravet', subtitle: 'PCMC Lounge' },
-          { slug: 'kolhapur', name: 'Studio of Kolhapur', subtitle: 'South Maharashtra' },
-        ];
-      } else if (b.slug === 'horeca-essentials') {
-        subcompanies = [
-          { slug: 'essentials-sales', name: 'Essentials Sales', subtitle: 'Commercial Kitchenware Supply' },
-          { slug: 'crockery-rental', name: 'Crockery Rental', subtitle: 'Banquet & Event Hire' },
+          { slug: 'essentials-sales', name: 'Essentials Sales', subtitle: 'Commercial Kitchenware Supply', badge: 'Sales' },
+          { slug: 'crockery-rental', name: 'Crockery Rental', subtitle: 'Banquet & Event Hire', badge: 'Rental' },
         ];
       }
 
@@ -87,11 +75,12 @@ export async function GET(req: NextRequest) {
         businessSlug: canonicalSlug,
         businessName: displayName,
         subcompanies,
-        roles: (b.businessRoles || []).map((r) => ({
+        roles: (b.businessRoles || []).map((r: any) => ({
           id: r.id,
           role: r.roleId,
           label: r.label || r.roleId,
           department: r.department || 'General',
+          subcompanySlug: r.subcompanySlug || 'SHARED',
           hasPassword: !!(r.password && r.password.trim()),
           hasPin: !!(r.pin && r.pin.trim()),
           lastUpdated: r.updatedAt.toISOString(),

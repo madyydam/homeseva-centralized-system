@@ -44,6 +44,8 @@ export default function HsCoworkingDashboard({
 
   useEffect(() => {
     refreshData();
+    const unsub = hsCoworkingDb.subscribe(refreshData);
+    return () => unsub();
   }, []);
 
   const [showMemberModal, setShowMemberModal] = useState(false);
