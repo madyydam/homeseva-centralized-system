@@ -409,14 +409,7 @@ VALUES (
   0,
   NULL
 )
-ON CONFLICT (id) DO UPDATE SET
-  username = EXCLUDED.username,
-  password_hash = EXCLUDED.password_hash,
-  pin4_hash = EXCLUDED.pin4_hash,
-  pin8_hash = EXCLUDED.pin8_hash,
-  failed_attempts = 0,
-  locked_until = NULL,
-  updated_at = NOW();
+ON CONFLICT (id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 13. SEED: THE 10 PRODUCTION BUSINESS REGISTRY
