@@ -449,14 +449,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Project Director', 'Prefab Director', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Civil Site Engineer', 'Prefab Site Engineer', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Procurement & Materials Desk', 'Prefab Procurement Officer', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Contract Estimator', 'Prefab Billing Desk', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. PREFAB SPECIFIC TABLES
@@ -531,15 +523,6 @@ BEGIN
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
-
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Owner', 'Horeca Owner', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Store Manager', 'Crockery Store Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Logistics & Dispatch', 'Crockery Dispatcher', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Accounts', 'Crockery Accountant', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'General Manager', 'Horeca General Manager', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
 
 END $$;
 
@@ -821,15 +804,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Studio Partner / Owner', 'Gentle Studio Partner', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Studio Manager', 'Gentle Studio Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Cold Caller', 'Gentle Telecaller', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Front Desk', 'Gentle Front Desk', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Inventory Coordinator (Wigs & Patches)', 'Gentle Inventory Desk', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. GENTLE OPERATIONAL TABLES
@@ -1043,14 +1017,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Distribution Manager', 'Ecolab Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Institutional Key Account Executive', 'Ecolab Account Exec', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Chemical Safety & Stock Auditor', 'Ecolab Auditor', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Dispatch Desk', 'Ecolab Billing Desk', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. ECOLAB OPERATIONAL TABLES
@@ -1120,13 +1086,6 @@ BEGIN
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
-
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Community Manager', 'Coworking Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Front Desk Coordinator', 'Coworking Front Desk', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Facility & Access Desk', 'Coworking Facilities', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
 
 END $$;
 
@@ -1199,13 +1158,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Product Lead', 'FMA Product Lead', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'DevOps & Platform Desk', 'FMA DevOps Engineer', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Accounts', 'FMA Billing Desk', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. FMA OPERATIONAL TABLES
@@ -1273,15 +1225,6 @@ BEGIN
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
-
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Owner', 'Printbooth Owner', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Manager', 'Printbooth Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Coldcaller', 'Printbooth Telecaller', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Developer', 'Printbooth Dev', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Staff', 'Printbooth Support', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
 
 END $$;
 
@@ -1402,13 +1345,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Trading Manager', 'DVR Trading Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Dispatch Coordinator', 'DVR Dispatcher', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Accounts Desk', 'DVR Accountant', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. DVR OPERATIONAL TABLES
@@ -1477,13 +1413,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Operations Head', 'NDA Operations Head', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Deployment Officer', 'NDA Field Officer', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Admin Desk', 'NDA Admin Officer', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. NDA OPERATIONAL TABLES
@@ -1551,13 +1480,6 @@ BEGIN
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
-
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Portfolio Lead', 'HS Real Estate Portfolio Lead', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Leasing Executive', 'HS Real Estate Leasing Exec', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Accounts & Legal', 'HS Real Estate Legal Officer', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
 
 END $$;
 

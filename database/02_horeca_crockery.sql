@@ -42,15 +42,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Owner', 'Horeca Owner', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Store Manager', 'Crockery Store Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Logistics & Dispatch', 'Crockery Dispatcher', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Accounts', 'Crockery Accountant', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'General Manager', 'Horeca General Manager', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. CROCKERY RENTAL RELATIONAL ENGINE (10 DEDICATED TABLES)

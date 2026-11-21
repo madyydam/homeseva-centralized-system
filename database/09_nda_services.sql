@@ -36,13 +36,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Operations Head', 'NDA Operations Head', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Deployment Officer', 'NDA Field Officer', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Admin Desk', 'NDA Admin Officer', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. NDA OPERATIONAL TABLES

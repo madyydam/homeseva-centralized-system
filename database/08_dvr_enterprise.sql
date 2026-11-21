@@ -36,13 +36,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Trading Manager', 'DVR Trading Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Dispatch Coordinator', 'DVR Dispatcher', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Accounts Desk', 'DVR Accountant', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. DVR OPERATIONAL TABLES

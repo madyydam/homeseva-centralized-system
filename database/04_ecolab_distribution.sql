@@ -37,14 +37,6 @@ BEGIN
     description = EXCLUDED.description,
     sort_order = EXCLUDED.sort_order;
 
-  -- 3. SEED DEMO MEMBERS
-  INSERT INTO public.role_members (business_id, role_id, name, email, password, pin) VALUES
-  (b_id, 'Distribution Manager', 'Ecolab Manager', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Institutional Key Account Executive', 'Ecolab Account Exec', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Chemical Safety & Stock Auditor', 'Ecolab Auditor', 'abc@xyz.com', '12345678', '1234'),
-  (b_id, 'Billing & Dispatch Desk', 'Ecolab Billing Desk', 'abc@xyz.com', '12345678', '1234')
-  ON CONFLICT (business_id, role_id, email) DO NOTHING;
-
 END $$;
 
 -- 4. ECOLAB OPERATIONAL TABLES
