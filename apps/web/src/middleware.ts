@@ -27,6 +27,18 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth/verify',
 ];
 
+/**
+ * Returns a NextResponse.next() with strict Cache-Control headers
+ * to prevent browser history back-button data leakage on confidential ERP portals.
+ */
+function createSecureProtectedResponse(): NextResponse {
+  const res = NextResponse.next();
+  res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.headers.set('Pragma', 'no-cache');
+  res.headers.set('Expires', '0');
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -58,7 +70,7 @@ export async function middleware(req: NextRequest) {
       return res;
     }
 
-    return NextResponse.next();
+    return createSecureProtectedResponse();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -102,7 +114,7 @@ export async function middleware(req: NextRequest) {
 
     // If session is Super Admin, allow universal inspection
     if (session.isSuperAdmin) {
-      return NextResponse.next();
+      return createSecureProtectedResponse();
     }
 
     // Cross-Tenant Boundary Enforcement
@@ -121,7 +133,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/', req.url));
     }
 
-    return NextResponse.next();
+    return createSecureProtectedResponse();
   }
 
   // ─────────────────────────────────────────────────────────────
