@@ -231,6 +231,35 @@ async function runSuite() {
   );
 
   // ─────────────────────────────────────────────────────────
+  // TEST 7: Dead Code Elimination & Architecture Purity
+  // ─────────────────────────────────────────────────────────
+  console.log('\n[TEST 7] Dead Code Elimination & Architecture Purity:');
+  assert(
+    !existsSync(path.join(process.cwd(), 'apps/web/src/lib/api.ts')),
+    'Unused dead file apps/web/src/lib/api.ts is completely eradicated'
+  );
+  assert(
+    !existsSync(path.join(process.cwd(), 'apps/web/src/lib/supabase')),
+    'Legacy empty directory apps/web/src/lib/supabase is completely eradicated'
+  );
+  assert(
+    !existsSync(path.join(process.cwd(), 'apps/web/src/app/(auth)')),
+    'Empty scaffolding route group apps/web/src/app/(auth) is completely eradicated'
+  );
+  assert(
+    !existsSync(path.join(process.cwd(), 'apps/web/src/app/(public)')),
+    'Empty scaffolding route group apps/web/src/app/(public) is completely eradicated'
+  );
+  assert(
+    !existsSync(path.join(process.cwd(), 'apps/web/src/app/(super-admin)')),
+    'Empty scaffolding route group apps/web/src/app/(super-admin) is completely eradicated'
+  );
+  assert(
+    middlewareCode.includes("pathname === '/app' || pathname === '/app/'"),
+    'middleware provides smart redirect for /app root to prevent 404 dead-ends'
+  );
+
+  // ─────────────────────────────────────────────────────────
   // SUMMARY
   // ─────────────────────────────────────────────────────────
   console.log('\n======================================================');

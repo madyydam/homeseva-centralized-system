@@ -64,6 +64,15 @@ export async function middleware(req: NextRequest) {
   // ─────────────────────────────────────────────────────────────
   // 2. MULTI-TENANT WORKSPACE ROUTE GUARD (/app/:businessSlug/*)
   // ─────────────────────────────────────────────────────────────
+  if (pathname === '/app' || pathname === '/app/') {
+    const userToken = req.cookies.get(USER_SESSION_COOKIE)?.value;
+    const session = userToken ? await verifySession(userToken) : null;
+    if (session && session.businessSlug) {
+      return NextResponse.redirect(new URL(`/app/${session.businessSlug}/dashboard`, req.url));
+    }
+    return NextResponse.redirect(new URL('/', req.url));
+  }
+
   if (pathname.startsWith('/app/')) {
     const slugMatch = pathname.match(/^\/app\/([^\/]+)/);
     const requestedSlug = slugMatch ? slugMatch[1] : '';
@@ -103,10 +112,13 @@ export async function middleware(req: NextRequest) {
     if (requestedCanonical !== sessionCanonical) {
       // Staff member is attempting to access another company's portal!
       // Intercept and redirect back to their own authorized dashboard
-      const authorizedSlug = session.businessSlug || 'gentle-hair-wigs';
-      const redirectUrl = new URL(`/app/${authorizedSlug}/dashboard`, req.url);
-      redirectUrl.searchParams.set('error', 'unauthorized_workspace');
-      return NextResponse.redirect(redirectUrl);
+      const authorizedSlug = session.businessSlug;
+      if (authorizedSlug) {
+        const redirectUrl = new URL(`/app/${authorizedSlug}/dashboard`, req.url);
+        redirectUrl.searchParams.set('error', 'unauthorized_workspace');
+        return NextResponse.redirect(redirectUrl);
+      }
+      return NextResponse.redirect(new URL('/', req.url));
     }
 
     return NextResponse.next();
@@ -191,6 +203,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     '/super-admin/:path*',
+    '/app',
     '/app/:path*',
     '/api/:path*',
   ],
