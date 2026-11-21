@@ -1,4 +1,5 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat openssl
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # 1. Install dependencies
@@ -7,10 +8,13 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json ./packages/ui/
 COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
+COPY apps/desktop/package.json ./apps/desktop/
+COPY packages/db/prisma ./packages/db/prisma/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # 2. Build the project
 FROM base AS builder
@@ -32,6 +36,8 @@ RUN pnpm --filter @homeseva/web build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+RUN apk add --no-cache libc6-compat openssl
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
@@ -52,4 +58,3 @@ USER nextjs
 EXPOSE 3000
 
 CMD ["node", "apps/web/node_modules/next/dist/bin/next", "start", "apps/web"]
-

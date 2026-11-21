@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusinessId } from '@homeseva/db';
+import { getCurrentStaffSession, getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = '3'; // Gentle Hair Wigs Business ID
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
+
+  const staffSession = await getCurrentStaffSession();
+  if (staffSession && (staffSession.businessSlug === 'gentle-hair-wigs' || staffSession.businessSlug === '3')) {
+    return true;
+  }
+
+  return false;
+}
 
 // Helper to format Prisma lead to frontend CrmLeadItem
 function formatLead(lead: any) {
@@ -39,6 +50,12 @@ function formatLead(lead: any) {
 
 export async function GET(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const { searchParams } = new URL(req.url);
     const studioSlug = searchParams.get('studioSlug');
     const month = searchParams.get('month'); // e.g. "2026-10"
@@ -46,7 +63,7 @@ export async function GET(req: NextRequest) {
     const telecallerId = searchParams.get('telecallerId') || searchParams.get('memberId');
 
     const where: any = {
-      businessId: BUSINESS_ID,
+      businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] },
     };
 
     if (studioSlug && studioSlug !== 'all') {
@@ -103,15 +120,31 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const body = await req.json();
 
     // Check if body is an array (batch import)
     if (Array.isArray(body)) {
       const createdLeads = [];
-      const existingInDb = await prisma.gentleHairWigsLead.findMany({
-        where: { businessId: BUSINESS_ID },
-        select: { phone: true },
-      });
+      const incomingDigits = body
+        .map((b: any) => (b.phone || '').replace(/\D/g, '').slice(-10))
+        .filter((d: string) => d.length >= 5);
+
+      const existingInDb = incomingDigits.length > 0
+        ? await prisma.gentleHairWigsLead.findMany({
+            where: {
+              businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] },
+              OR: incomingDigits.slice(0, 500).map((d: string) => ({ phone: { endsWith: d } })),
+            },
+            select: { phone: true },
+          })
+        : [];
+
       const seenPhones = new Set(
         existingInDb.map((l) => (l.phone || '').replace(/\D/g, '').slice(-10)).filter(Boolean)
       );
@@ -128,7 +161,7 @@ export async function POST(req: NextRequest) {
 
         const lead = await prisma.gentleHairWigsLead.create({
           data: {
-            businessId: BUSINESS_ID,
+            businessId: canonicalBizId,
             srNo: item.srNo ?? null,
             studioSlug: item.studioSlug || 'viman-nagar',
             studioName: item.studioName || 'Studio of Viman Nagar',
@@ -165,16 +198,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Single lead creation - check duplicate phone
+    // Single lead creation - check duplicate phone via targeted indexed endsWith query
     const rawPhone = (body.phone || '').trim();
     const phoneDigits = rawPhone.replace(/\D/g, '').slice(-10);
 
     if (phoneDigits && phoneDigits.length >= 5) {
-      const allLeads = await prisma.gentleHairWigsLead.findMany({
-        where: { businessId: BUSINESS_ID },
+      const existing = await prisma.gentleHairWigsLead.findFirst({
+        where: {
+          businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] },
+          phone: { endsWith: phoneDigits },
+        },
         select: { id: true, clientName: true, phone: true, studioName: true, status: true, createdAt: true },
       });
-      const existing = allLeads.find((l) => (l.phone || '').replace(/\D/g, '').slice(-10) === phoneDigits);
       if (existing) {
         return NextResponse.json(
           {
@@ -189,7 +224,7 @@ export async function POST(req: NextRequest) {
 
     const lead = await prisma.gentleHairWigsLead.create({
       data: {
-        businessId: BUSINESS_ID,
+        businessId: canonicalBizId,
         srNo: body.srNo ?? null,
         studioSlug: body.studioSlug || 'viman-nagar',
         studioName: body.studioName || 'Studio of Viman Nagar',
@@ -232,6 +267,12 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const body = await req.json();
     const { id, ...updates } = body;
 
@@ -266,10 +307,10 @@ export async function PATCH(req: NextRequest) {
     if (updates.telecallerEmail !== undefined) data.telecallerEmail = updates.telecallerEmail;
     if (updates.createdAt !== undefined) data.createdAt = new Date(updates.createdAt);
 
-    // If ID is a temp ID (e.g. from local optimistic creation before sync), check if exists or create
+    // Verify lead exists and belongs to this business
     let lead;
     const existing = await prisma.gentleHairWigsLead.findFirst({
-      where: { id, businessId: BUSINESS_ID },
+      where: { id, businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] } },
     });
 
     if (existing) {
@@ -281,7 +322,7 @@ export async function PATCH(req: NextRequest) {
       lead = await prisma.gentleHairWigsLead.create({
         data: {
           id,
-          businessId: BUSINESS_ID,
+          businessId: canonicalBizId,
           studioSlug: updates.studioSlug || 'viman-nagar',
           studioName: updates.studioName || 'Studio of Viman Nagar',
           clientName: updates.clientName?.trim() || "Don't know",
@@ -307,6 +348,12 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -320,7 +367,7 @@ export async function DELETE(req: NextRequest) {
     await prisma.gentleHairWigsLead.deleteMany({
       where: {
         id,
-        businessId: BUSINESS_ID,
+        businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] },
       },
     });
 

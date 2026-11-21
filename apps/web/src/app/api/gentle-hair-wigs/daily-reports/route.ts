@@ -1,16 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusinessId } from '@homeseva/db';
+import { getCurrentStaffSession, getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = 'gentle-hair-wigs';
-const BUSINESS_SLUG = 'gentle-hair-wigs';
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
+
+  const staffSession = await getCurrentStaffSession();
+  if (
+    staffSession &&
+    (staffSession.businessSlug === 'gentle-hair-wigs' ||
+      staffSession.businessSlug === '3')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function parseUtcMidnight(dateStr: string): Date {
+  const clean = dateStr.slice(0, 10);
+  return new Date(`${clean}T00:00:00.000Z`);
+}
 
 // Persistent in-process cache to ensure instant availability and durability
 const inMemoryReportsCache = new Map<string, any>();
 
 export async function GET(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const { searchParams } = new URL(req.url);
     const branch = searchParams.get('branch') || 'viman-nagar';
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
@@ -21,8 +46,8 @@ export async function GET(req: NextRequest) {
     try {
       const reports = await prisma.telecallerDailyReport.findMany({
         where: {
-          businessId: { in: [BUSINESS_ID, '3', 'b1000000-0000-0000-0000-000000000003'] },
-          ...(allDates ? {} : { reportDate: new Date(date) }),
+          businessId: { in: [canonicalBizId, 'gentle-hair-wigs', '3'] },
+          ...(allDates ? {} : { reportDate: parseUtcMidnight(date) }),
           ...(branch !== 'all' ? { branch } : {}),
         },
         orderBy: { reportDate: 'desc' },
@@ -47,7 +72,7 @@ export async function GET(req: NextRequest) {
       try {
         const auditData = await prisma.auditLog.findMany({
           where: {
-            businessSlug: BUSINESS_SLUG,
+            businessSlug: 'gentle-hair-wigs',
             entityType: 'attendance_report',
           },
           orderBy: { createdAt: 'desc' },
@@ -73,8 +98,8 @@ export async function GET(req: NextRequest) {
                   calls_made: m.callsMade || 0,
                   calls_connected: m.callsConnected || 0,
                   appointments_booked: m.appointmentsBooked || 0,
-                  converted_clients: m.convertedClients || 0,
-                  follow_ups_due: m.followUpsDue || 0,
+                  convertedClients: m.convertedClients || 0,
+                  followUpsDue: m.followUpsDue || 0,
                   work_summary: m.workSummary || '',
                   status: m.status || (m.isHoliday ? 'HOLIDAY' : 'PRESENT'),
                   is_holiday: !!m.isHoliday,
@@ -144,6 +169,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
       branch = 'viman-nagar',
@@ -191,7 +221,7 @@ export async function POST(req: NextRequest) {
         data: {
           actorType: 'STAFF',
           actorIdentifier: staffName,
-          businessSlug: BUSINESS_SLUG,
+          businessSlug: 'gentle-hair-wigs',
           action: punchOutTime ? 'staff.report_submitted' : 'staff.punch_in',
           entityType: 'attendance_report',
           entityId: staffId,

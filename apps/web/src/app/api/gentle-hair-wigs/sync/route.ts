@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusinessId } from '@homeseva/db';
+import { getCurrentStaffSession, getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = '3';
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
+
+  const staffSession = await getCurrentStaffSession();
+  if (staffSession && (staffSession.businessSlug === 'gentle-hair-wigs' || staffSession.businessSlug === '3')) {
+    return true;
+  }
+
+  return false;
+}
 
 export async function GET(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const { searchParams } = new URL(req.url);
     const studioSlug = searchParams.get('studioSlug') || 'viman-nagar';
 
-    const where: any = { businessId: BUSINESS_ID };
+    const where: any = { businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] } };
     if (studioSlug && studioSlug !== 'all') {
       where.studioSlug = studioSlug;
     }
@@ -155,6 +172,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const body = await req.json();
     const { entity, studioSlug = 'viman-nagar', item, items } = body;
 
@@ -185,7 +208,7 @@ export async function POST(req: NextRequest) {
                 update: updateOrder,
                 create: {
                   id: recordId,
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   clientName: record.clientName?.trim() || "Don't know",
                   phone: record.phone || '',
@@ -201,7 +224,7 @@ export async function POST(req: NextRequest) {
               })
             : await prisma.gentleHairWigsOrder.create({
                 data: {
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   clientName: record.clientName?.trim() || "Don't know",
                   phone: record.phone || '',
@@ -226,7 +249,7 @@ export async function POST(req: NextRequest) {
                 update: { ...record },
                 create: {
                   id: recordId,
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   clientName: record.clientName?.trim() || "Don't know",
                   phone: record.phone || '',
@@ -244,7 +267,7 @@ export async function POST(req: NextRequest) {
               })
             : await prisma.gentleHairWigsMeasurement.create({
                 data: {
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   clientName: record.clientName?.trim() || "Don't know",
                   phone: record.phone || '',
@@ -276,7 +299,7 @@ export async function POST(req: NextRequest) {
                 update: updateAppt,
                 create: {
                   id: recordId,
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   clientName: record.clientName?.trim() || "Don't know",
                   phone: record.phone || '',
@@ -290,7 +313,7 @@ export async function POST(req: NextRequest) {
               })
             : await prisma.gentleHairWigsAppointment.create({
                 data: {
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   clientName: record.clientName?.trim() || "Don't know",
                   phone: record.phone || '',
@@ -317,7 +340,7 @@ export async function POST(req: NextRequest) {
                 update: updateInv,
                 create: {
                   id: recordId,
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   sku: record.sku || '',
                   name: record.name || '',
@@ -330,7 +353,7 @@ export async function POST(req: NextRequest) {
               })
             : await prisma.gentleHairWigsInventoryItem.create({
                 data: {
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   sku: record.sku || '',
                   name: record.name || '',
@@ -349,7 +372,7 @@ export async function POST(req: NextRequest) {
           const res = await prisma.gentleHairWigsInvoice.create({
             data: {
               id: recordId,
-              businessId: BUSINESS_ID,
+              businessId: canonicalBizId,
               studioSlug: record.studioSlug || studioSlug,
               invoiceNumber: record.invoiceNumber || `INV-${Date.now()}`,
               clientName: record.clientName?.trim() || "Don't know",
@@ -378,7 +401,7 @@ export async function POST(req: NextRequest) {
                 update: updateAsset,
                 create: {
                   id: recordId,
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   name: record.name || '',
                   category: record.category || '',
@@ -391,7 +414,7 @@ export async function POST(req: NextRequest) {
               })
             : await prisma.gentleHairWigsAsset.create({
                 data: {
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   name: record.name || '',
                   category: record.category || '',
@@ -417,7 +440,7 @@ export async function POST(req: NextRequest) {
                 update: updateTask,
                 create: {
                   id: recordId,
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   taskTitle: record.taskTitle || '',
                   category: record.category || '',
@@ -429,7 +452,7 @@ export async function POST(req: NextRequest) {
               })
             : await prisma.gentleHairWigsDailyTask.create({
                 data: {
-                  businessId: BUSINESS_ID,
+                  businessId: canonicalBizId,
                   studioSlug: record.studioSlug || studioSlug,
                   taskTitle: record.taskTitle || '',
                   category: record.category || '',
@@ -447,7 +470,7 @@ export async function POST(req: NextRequest) {
           const res = await prisma.gentleHairWigsCallLog.create({
             data: {
               id: recordId,
-              businessId: BUSINESS_ID,
+              businessId: canonicalBizId,
               studioSlug: record.studioSlug || studioSlug,
               clientName: record.clientName?.trim() || "Don't know",
               phone: record.phone || '',
@@ -465,7 +488,7 @@ export async function POST(req: NextRequest) {
           const res = await prisma.gentleHairWigsFinanceTransaction.create({
             data: {
               id: recordId,
-              businessId: BUSINESS_ID,
+              businessId: canonicalBizId,
               studioSlug: record.studioSlug || studioSlug,
               type: record.type || 'expense',
               category: record.category || '',
@@ -502,6 +525,12 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const { searchParams } = new URL(req.url);
     const entity = searchParams.get('entity');
     const id = searchParams.get('id');
@@ -513,40 +542,42 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    const businessWhere = { in: [canonicalBizId, '3', 'gentle-hair-wigs'] };
+
     switch (entity) {
       case 'financeTransaction':
         await prisma.gentleHairWigsFinanceTransaction.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       case 'order':
         await prisma.gentleHairWigsOrder.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       case 'appointment':
         await prisma.gentleHairWigsAppointment.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       case 'inventory':
         await prisma.gentleHairWigsInventoryItem.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       case 'asset':
         await prisma.gentleHairWigsAsset.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       case 'dailyTask':
         await prisma.gentleHairWigsDailyTask.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       case 'callLog':
         await prisma.gentleHairWigsCallLog.deleteMany({
-          where: { id, businessId: BUSINESS_ID },
+          where: { id, businessId: businessWhere },
         });
         break;
       default:

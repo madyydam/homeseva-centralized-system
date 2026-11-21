@@ -1,52 +1,86 @@
 import { PrismaClient } from '../generated/client';
-import * as crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import { CANONICAL_BUSINESSES } from './businessResolver';
 
 const prisma = new PrismaClient();
 
-async function hashPassword(password: string): Promise<string> {
-  return crypto.createHash('sha256').update(password).digest('hex');
+async function hashBcrypt(value: string): Promise<string> {
+  return bcrypt.hash(value, 10);
 }
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('🌱 Starting comprehensive multi-tenant database seed...');
 
-  // Create Super Admin user
-  const passwordHash = await hashPassword(
-    process.env['SUPER_ADMIN_TEMP_PASSWORD'] ?? 'ChangeMe@123'
-  );
+  // 1. Seed Super Admin Credentials
+  const superUsername = process.env['SUPER_ADMIN_USERNAME'] || 'superadmin';
+  const superPassword = process.env['SUPER_ADMIN_PASSWORD'] || 'ChangeMeSuperAdmin@2026';
+  const superPin4 = process.env['SUPER_ADMIN_PIN4'] || '1234';
+  const superPin8 = process.env['SUPER_ADMIN_PIN8'] || '12345678';
 
-  const superAdmin = await prisma.user.upsert({
+  const [passwordHash, pin4Hash, pin8Hash] = await Promise.all([
+    hashBcrypt(superPassword),
+    hashBcrypt(superPin4),
+    hashBcrypt(superPin8),
+  ]);
+
+  const superAdmin = await prisma.superAdminCredentials.upsert({
+    where: { id: 'primary' },
+    update: {
+      username: superUsername,
+      passwordHash,
+      pin4Hash,
+      pin8Hash,
+      failedAttempts: 0,
+      lockedUntil: null,
+    },
+    create: {
+      id: 'primary',
+      username: superUsername,
+      passwordHash,
+      pin4Hash,
+      pin8Hash,
+      failedAttempts: 0,
+      lockedUntil: null,
+    },
+  });
+  console.log(`✅ Super Admin credentials seeded for username: "${superAdmin.username}" (primary)`);
+
+  // Also maintain the legacy User entry for backward compatibility
+  await prisma.user.upsert({
     where: { roleId_businessId: { roleId: 'SUPER_ADMIN', businessId: '' } },
-    update: {},
+    update: { passwordHash },
     create: {
       roleId: 'SUPER_ADMIN',
       passwordHash,
       isSuperAdmin: true,
-      mustChangePass: true,
+      mustChangePass: false,
     },
   });
-  console.log('✅ Super Admin created:', superAdmin.id);
 
-  // Seed Gentle Hair Wigs business
-  const gentleBiz = await prisma.business.upsert({
-    where: { slug: 'gentle-hair-wigs' },
-    update: {
-      name: 'Gentle Hair Wigs',
-      description: 'Custom Hair Systems, Medical Prosthetics & Aesthetic Salons',
-      enabledModules: ['crm', 'orders', 'measurements', 'appointments', 'inventory', 'billing'],
-    },
-    create: {
-      id: '3',
-      name: 'Gentle Hair Wigs',
-      slug: 'gentle-hair-wigs',
-      description: 'Custom Hair Systems, Medical Prosthetics & Aesthetic Salons',
-      logoUrl: '/logos/gentle-hair-wigs-logo.jpg',
-      enabledModules: ['crm', 'orders', 'measurements', 'appointments', 'inventory', 'billing'],
-    },
-  });
-  console.log('✅ Gentle Hair Wigs Business seeded:', gentleBiz.id);
+  // 2. Seed All 10 Canonical Multi-Tenant Businesses
+  console.log('🏢 Seeding 10 canonical businesses...');
+  for (const biz of CANONICAL_BUSINESSES) {
+    await prisma.business.upsert({
+      where: { id: biz.id },
+      update: {
+        name: biz.name,
+        slug: biz.slug,
+        description: biz.description,
+        enabledModules: biz.enabledModules,
+      },
+      create: {
+        id: biz.id,
+        name: biz.name,
+        slug: biz.slug,
+        description: biz.description,
+        enabledModules: biz.enabledModules,
+      },
+    });
+  }
+  console.log(`✅ 10 canonical businesses registered with deterministic UUIDs.`);
 
-  // Seed default studios for Gentle Hair Wigs
+  // 3. Seed Default Studios for Gentle Hair Wigs (b1000000-0000-0000-0000-000000000003)
+  const gentleBizId = 'b1000000-0000-0000-0000-000000000003';
   const defaultStudios = [
     {
       slug: 'viman-nagar',
@@ -72,7 +106,7 @@ async function main() {
     await prisma.gentleHairWigsStudio.upsert({
       where: {
         businessId_slug: {
-          businessId: gentleBiz.id,
+          businessId: gentleBizId,
           slug: studio.slug,
         },
       },
@@ -82,7 +116,7 @@ async function main() {
         address: studio.address,
       },
       create: {
-        businessId: gentleBiz.id,
+        businessId: gentleBizId,
         slug: studio.slug,
         name: studio.name,
         shortName: studio.shortName,
@@ -91,40 +125,157 @@ async function main() {
       },
     });
   }
-  console.log('✅ Default studios seeded.');
+  console.log('✅ Gentle Hair Wigs default studios seeded.');
 
-  // Seed other standard businesses so multi-tenant registry is clean
-  const otherBusinesses = [
-    { id: '1', slug: 'prefab-construction', name: 'Prefab Construction Solutions' },
-    { id: '2', slug: 'horeca-essentials', name: 'HoReCa Essentials & Crockery Rental' },
-    { id: '4', slug: 'ecolab-distribution', name: 'Ecolab Institutional Distribution' },
-    { id: '5', slug: 'hs-coworking', name: 'HS Co-Working Spaces' },
-    { id: '6', slug: 'first-mover-advantage', name: 'First Mover Advantage Advisory' },
-    { id: '7', slug: 'adjs', name: 'ADJS' },
-    { id: '8', slug: 'dvr-enterprise', name: 'DVR Enterprise Logistics' },
-    { id: '9', slug: 'nda-services', name: 'NDA Corporate Services' },
-    { id: '10', slug: 'hs-real-estate', name: 'HS Real Estate & Asset Holdings' },
+  // 4. Seed Standard Default Business Roles for each business
+  console.log('🛡️  Seeding standard business roles...');
+  const defaultRolesConfig = [
+    {
+      roleId: 'admin',
+      label: 'Business Administrator',
+      department: 'Management',
+      description: 'Full administrative access to all modules and configurations',
+    },
+    {
+      roleId: 'manager',
+      label: 'Operations Manager',
+      department: 'Operations',
+      description: 'Operations, inventory, and order management',
+    },
+    {
+      roleId: 'staff',
+      label: 'Staff Member',
+      department: 'Field Staff',
+      description: 'Daily operational tasks, appointments, and report logging',
+    },
   ];
 
-  for (const biz of otherBusinesses) {
-    await prisma.business.upsert({
-      where: { slug: biz.slug },
-      update: { name: biz.name },
-      create: {
-        id: biz.id,
-        slug: biz.slug,
-        name: biz.name,
-      },
-    });
-  }
-  console.log('✅ All businesses registered in PostgreSQL.');
+  const defaultRolePassHash = await hashBcrypt('StaffPassword@2026');
+  const defaultRolePinHash = await hashBcrypt('1234');
 
-  console.log('🏁 Seed complete.');
+  for (const biz of CANONICAL_BUSINESSES) {
+    for (const roleConf of defaultRolesConfig) {
+      await prisma.businessRole.upsert({
+        where: {
+          businessId_roleId: {
+            businessId: biz.id,
+            roleId: roleConf.roleId,
+          },
+        },
+        update: {
+          label: roleConf.label,
+          description: roleConf.description,
+          department: roleConf.department,
+        },
+        create: {
+          businessId: biz.id,
+          roleId: roleConf.roleId,
+          label: roleConf.label,
+          description: roleConf.description,
+          department: roleConf.department,
+          password: defaultRolePassHash,
+          pin: defaultRolePinHash,
+          failedAttempts: 0,
+          isActive: true,
+        },
+      });
+    }
+  }
+  console.log('✅ Standard business roles seeded with Bcrypt hashes.');
+
+  // 5. Seed Core Tabs for each business
+  console.log('📑 Seeding core tabs & role access...');
+  for (const biz of CANONICAL_BUSINESSES) {
+    const roles = await prisma.businessRole.findMany({
+      where: { businessId: biz.id },
+    });
+
+    const adminRole = roles.find((r) => r.roleId === 'admin');
+    const managerRole = roles.find((r) => r.roleId === 'manager');
+    const staffRole = roles.find((r) => r.roleId === 'staff');
+
+    for (let i = 0; i < biz.enabledModules.length; i++) {
+      const moduleKey = biz.enabledModules[i];
+      if (!moduleKey) continue;
+      const tabLabel = moduleKey
+        .split('-')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      const tab = await prisma.tab.upsert({
+        where: {
+          businessId_tabKey: {
+            businessId: biz.id,
+            tabKey: moduleKey,
+          },
+        },
+        update: {
+          label: tabLabel,
+          sortOrder: i,
+          isActive: true,
+        },
+        create: {
+          businessId: biz.id,
+          tabKey: moduleKey,
+          label: tabLabel,
+          path: `/businesses/${biz.slug}/${moduleKey}`,
+          sortOrder: i,
+          isActive: true,
+        },
+      });
+
+      // Grant tab access to admin, manager, staff
+      if (adminRole) {
+        await prisma.roleTabAccess.upsert({
+          where: { roleId_tabId: { roleId: adminRole.id, tabId: tab.id } },
+          update: { canView: true, canEdit: true },
+          create: {
+            businessId: biz.id,
+            roleId: adminRole.id,
+            tabId: tab.id,
+            canView: true,
+            canEdit: true,
+          },
+        });
+      }
+
+      if (managerRole) {
+        await prisma.roleTabAccess.upsert({
+          where: { roleId_tabId: { roleId: managerRole.id, tabId: tab.id } },
+          update: { canView: true, canEdit: true },
+          create: {
+            businessId: biz.id,
+            roleId: managerRole.id,
+            tabId: tab.id,
+            canView: true,
+            canEdit: true,
+          },
+        });
+      }
+
+      if (staffRole) {
+        await prisma.roleTabAccess.upsert({
+          where: { roleId_tabId: { roleId: staffRole.id, tabId: tab.id } },
+          update: { canView: true, canEdit: false },
+          create: {
+            businessId: biz.id,
+            roleId: staffRole.id,
+            tabId: tab.id,
+            canView: true,
+            canEdit: false,
+          },
+        });
+      }
+    }
+  }
+  console.log('✅ Tabs and role tab access configured.');
+
+  console.log('🏁 Multi-tenant seed complete.');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Error during seed:', e);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

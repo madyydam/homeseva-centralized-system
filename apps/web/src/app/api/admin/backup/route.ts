@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusiness } from '@homeseva/db';
+import { getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,21 +35,20 @@ const BUSINESS_CATEGORIES: Record<string, string> = {
 // GET: Fetch live backup status & statistics, or trigger file download
 export async function GET(req: NextRequest) {
   try {
+    const session = await getCurrentSuperAdminSession();
+    if (!session || !session.isSuperAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const downloadSlug = searchParams.get('download');
 
     // ── Handle Backup Download Request ──
     if (downloadSlug) {
-      const business = await prisma.business.findFirst({
-        where: {
-          OR: [
-            { slug: downloadSlug },
-            { id: downloadSlug },
-            ...(downloadSlug === 'adjs' ? [{ slug: 'printbooth' }] : []),
-            ...(downloadSlug === 'printbooth' ? [{ slug: 'adjs' }] : []),
-          ],
-        },
-      });
+      const business = await resolveBusiness(downloadSlug);
 
       if (!business) {
         return NextResponse.json(
@@ -85,12 +85,24 @@ export async function GET(req: NextRequest) {
         (business.slug === 'adjs' || business.slug === 'printbooth') ? prisma.printboothLead.findMany({ where: { businessId: business.id } }).catch(() => []) : [],
         (business.slug === 'adjs' || business.slug === 'printbooth') ? (prisma as any).printboothMachineOrder?.findMany({ where: { businessId: business.id } }).catch(() => []) : [],
         (business.slug === 'adjs' || business.slug === 'printbooth') ? (prisma as any).printboothSupportTicket?.findMany({ where: { businessId: business.id } }).catch(() => []) : [],
-        business.slug === 'crockery-rental' ? prisma.crockeryItem.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials'] } } }).catch(() => []) : [],
-        business.slug === 'crockery-rental' ? prisma.crockeryCustomer.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials'] } } }).catch(() => []) : [],
-        business.slug === 'crockery-rental' ? prisma.crockeryBooking.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials'] } }, include: { items: true } }).catch(() => []) : [],
-        business.slug === 'crockery-rental' ? prisma.crockeryInvoice.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials'] } }, include: { lines: true } }).catch(() => []) : [],
-        business.slug === 'crockery-rental' ? prisma.crockeryPayment.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials'] } } }).catch(() => []) : [],
+        business.slug === 'crockery-rental' ? prisma.crockeryItem.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials', business.id] } } }).catch(() => []) : [],
+        business.slug === 'crockery-rental' ? prisma.crockeryCustomer.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials', business.id] } } }).catch(() => []) : [],
+        business.slug === 'crockery-rental' ? prisma.crockeryBooking.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials', business.id] } }, include: { items: true } }).catch(() => []) : [],
+        business.slug === 'crockery-rental' ? prisma.crockeryInvoice.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials', business.id] } }, include: { lines: true } }).catch(() => []) : [],
+        business.slug === 'crockery-rental' ? prisma.crockeryPayment.findMany({ where: { businessId: { in: ['crockery-rental', 'horeca-essentials', business.id] } } }).catch(() => []) : [],
       ]);
+
+      const sanitizedRoles = (roles || []).map((r: any) => ({
+        ...r,
+        password: '[PROTECTED_CREDENTIAL]',
+        pin: '[PROTECTED_CREDENTIAL]',
+      }));
+
+      const sanitizedMembers = (members || []).map((m: any) => ({
+        ...m,
+        password: '[PROTECTED_CREDENTIAL]',
+        pin: '[PROTECTED_CREDENTIAL]',
+      }));
 
       const snapshot = {
         metadata: {
@@ -103,8 +115,8 @@ export async function GET(req: NextRequest) {
         },
         data: {
           business,
-          roles,
-          members,
+          roles: sanitizedRoles,
+          members: sanitizedMembers,
           tabs,
           gentleLeads,
           gentleOrders,
@@ -213,6 +225,14 @@ export async function GET(req: NextRequest) {
 // POST: Trigger Immediate Snapshot & Encryption
 export async function POST(req: NextRequest) {
   try {
+    const session = await getCurrentSuperAdminSession();
+    if (!session || !session.isSuperAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Super Admin access required' },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const { businessIds } = body;
 

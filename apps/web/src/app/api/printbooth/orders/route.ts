@@ -1,66 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusinessId } from '@homeseva/db';
+import { getCurrentStaffSession, getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = 'adjs';
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
 
-async function ensureOrdersTable() {
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS public.printbooth_machine_orders (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        business_id TEXT NOT NULL DEFAULT 'adjs',
-        order_number TEXT NOT NULL,
-        merchant_name TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        shop_name TEXT,
-        kiosk_model TEXT NOT NULL,
-        units INT NOT NULL DEFAULT 1,
-        unit_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
-        total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
-        stage TEXT NOT NULL DEFAULT 'Order Booked',
-        city TEXT NOT NULL,
-        order_date TEXT NOT NULL,
-        tracking_number TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-  } catch (e) {
-    console.warn('ensureOrdersTable notice:', e);
+  const staffSession = await getCurrentStaffSession();
+  if (
+    staffSession &&
+    (staffSession.businessSlug === 'adjs' ||
+      staffSession.businessSlug === 'printbooth' ||
+      staffSession.businessSlug === '7')
+  ) {
+    return true;
   }
+
+  return false;
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    await ensureOrdersTable();
-    const rows: any = await prisma.$queryRawUnsafe(
-      `SELECT * FROM public.printbooth_machine_orders WHERE business_id = $1 ORDER BY created_at DESC`,
-      BUSINESS_ID
-    );
+function formatOrder(o: any) {
+  return {
+    id: String(o.id),
+    orderNumber: o.orderNumber,
+    merchantName: o.merchantName,
+    phone: o.phone,
+    shopName: o.shopName || '',
+    kioskModel: o.kioskModel,
+    units: Number(o.units) || 1,
+    unitPrice: Number(o.unitPrice) || 0,
+    totalAmount: Number(o.totalAmount) || 0,
+    stage: o.stage,
+    city: o.city,
+    orderDate: o.orderDate,
+    trackingNumber: o.trackingNumber || undefined,
+    createdAt: o.createdAt instanceof Date ? o.createdAt.toISOString() : String(o.createdAt),
+    updatedAt: o.updatedAt instanceof Date ? o.updatedAt.toISOString() : String(o.updatedAt),
+  };
+}
 
-    const orders = (Array.isArray(rows) ? rows : []).map((o: any) => ({
-      id: String(o.id),
-      orderNumber: o.order_number,
-      merchantName: o.merchant_name,
-      phone: o.phone,
-      shopName: o.shop_name || '',
-      kioskModel: o.kiosk_model,
-      units: Number(o.units) || 1,
-      unitPrice: Number(o.unit_price) || 0,
-      totalAmount: Number(o.total_amount) || 0,
-      stage: o.stage,
-      city: o.city,
-      orderDate: o.order_date,
-      trackingNumber: o.tracking_number || undefined,
-      createdAt: o.created_at instanceof Date ? o.created_at.toISOString() : String(o.created_at),
-    }));
+export async function GET() {
+  try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('adjs');
+    const rows = await prisma.printboothMachineOrder.findMany({
+      where: {
+        businessId: { in: [canonicalBizId, 'adjs', 'printbooth'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     return NextResponse.json({
       success: true,
-      orders,
+      orders: rows.map(formatOrder),
     });
   } catch (err: any) {
     console.error('Error fetching printbooth orders:', err);
@@ -73,7 +72,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await ensureOrdersTable();
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('adjs');
     const body = await req.json();
     const {
       orderNumber,
@@ -97,58 +101,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const assignedId = (typeof body.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id))
-      ? body.id
-      : crypto.randomUUID();
+    const assignedId =
+      typeof body.id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id)
+        ? body.id
+        : crypto.randomUUID();
     const assignedNumber = orderNumber || `PB-ORD-${Date.now().toString().slice(-6)}`;
     const assignedCity = city?.trim() || 'Pune';
 
-    const insertQuery = `
-      INSERT INTO public.printbooth_machine_orders (
-        id, business_id, order_number, merchant_name, phone, shop_name, kiosk_model,
-        units, unit_price, total_amount, stage, city, order_date, tracking_number
-      ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *;
-    `;
-
-    const rows: any = await prisma.$queryRawUnsafe(
-      insertQuery,
-      assignedId,
-      BUSINESS_ID,
-      assignedNumber,
-      merchantName.trim(),
-      phone.trim(),
-      shopName?.trim() || null,
-      String(kioskModel),
-      Number(units) || 1,
-      Number(unitPrice) || 0,
-      Number(totalAmount) || 0,
-      String(stage),
-      assignedCity,
-      String(orderDate),
-      trackingNumber?.trim() || null
-    );
-
-    const order = rows[0];
+    const order = await prisma.printboothMachineOrder.create({
+      data: {
+        id: assignedId,
+        businessId: canonicalBizId,
+        orderNumber: assignedNumber,
+        merchantName: merchantName.trim(),
+        phone: phone.trim(),
+        shopName: shopName?.trim() || null,
+        kioskModel: String(kioskModel),
+        units: Number(units) || 1,
+        unitPrice: Number(unitPrice) || 0,
+        totalAmount: Number(totalAmount) || 0,
+        stage: String(stage),
+        city: assignedCity,
+        orderDate: String(orderDate),
+        trackingNumber: trackingNumber?.trim() || null,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      order: {
-        id: String(order.id),
-        orderNumber: order.order_number,
-        merchantName: order.merchant_name,
-        phone: order.phone,
-        shopName: order.shop_name || '',
-        kioskModel: order.kiosk_model,
-        units: Number(order.units) || 1,
-        unitPrice: Number(order.unit_price) || 0,
-        totalAmount: Number(order.total_amount) || 0,
-        stage: order.stage,
-        city: order.city,
-        orderDate: order.order_date,
-        trackingNumber: order.tracking_number || undefined,
-        createdAt: order.created_at instanceof Date ? order.created_at.toISOString() : String(order.created_at),
-      },
+      order: formatOrder(order),
     });
   } catch (err: any) {
     console.error('Error creating printbooth order:', err);
@@ -161,7 +143,12 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    await ensureOrdersTable();
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('adjs');
     const body = await req.json();
     const { id, stage, trackingNumber } = body;
 
@@ -169,33 +156,29 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order ID is required' }, { status: 400 });
     }
 
-    const updates: string[] = ['updated_at = NOW()'];
-    const params: any[] = [id];
+    const existing = await prisma.printboothMachineOrder.findFirst({
+      where: {
+        id,
+        businessId: { in: [canonicalBizId, 'adjs', 'printbooth'] },
+      },
+    });
 
-    if (stage) {
-      params.push(stage);
-      updates.push(`stage = $${params.length}`);
-    }
-    if (trackingNumber !== undefined) {
-      params.push(trackingNumber);
-      updates.push(`tracking_number = $${params.length}`);
-    }
-
-    const query = `
-      UPDATE public.printbooth_machine_orders
-      SET ${updates.join(', ')}
-      WHERE id::text = $1::text
-      RETURNING *;
-    `;
-
-    const rows: any = await prisma.$queryRawUnsafe(query, ...params);
-    if (!rows || rows.length === 0) {
+    if (!existing) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
 
+    const data: any = {};
+    if (stage !== undefined) data.stage = stage;
+    if (trackingNumber !== undefined) data.trackingNumber = trackingNumber;
+
+    const updated = await prisma.printboothMachineOrder.update({
+      where: { id },
+      data,
+    });
+
     return NextResponse.json({
       success: true,
-      order: rows[0],
+      order: formatOrder(updated),
     });
   } catch (err: any) {
     console.error('Error updating printbooth order:', err);
@@ -208,7 +191,12 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    await ensureOrdersTable();
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const canonicalBizId = await resolveBusinessId('adjs');
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -216,10 +204,12 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order ID is required' }, { status: 400 });
     }
 
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM public.printbooth_machine_orders WHERE id::text = $1::text`,
-      id
-    );
+    await prisma.printboothMachineOrder.deleteMany({
+      where: {
+        id,
+        businessId: { in: [canonicalBizId, 'adjs', 'printbooth'] },
+      },
+    });
 
     return NextResponse.json({ success: true, message: 'Order deleted successfully' });
   } catch (err: any) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusinessId } from '@homeseva/db';
 import { getCurrentSuperAdminSession, getCurrentStaffSession } from '@/lib/authSession';
 import {
   Item,
@@ -17,9 +17,6 @@ import { initialBusinessProfile } from '@/businesses/horeca-essentials/crockery-
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = 'crockery-rental';
-const BUSINESS_ID_WHERE = { in: ['crockery-rental', 'horeca-essentials'] };
-
 async function isAuthorized(): Promise<boolean> {
   const saSession = await getCurrentSuperAdminSession();
   if (saSession?.isSuperAdmin) return true;
@@ -28,13 +25,9 @@ async function isAuthorized(): Promise<boolean> {
   if (
     staffSession &&
     (staffSession.businessSlug === 'crockery-rental' ||
-      staffSession.businessSlug === 'horeca-essentials')
+      staffSession.businessSlug === 'horeca-essentials' ||
+      staffSession.businessSlug === '2')
   ) {
-    return true;
-  }
-
-  // Permissive fallback in development environment
-  if (process.env.NODE_ENV !== 'production') {
     return true;
   }
 
@@ -273,6 +266,9 @@ export async function GET() {
   }
 
   try {
+    const canonicalBizId = await resolveBusinessId('horeca-essentials');
+    const bizWhere = { in: [canonicalBizId, 'crockery-rental', 'horeca-essentials', '2'] };
+
     const [
       dbItems,
       dbCustomers,
@@ -284,38 +280,38 @@ export async function GET() {
       dbProfile,
     ] = await Promise.all([
       prisma.crockeryItem.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         orderBy: { name: 'asc' },
       }),
       prisma.crockeryCustomer.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.crockeryBooking.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         include: { items: true },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.crockeryStockMovement.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         orderBy: { createdAt: 'desc' },
         take: 500,
       }),
       prisma.crockeryInvoice.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         include: { lines: true },
         orderBy: { issuedAt: 'desc' },
       }),
       prisma.crockeryPayment.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.crockeryPackageCombo.findMany({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.crockeryBusinessProfile.findFirst({
-        where: { businessId: BUSINESS_ID_WHERE },
+        where: { businessId: bizWhere },
       }),
     ]);
 
@@ -351,6 +347,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const canonicalBizId = await resolveBusinessId('horeca-essentials');
     const body = await req.json();
     const { action, payload } = body;
 
@@ -362,7 +359,7 @@ export async function POST(req: NextRequest) {
           where: { id: item.id },
           create: {
             id: item.id,
-            businessId: BUSINESS_ID,
+            businessId: canonicalBizId,
             name: item.name,
             category: item.category,
             packSize: item.pack_size || 1,
@@ -405,7 +402,7 @@ export async function POST(req: NextRequest) {
           where: { id: customer.id },
           create: {
             id: customer.id,
-            businessId: BUSINESS_ID,
+            businessId: canonicalBizId,
             name: customer.name,
             phone: customer.phone,
             altPhone: customer.alt_phone || null,
@@ -427,201 +424,208 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, customer: formatCustomer(saved) });
       }
 
-      // 3. Upsert Booking (including line items)
+      // 3. Upsert Booking (including line items atomically)
       case 'upsert_booking': {
         const booking: Booking = payload;
 
-        // Upsert booking record
-        const savedBooking = await prisma.crockeryBooking.upsert({
-          where: { id: booking.id },
-          create: {
-            id: booking.id,
-            businessId: BUSINESS_ID,
-            bookingNumber: booking.booking_number,
-            customerId: booking.customer_id || null,
-            customerName: booking.customer_name,
-            customerPhone: booking.customer_phone,
-            customerAddress: booking.customer_address,
-            eventType: booking.event_type,
-            eventDate: booking.event_date,
-            deliveryDate: booking.delivery_date,
-            expectedReturnDate: booking.expected_return_date,
-            actualReturnDate: booking.actual_return_date || null,
-            venueName: booking.venue_name,
-            venueAddress: booking.venue_address,
-            contactPerson: booking.contact_person || null,
-            status: booking.status,
-            transportCharge: booking.transport_charge || 0,
-            discount: booking.discount || 0,
-            advancePaid: booking.advance_paid || 0,
-            securityDeposit: booking.security_deposit || 0,
-            damageCharge: booking.damage_charge || 0,
-            lateFee: booking.late_fee || 0,
-            notes: booking.notes || null,
-            dispatchedAt: booking.dispatched_at ? new Date(booking.dispatched_at) : null,
-            returnedAt: booking.returned_at ? new Date(booking.returned_at) : null,
-            dispatchedBy: booking.dispatched_by || null,
-            vehicleDetails: booking.vehicle_details || null,
-            signatureDispatch: booking.signature_dispatch || null,
-            signatureReturn: booking.signature_return || null,
-          },
-          update: {
-            customerName: booking.customer_name,
-            customerPhone: booking.customer_phone,
-            customerAddress: booking.customer_address,
-            eventType: booking.event_type,
-            eventDate: booking.event_date,
-            deliveryDate: booking.delivery_date,
-            expectedReturnDate: booking.expected_return_date,
-            actualReturnDate: booking.actual_return_date || null,
-            venueName: booking.venue_name,
-            venueAddress: booking.venue_address,
-            contactPerson: booking.contact_person || null,
-            status: booking.status,
-            transportCharge: booking.transport_charge,
-            discount: booking.discount,
-            advancePaid: booking.advance_paid,
-            securityDeposit: booking.security_deposit,
-            damageCharge: booking.damage_charge,
-            lateFee: booking.late_fee,
-            notes: booking.notes || null,
-            dispatchedAt: booking.dispatched_at ? new Date(booking.dispatched_at) : null,
-            returnedAt: booking.returned_at ? new Date(booking.returned_at) : null,
-            dispatchedBy: booking.dispatched_by || null,
-            vehicleDetails: booking.vehicle_details || null,
-            signatureDispatch: booking.signature_dispatch || null,
-            signatureReturn: booking.signature_return || null,
-          },
-        });
-
-        // Sync booking items: delete existing lines and re-insert
-        await prisma.crockeryBookingItem.deleteMany({
-          where: { bookingId: booking.id },
-        });
-
-        if (Array.isArray(booking.items) && booking.items.length > 0) {
-          await prisma.crockeryBookingItem.createMany({
-            data: booking.items.map((bi) => ({
-              id: bi.id || `${booking.id}-${bi.item_id}`,
-              businessId: BUSINESS_ID,
-              bookingId: booking.id,
-              itemId: bi.item_id,
-              itemName: bi.item_name,
-              category: bi.category,
-              packSize: bi.pack_size || 1,
-              quantity: bi.quantity || 1,
-              dispatchedQuantity: bi.dispatched_quantity || 0,
-              returnedGood: bi.returned_good || 0,
-              returnedBroken: bi.returned_broken || 0,
-              returnedMissing: bi.returned_missing || 0,
-              rateSnapshot: bi.rate_snapshot || 0,
-              rentBasis: bi.rent_basis || 'per_day',
-              replacementCostSnapshot: bi.replacement_cost_snapshot || 0,
-              damageGrade: bi.damage_grade || null,
-            })),
+        const savedBooking = await prisma.$transaction(async (tx) => {
+          const b = await tx.crockeryBooking.upsert({
+            where: { id: booking.id },
+            create: {
+              id: booking.id,
+              businessId: canonicalBizId,
+              bookingNumber: booking.booking_number,
+              customerId: booking.customer_id || null,
+              customerName: booking.customer_name,
+              customerPhone: booking.customer_phone,
+              customerAddress: booking.customer_address,
+              eventType: booking.event_type,
+              eventDate: booking.event_date,
+              deliveryDate: booking.delivery_date,
+              expectedReturnDate: booking.expected_return_date,
+              actualReturnDate: booking.actual_return_date || null,
+              venueName: booking.venue_name,
+              venueAddress: booking.venue_address,
+              contactPerson: booking.contact_person || null,
+              status: booking.status,
+              transportCharge: booking.transport_charge || 0,
+              discount: booking.discount || 0,
+              advancePaid: booking.advance_paid || 0,
+              securityDeposit: booking.security_deposit || 0,
+              damageCharge: booking.damage_charge || 0,
+              lateFee: booking.late_fee || 0,
+              notes: booking.notes || null,
+              dispatchedAt: booking.dispatched_at ? new Date(booking.dispatched_at) : null,
+              returnedAt: booking.returned_at ? new Date(booking.returned_at) : null,
+              dispatchedBy: booking.dispatched_by || null,
+              vehicleDetails: booking.vehicle_details || null,
+              signatureDispatch: booking.signature_dispatch || null,
+              signatureReturn: booking.signature_return || null,
+            },
+            update: {
+              customerName: booking.customer_name,
+              customerPhone: booking.customer_phone,
+              customerAddress: booking.customer_address,
+              eventType: booking.event_type,
+              eventDate: booking.event_date,
+              deliveryDate: booking.delivery_date,
+              expectedReturnDate: booking.expected_return_date,
+              actualReturnDate: booking.actual_return_date || null,
+              venueName: booking.venue_name,
+              venueAddress: booking.venue_address,
+              contactPerson: booking.contact_person || null,
+              status: booking.status,
+              transportCharge: booking.transport_charge,
+              discount: booking.discount,
+              advancePaid: booking.advance_paid,
+              securityDeposit: booking.security_deposit,
+              damageCharge: booking.damage_charge,
+              lateFee: booking.late_fee,
+              notes: booking.notes || null,
+              dispatchedAt: booking.dispatched_at ? new Date(booking.dispatched_at) : null,
+              returnedAt: booking.returned_at ? new Date(booking.returned_at) : null,
+              dispatchedBy: booking.dispatched_by || null,
+              vehicleDetails: booking.vehicle_details || null,
+              signatureDispatch: booking.signature_dispatch || null,
+              signatureReturn: booking.signature_return || null,
+            },
           });
-        }
+
+          // Sync booking items: delete existing lines and re-insert atomically
+          await tx.crockeryBookingItem.deleteMany({
+            where: { bookingId: booking.id },
+          });
+
+          if (Array.isArray(booking.items) && booking.items.length > 0) {
+            await tx.crockeryBookingItem.createMany({
+              data: booking.items.map((bi) => ({
+                id: bi.id || `${booking.id}-${bi.item_id}`,
+                businessId: canonicalBizId,
+                bookingId: booking.id,
+                itemId: bi.item_id,
+                itemName: bi.item_name,
+                category: bi.category,
+                packSize: bi.pack_size || 1,
+                quantity: bi.quantity || 1,
+                dispatchedQuantity: bi.dispatched_quantity || 0,
+                returnedGood: bi.returned_good || 0,
+                returnedBroken: bi.returned_broken || 0,
+                returnedMissing: bi.returned_missing || 0,
+                rateSnapshot: bi.rate_snapshot || 0,
+                rentBasis: bi.rent_basis || 'per_day',
+                replacementCostSnapshot: bi.replacement_cost_snapshot || 0,
+                damageGrade: bi.damage_grade || null,
+              })),
+            });
+          }
+
+          return b;
+        });
 
         return NextResponse.json({ success: true, bookingId: savedBooking.id });
       }
 
-      // 4. Upsert Invoice (including invoice lines)
+      // 4. Upsert Invoice (including invoice lines atomically)
       case 'upsert_invoice': {
         const inv: Invoice = payload;
-        const savedInvoice = await prisma.crockeryInvoice.upsert({
-          where: { id: inv.id },
-          create: {
-            id: inv.id,
-            businessId: BUSINESS_ID,
-            firm: inv.firm || 'someshwar',
-            invoiceNumber: inv.invoice_number,
-            financialYear: inv.financial_year || '2026-27',
-            bookingId: inv.booking_id,
-            bookingNumber: inv.booking_number,
-            customerName: inv.customer_name,
-            customerPhone: inv.customer_phone,
-            customerAddress: inv.customer_address,
-            customerGstin: inv.customer_gstin || null,
-            consigneeName: inv.consignee_name || null,
-            consigneeAddress: inv.consignee_address || null,
-            consigneeGstin: inv.consignee_gstin || null,
-            deliveryNote: inv.delivery_note || null,
-            dispatchDocNo: inv.dispatch_doc_no || null,
-            deliveryDate: inv.delivery_date,
-            returnDate: inv.return_date,
-            eventDate: inv.event_date || null,
-            rentDays: inv.rent_days || 1,
-            rentAmount: inv.rent_amount || 0,
-            transportCharge: inv.transport_charge || 0,
-            damageAmount: inv.damage_amount || 0,
-            lateFee: inv.late_fee || 0,
-            discount: inv.discount || 0,
-            roundOff: inv.round_off || 0,
-            taxAmount: inv.tax_amount || 0,
-            taxRate: inv.tax_rate || 0,
-            totalAmount: inv.total_amount || 0,
-            advancePaid: inv.advance_paid || 0,
-            balanceDue: inv.balance_due || 0,
-            status: inv.status || 'draft',
-            issuedAt: inv.issued_at ? new Date(inv.issued_at) : new Date(),
-            issuedBy: inv.issued_by || 'Billing Staff',
-            remarks: inv.remarks || null,
-          },
-          update: {
-            firm: inv.firm || 'someshwar',
-            customerName: inv.customer_name,
-            customerPhone: inv.customer_phone,
-            customerAddress: inv.customer_address,
-            customerGstin: inv.customer_gstin || null,
-            consigneeName: inv.consignee_name || null,
-            consigneeAddress: inv.consignee_address || null,
-            consigneeGstin: inv.consignee_gstin || null,
-            deliveryNote: inv.delivery_note || null,
-            dispatchDocNo: inv.dispatch_doc_no || null,
-            deliveryDate: inv.delivery_date,
-            returnDate: inv.return_date,
-            eventDate: inv.event_date || null,
-            rentDays: inv.rent_days,
-            rentAmount: inv.rent_amount,
-            transportCharge: inv.transport_charge,
-            damageAmount: inv.damage_amount,
-            lateFee: inv.late_fee,
-            discount: inv.discount,
-            roundOff: inv.round_off || 0,
-            taxAmount: inv.tax_amount,
-            taxRate: inv.tax_rate,
-            totalAmount: inv.total_amount,
-            advancePaid: inv.advance_paid,
-            balanceDue: inv.balance_due,
-            status: inv.status,
-            issuedBy: inv.issued_by,
-            remarks: inv.remarks || null,
-          },
-        });
-
-        // Sync lines
-        await prisma.crockeryInvoiceLine.deleteMany({
-          where: { invoiceId: inv.id },
-        });
-
-        if (Array.isArray(inv.lines) && inv.lines.length > 0) {
-          await prisma.crockeryInvoiceLine.createMany({
-            data: inv.lines.map((l, index) => ({
-              id: l.id || `il-${inv.id}-${index}`,
-              businessId: BUSINESS_ID,
-              invoiceId: inv.id,
-              description: l.description,
-              particulars: l.particulars || null,
-              hsnSac: l.hsn_sac || '997319',
-              quantity: l.quantity || 1,
-              rate: l.rate || 0,
-              per: l.per || 'Nos',
-              days: l.days || 1,
-              amount: l.amount || 0,
-              type: l.type || 'rent',
-            })),
+        const savedInvoice = await prisma.$transaction(async (tx) => {
+          const i = await tx.crockeryInvoice.upsert({
+            where: { id: inv.id },
+            create: {
+              id: inv.id,
+              businessId: canonicalBizId,
+              firm: inv.firm || 'someshwar',
+              invoiceNumber: inv.invoice_number,
+              financialYear: inv.financial_year || '2026-27',
+              bookingId: inv.booking_id,
+              bookingNumber: inv.booking_number,
+              customerName: inv.customer_name,
+              customerPhone: inv.customer_phone,
+              customerAddress: inv.customer_address,
+              customerGstin: inv.customer_gstin || null,
+              consigneeName: inv.consignee_name || null,
+              consigneeAddress: inv.consignee_address || null,
+              consigneeGstin: inv.consignee_gstin || null,
+              deliveryNote: inv.delivery_note || null,
+              dispatchDocNo: inv.dispatch_doc_no || null,
+              deliveryDate: inv.delivery_date,
+              returnDate: inv.return_date,
+              eventDate: inv.event_date || null,
+              rentDays: inv.rent_days || 1,
+              rentAmount: inv.rent_amount || 0,
+              transportCharge: inv.transport_charge || 0,
+              damageAmount: inv.damage_amount || 0,
+              lateFee: inv.late_fee || 0,
+              discount: inv.discount || 0,
+              roundOff: inv.round_off || 0,
+              taxAmount: inv.tax_amount || 0,
+              taxRate: inv.tax_rate || 0,
+              totalAmount: inv.total_amount || 0,
+              advancePaid: inv.advance_paid || 0,
+              balanceDue: inv.balance_due || 0,
+              status: inv.status || 'draft',
+              issuedAt: inv.issued_at ? new Date(inv.issued_at) : new Date(),
+              issuedBy: inv.issued_by || 'Billing Staff',
+              remarks: inv.remarks || null,
+            },
+            update: {
+              firm: inv.firm || 'someshwar',
+              customerName: inv.customer_name,
+              customerPhone: inv.customer_phone,
+              customerAddress: inv.customer_address,
+              customerGstin: inv.customer_gstin || null,
+              consigneeName: inv.consignee_name || null,
+              consigneeAddress: inv.consignee_address || null,
+              consigneeGstin: inv.consignee_gstin || null,
+              deliveryNote: inv.delivery_note || null,
+              dispatchDocNo: inv.dispatch_doc_no || null,
+              deliveryDate: inv.delivery_date,
+              returnDate: inv.return_date,
+              eventDate: inv.event_date || null,
+              rentDays: inv.rent_days,
+              rentAmount: inv.rent_amount,
+              transportCharge: inv.transport_charge,
+              damageAmount: inv.damage_amount,
+              lateFee: inv.late_fee,
+              discount: inv.discount,
+              roundOff: inv.round_off || 0,
+              taxAmount: inv.tax_amount,
+              taxRate: inv.tax_rate,
+              totalAmount: inv.total_amount,
+              advancePaid: inv.advance_paid,
+              balanceDue: inv.balance_due,
+              status: inv.status,
+              issuedBy: inv.issued_by,
+              remarks: inv.remarks || null,
+            },
           });
-        }
+
+          // Sync lines atomically
+          await tx.crockeryInvoiceLine.deleteMany({
+            where: { invoiceId: inv.id },
+          });
+
+          if (Array.isArray(inv.lines) && inv.lines.length > 0) {
+            await tx.crockeryInvoiceLine.createMany({
+              data: inv.lines.map((l, index) => ({
+                id: l.id || `il-${inv.id}-${index}`,
+                businessId: canonicalBizId,
+                invoiceId: inv.id,
+                description: l.description,
+                particulars: l.particulars || null,
+                hsnSac: l.hsn_sac || '997319',
+                quantity: l.quantity || 1,
+                rate: l.rate || 0,
+                per: l.per || 'Nos',
+                days: l.days || 1,
+                amount: l.amount || 0,
+                type: l.type || 'rent',
+              })),
+            });
+          }
+
+          return i;
+        });
 
         return NextResponse.json({ success: true, invoiceId: savedInvoice.id });
       }
@@ -632,7 +636,7 @@ export async function POST(req: NextRequest) {
         const saved = await prisma.crockeryPayment.create({
           data: {
             id: p.id || `pay-${Date.now()}`,
-            businessId: BUSINESS_ID,
+            businessId: canonicalBizId,
             bookingId: p.booking_id,
             bookingNumber: p.booking_number,
             customerId: p.customer_id || null,
@@ -655,7 +659,7 @@ export async function POST(req: NextRequest) {
         const saved = await prisma.crockeryStockMovement.create({
           data: {
             id: m.id || `mov-${Date.now()}`,
-            businessId: BUSINESS_ID,
+            businessId: canonicalBizId,
             itemId: m.item_id,
             itemName: m.item_name,
             type: m.type,
@@ -675,9 +679,9 @@ export async function POST(req: NextRequest) {
       case 'update_profile': {
         const prof: BusinessProfile = payload;
         const saved = await prisma.crockeryBusinessProfile.upsert({
-          where: { businessId: BUSINESS_ID },
+          where: { businessId: canonicalBizId },
           create: {
-            businessId: BUSINESS_ID,
+            businessId: canonicalBizId,
             name: prof.name,
             tagline: prof.tagline,
             phone: prof.phone,
@@ -721,7 +725,7 @@ export async function POST(req: NextRequest) {
 
       // 8. Bulk Sync / State Save
       case 'bulk_sync': {
-        const { items, customers, bookings, invoices, payments, profile } = payload;
+        const { items, customers } = payload;
 
         if (Array.isArray(items) && items.length > 0) {
           for (const item of items) {
@@ -729,7 +733,7 @@ export async function POST(req: NextRequest) {
               where: { id: item.id },
               create: {
                 id: item.id,
-                businessId: BUSINESS_ID,
+                businessId: canonicalBizId,
                 name: item.name,
                 category: item.category,
                 packSize: item.pack_size || 1,
@@ -771,7 +775,7 @@ export async function POST(req: NextRequest) {
               where: { id: customer.id },
               create: {
                 id: customer.id,
-                businessId: BUSINESS_ID,
+                businessId: canonicalBizId,
                 name: customer.name,
                 phone: customer.phone,
                 altPhone: customer.alt_phone || null,

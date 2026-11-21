@@ -4,6 +4,7 @@ export {
   resolveBusiness,
   resolveBusinessId,
   CANONICAL_BUSINESS_DIRECTORY,
+  CANONICAL_BUSINESSES,
   type CanonicalBusinessInfo,
 } from './businessResolver';
 export {

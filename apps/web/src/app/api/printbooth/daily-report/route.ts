@@ -1,10 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@homeseva/db';
+import { getCurrentStaffSession, getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
+
+  const staffSession = await getCurrentStaffSession();
+  if (
+    staffSession &&
+    (staffSession.businessSlug === 'adjs' ||
+      staffSession.businessSlug === 'printbooth' ||
+      staffSession.businessSlug === '7')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function parseUtcMidnight(dateStr: string): Date {
+  const clean = dateStr.slice(0, 10);
+  return new Date(`${clean}T00:00:00.000Z`);
+}
+
 export async function GET(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const memberId = searchParams.get('memberId');
     const date = searchParams.get('date');
@@ -45,7 +73,7 @@ export async function GET(req: NextRequest) {
     const report = await prisma.printboothDailyReport.findFirst({
       where: {
         memberId,
-        reportDate: new Date(date),
+        reportDate: parseUtcMidnight(date),
       },
     });
 
@@ -76,17 +104,25 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { member_id, member_name, report_date, punch_in, punch_out, calls_made, machines_sold, notes } = body;
 
     if (!member_id || !report_date) {
-      return NextResponse.json({
-        success: false,
-        error: 'member_id and report_date are required',
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'member_id and report_date are required',
+        },
+        { status: 400 }
+      );
     }
 
-    const reportDateObj = new Date(report_date);
+    const reportDateObj = parseUtcMidnight(report_date);
 
     const report = await prisma.printboothDailyReport.upsert({
       where: {

@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@homeseva/db';
+import { prisma, resolveBusinessId } from '@homeseva/db';
+import { getCurrentStaffSession, getCurrentSuperAdminSession } from '@/lib/authSession';
 
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_ID = '3';
+async function isAuthorized(): Promise<boolean> {
+  const saSession = await getCurrentSuperAdminSession();
+  if (saSession?.isSuperAdmin) return true;
+
+  const staffSession = await getCurrentStaffSession();
+  if (staffSession && (staffSession.businessSlug === 'gentle-hair-wigs' || staffSession.businessSlug === '3')) {
+    return true;
+  }
+
+  return false;
+}
 
 export async function GET() {
   try {
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
     const studios = await prisma.gentleHairWigsStudio.findMany({
-      where: { businessId: BUSINESS_ID },
+      where: { businessId: { in: [canonicalBizId, '3', 'gentle-hair-wigs'] } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -33,6 +45,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const authorized = await isAuthorized();
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { slug, name, shortName, address } = body;
 
@@ -43,10 +60,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const canonicalBizId = await resolveBusinessId('gentle-hair-wigs');
+
     const studio = await prisma.gentleHairWigsStudio.upsert({
       where: {
         businessId_slug: {
-          businessId: BUSINESS_ID,
+          businessId: canonicalBizId,
           slug,
         },
       },
@@ -57,7 +76,7 @@ export async function POST(req: NextRequest) {
         isCustom: true,
       },
       create: {
-        businessId: BUSINESS_ID,
+        businessId: canonicalBizId,
         slug,
         name,
         shortName,
