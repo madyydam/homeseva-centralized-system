@@ -86,6 +86,12 @@ export async function middleware(req: NextRequest) {
         const requestedCanonical = normalizeBusinessSlug(requestedSlug);
         const sessionCanonical = normalizeBusinessSlug(session.businessSlug);
         if (requestedCanonical === sessionCanonical) {
+          if (sessionCanonical === 'horeca-essentials') {
+            const targetPath = session.subcompanySlug === 'crockery-rental'
+              ? '/app/crockery-rental/dashboard'
+              : '/app/horeca-essentials/dashboard';
+            return NextResponse.redirect(new URL(targetPath, req.url));
+          }
           return NextResponse.redirect(new URL(`/app/${session.businessSlug}/dashboard`, req.url));
         }
       }
@@ -100,6 +106,13 @@ export async function middleware(req: NextRequest) {
     const userToken = req.cookies.get(USER_SESSION_COOKIE)?.value;
     const session = userToken ? await verifySession(userToken) : null;
     if (session && session.businessSlug) {
+      const sessionCanonical = normalizeBusinessSlug(session.businessSlug);
+      if (sessionCanonical === 'horeca-essentials') {
+        const targetPath = session.subcompanySlug === 'crockery-rental'
+          ? '/app/crockery-rental/dashboard'
+          : '/app/horeca-essentials/dashboard';
+        return NextResponse.redirect(new URL(targetPath, req.url));
+      }
       return NextResponse.redirect(new URL(`/app/${session.businessSlug}/dashboard`, req.url));
     }
     return NextResponse.redirect(new URL('/', req.url));
@@ -146,11 +159,32 @@ export async function middleware(req: NextRequest) {
       // Intercept and redirect back to their own authorized dashboard
       const authorizedSlug = session.businessSlug;
       if (authorizedSlug) {
-        const redirectUrl = new URL(`/app/${authorizedSlug}/dashboard`, req.url);
+        const targetPath = sessionCanonical === 'horeca-essentials'
+          ? (session.subcompanySlug === 'crockery-rental' ? '/app/crockery-rental/dashboard' : '/app/horeca-essentials/dashboard')
+          : `/app/${authorizedSlug}/dashboard`;
+        const redirectUrl = new URL(targetPath, req.url);
         redirectUrl.searchParams.set('error', 'unauthorized_workspace');
         return NextResponse.redirect(redirectUrl);
       }
       return NextResponse.redirect(new URL('/', req.url));
+    }
+
+    // Strict Sub-Company Vertical Isolation for HoReCa (Crockery Rental vs Essentials Sales)
+    if (sessionCanonical === 'horeca-essentials' && requestedSlug) {
+      const isCrockeryRoute = requestedSlug.toLowerCase() === 'crockery-rental';
+      const isStaffCrockery = session.subcompanySlug === 'crockery-rental';
+
+      if (isCrockeryRoute && !isStaffCrockery) {
+        const redirectUrl = new URL('/app/horeca-essentials/dashboard', req.url);
+        redirectUrl.searchParams.set('error', 'unauthorized_vertical');
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      if (!isCrockeryRoute && isStaffCrockery) {
+        const redirectUrl = new URL('/app/crockery-rental/dashboard', req.url);
+        redirectUrl.searchParams.set('error', 'unauthorized_vertical');
+        return NextResponse.redirect(redirectUrl);
+      }
     }
 
     return createSecureProtectedResponse();
@@ -218,9 +252,9 @@ export async function middleware(req: NextRequest) {
         );
       }
     } else if (pathname.startsWith('/api/crockery-rental/')) {
-      if (sessionCanonical !== 'horeca-essentials') {
+      if (sessionCanonical !== 'horeca-essentials' || userSession.subcompanySlug !== 'crockery-rental') {
         return NextResponse.json(
-          { success: false, error: 'Forbidden: Cross-tenant access denied.' },
+          { success: false, error: 'Forbidden: Crockery Rental access credentials required.' },
           { status: 403 }
         );
       }
@@ -234,6 +268,22 @@ export async function middleware(req: NextRequest) {
             { success: false, error: 'Forbidden: Cross-tenant access denied.' },
             { status: 403 }
           );
+        }
+
+        // Strict Sub-Company Vertical Isolation for HoReCa
+        if (sessionCanonical === 'horeca-essentials') {
+          if (requestedSlug === 'crockery-rental' && userSession.subcompanySlug !== 'crockery-rental') {
+            return NextResponse.json(
+              { success: false, error: 'Forbidden: Cross-vertical access denied. Crockery Rental role required.' },
+              { status: 403 }
+            );
+          }
+          if (requestedSlug === 'essentials-sales' && userSession.subcompanySlug !== 'essentials-sales') {
+            return NextResponse.json(
+              { success: false, error: 'Forbidden: Cross-vertical access denied. Essentials Sales role required.' },
+              { status: 403 }
+            );
+          }
         }
       }
     }

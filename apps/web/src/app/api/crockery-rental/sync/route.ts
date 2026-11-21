@@ -22,11 +22,12 @@ async function isAuthorized(): Promise<boolean> {
   if (saSession?.isSuperAdmin) return true;
 
   const staffSession = await getCurrentStaffSession();
+  if (!staffSession) return false;
+
+  // Crockery Rental access strictly limited to crockery-rental vertical members
   if (
-    staffSession &&
-    (staffSession.businessSlug === 'crockery-rental' ||
-      staffSession.businessSlug === 'horeca-essentials' ||
-      staffSession.businessSlug === '2')
+    staffSession.businessSlug === 'crockery-rental' ||
+    (staffSession.businessSlug === 'horeca-essentials' && staffSession.subcompanySlug === 'crockery-rental')
   ) {
     return true;
   }

@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
     const rawSlug = searchParams.get('slug');
 
     if (rawSlug) {
-      const canonicalSlug = rawSlug === 'crockery-rental' ? 'horeca-essentials' : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
+      const canonicalSlug = (rawSlug === 'crockery-rental' || rawSlug === 'essentials-sales')
+        ? 'horeca-essentials'
+        : (rawSlug === 'printbooth' ? 'adjs' : rawSlug);
 
       // Query specific business and its active roles & tabs
       const business = await prisma.business.findFirst({
@@ -80,9 +82,13 @@ export async function GET(req: NextRequest) {
         success: true,
         business: {
           id: business.id,
-          name: rawSlug === 'crockery-rental' ? 'Crockery Rentals' : business.name,
+          name: rawSlug === 'crockery-rental'
+            ? 'Crockery Rentals'
+            : (rawSlug === 'essentials-sales' ? 'HoReCa Essentials' : business.name),
           slug: rawSlug,
-          subtitle: rawSlug === 'crockery-rental' ? 'Banquet Tableware & Buffet Hire Operations' : business.subtitle,
+          subtitle: rawSlug === 'crockery-rental'
+            ? 'Banquet Tableware & Buffet Hire Operations'
+            : (rawSlug === 'essentials-sales' ? 'Commercial Kitchenware Supply' : business.subtitle),
           description: business.description,
           themeColor: business.themeColor,
           logoUrl: business.logoUrl,

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const { businessSlug, roleId, email, password, pin } = body;
 
     const rawSlug = (businessSlug || '').trim();
-    const slug = rawSlug === 'crockery-rental'
+    const slug = (rawSlug === 'crockery-rental' || rawSlug === 'essentials-sales')
       ? 'horeca-essentials'
       : (rawSlug === 'printbooth'
         ? 'adjs'

@@ -83,16 +83,24 @@ sudo certbot --nginx -d erp.yourdomain.com
 
 ---
 
-## 🗄️ Database Backup & Restore
+## 🗄️ Automated Database Backup & Disaster Recovery
 
-### Taking a Database Backup:
+### 1. Weekly Automated Sunday Backup (via Cron):
+Add this entry to your VPS crontab (`crontab -e`):
 ```bash
-docker compose -f docker-compose.vps.yml exec -T postgres pg_dump -U homeseva homeseva_db > backup_$(date +%F).sql
+# Runs every Sunday at 02:00 AM, creates SHA-256 verified dump, and auto-purges older backups
+0 2 * * 0 /bin/bash /opt/homeseva/scripts/db-backup.sh >> /var/log/homeseva-backup.log 2>&1
 ```
 
-### Restoring a Backup:
+### 2. Manual Backup Trigger (On Demand):
 ```bash
-cat backup_latest.sql | docker compose -f docker-compose.vps.yml exec -T postgres psql -U homeseva -d homeseva_db
+bash scripts/db-backup.sh
+```
+*Backups are saved to `/backups/homeseva/homeseva_weekly_*.dump` with SHA-256 verification files.*
+
+### 3. Turnkey Disaster Recovery Restore:
+```bash
+bash scripts/db-restore.sh /backups/homeseva/homeseva_weekly_YYYYMMDD_HHMMSS.dump
 ```
 
 ---
