@@ -74,7 +74,27 @@ export async function middleware(req: NextRequest) {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 2. MULTI-TENANT WORKSPACE ROUTE GUARD (/app/:businessSlug/*)
+  // 2. SIGNIN REDIRECT FOR ALREADY AUTHENTICATED STAFF (/signin/:businessSlug)
+  // ─────────────────────────────────────────────────────────────
+  if (pathname.startsWith('/signin/')) {
+    const slugMatch = pathname.match(/^\/signin\/([^\/]+)/);
+    const requestedSlug = slugMatch ? slugMatch[1] : '';
+    if (requestedSlug) {
+      const userToken = req.cookies.get(USER_SESSION_COOKIE)?.value;
+      const session = userToken ? await verifySession(userToken) : null;
+      if (session && session.businessSlug) {
+        const requestedCanonical = normalizeBusinessSlug(requestedSlug);
+        const sessionCanonical = normalizeBusinessSlug(session.businessSlug);
+        if (requestedCanonical === sessionCanonical) {
+          return NextResponse.redirect(new URL(`/app/${session.businessSlug}/dashboard`, req.url));
+        }
+      }
+    }
+    return NextResponse.next();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. MULTI-TENANT WORKSPACE ROUTE GUARD (/app/:businessSlug/*)
   // ─────────────────────────────────────────────────────────────
   if (pathname === '/app' || pathname === '/app/') {
     const userToken = req.cookies.get(USER_SESSION_COOKIE)?.value;
@@ -137,7 +157,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 3. API ROUTE GUARD (/api/*)
+  // 4. API ROUTE GUARD (/api/*)
   // ─────────────────────────────────────────────────────────────
   if (pathname.startsWith('/api/')) {
     // A. Allow public auth endpoints
@@ -215,6 +235,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     '/super-admin/:path*',
+    '/signin/:path*',
     '/app',
     '/app/:path*',
     '/api/:path*',

@@ -141,6 +141,12 @@ async function runDeepAudit() {
       middlewareCode.includes("res.headers.set('Expires', '0')"),
       'Middleware injects Pragma: no-cache and Expires: 0 to defeat browser bfcache back-button leakage'
     );
+    assert(
+      middlewareCode.includes("pathname.startsWith('/signin/')") &&
+      middlewareCode.includes("requestedCanonical === sessionCanonical") &&
+      middlewareCode.includes("matcher: ["),
+      'Middleware intercepts /signin/:businessSlug and auto-redirects active sessions to dashboard'
+    );
   }
 
   // ─────────────────────────────────────────────────────────
@@ -297,6 +303,38 @@ async function runDeepAudit() {
       clientAuthCode.includes("localStorage.setItem(STORAGE_KEY_LAST_SUBCOMPANY"),
       'clientAuth remembers last active company workspace for zero-friction browser reopening'
     );
+
+    const adjsDashboardCode = readFileSync(path.join(process.cwd(), 'apps/web/src/businesses/adjs/Dashboard.tsx'), 'utf-8');
+    assert(
+      adjsDashboardCode.includes("localStorage.getItem('homeseva_session_adjs')") &&
+      !adjsDashboardCode.includes("document.cookie.match(/homeseva_user_session"),
+      'ADJS Dashboard reads role from localStorage fallback instead of unreachable httpOnly document.cookie'
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // SECTION 6: Dead Code & Redundant File Eradication
+  // ─────────────────────────────────────────────────────────
+  console.log('\n[SECTION 6] Dead Code & Redundant File Eradication:');
+  {
+    const deadPrintboothFiles = [
+      'apps/web/src/businesses/printbooth/ColdcallerDashboard.tsx',
+      'apps/web/src/businesses/printbooth/Dashboard.tsx',
+      'apps/web/src/businesses/printbooth/config.ts',
+      'apps/web/src/businesses/printbooth/db.ts',
+      'apps/web/src/businesses/printbooth/types.ts',
+    ];
+
+    for (const f of deadPrintboothFiles) {
+      const fullPath = path.join(process.cwd(), f);
+      assert(!existsSync(fullPath), `Dead redundant file permanently removed: ${f}`);
+    }
+
+    const legacyApi = path.join(process.cwd(), 'apps/web/src/lib/api.ts');
+    assert(!existsSync(legacyApi), 'Legacy client api.ts permanently removed');
+
+    const legacySupabase = path.join(process.cwd(), 'apps/web/src/lib/supabase');
+    assert(!existsSync(legacySupabase), 'Empty supabase directory permanently removed');
   }
 
   // ─────────────────────────────────────────────────────────
