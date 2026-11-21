@@ -87,3 +87,28 @@ This log tracks every verified task executed on the `production-migration` branc
   - `pnpm type-check`: 5/5 packages green.
   - `pnpm lint`: "✔ No ESLint warnings or errors".
   - `pnpm --filter @homeseva/web build`: 100% clean production build (25 API routes & static pages).
+
+
+### [Step 2] Database Architecture, API Route Security Hardening, ACID Transactions & Seed Pipeline
+- **Commit**: `b878522`, `128c9d4`
+- **Changes**:
+  - **Connection Pooling**: Updated `packages/db/src/client.ts` so `globalForPrisma.prisma = prisma;` is unconditional, ensuring a single shared connection pool across Next.js API routes and preventing PostgreSQL connection exhaustion.
+  - **Canonical Business Resolver**: Created `packages/db/src/businessResolver.ts` mapping all 10 canonical UUIDs (`b1000000-0000-0000-0000-000000000001` through `...010`) and aliases (`3`, `crockery-rental`, `adjs`, `printbooth`), with `resolveBusiness()` and `resolveBusinessId()`.
+  - **Eradicated Runtime Dynamic DDL**: Removed all `CREATE TABLE IF NOT EXISTS` and `$executeRawUnsafe` catalog-locking table creations from `printbooth/crm-leads`, `printbooth/orders`, and `printbooth/tickets`.
+  - **Converted to Typed Prisma Models**: Converted Printbooth endpoints from raw SQL strings to typed Prisma Client models (`prisma.printboothLead.*`, `prisma.printboothMachineOrder.*`, `prisma.printboothSupportTicket.*`).
+  - **API Route Security & IDOR Elimination**:
+    - Secured `admin/backup` with `getCurrentSuperAdminSession()` (401 on unauthorized), masked passwords/PINs with `[PROTECTED_CREDENTIAL]`.
+    - Deleted unused shadow attack surface `api/auth/role-credentials` (492 lines).
+    - Enforced tenant-scoped session checks (`isAuthorized()`) and tenant-filtered queries across Gentle Hair Wigs (sync, CRM leads, daily reports, studios) and Printbooth (CRM leads, orders, tickets, daily reports).
+    - Eliminated IDOR on DELETE endpoints by strictly scoping deletion by both `id` and `businessId`.
+  - **OOM Elimination on CRM Phone Duplicate Checks**: Replaced full in-memory table scans with targeted indexed database queries (`phone: { endsWith: phoneDigits }`) in Gentle Hair Wigs and Printbooth CRM leads.
+  - **ACID Interactive Transactions**: Wrapped multi-step booking item and invoice line replacements in `prisma.$transaction(async (tx) => { ... })` in `api/crockery-rental/sync/route.ts` to guarantee atomicity and prevent data loss.
+  - **Normalized Date Serialization**: Standardized date parsing to UTC midnight (`parseUtcMidnight()`) in daily report endpoints to eliminate timezone date shifts.
+  - **Unified Multi-Tenant Seed Pipeline**: Rewrote `packages/db/src/seed.ts` using Bcrypt hashing for Super Admin (`super_admin_credentials`) and business roles, provisioning all 10 canonical businesses with deterministic UUIDs, default studios, and role tab access.
+- **Verification Evidence**:
+  - `node scripts/test-step2-database-suite.mjs`: 32/32 assertions passed (0 failures).
+  - `node scripts/test-step1-security-suite.mjs`: 25/25 assertions passed (0 failures).
+  - Total automated tests passing: 57/57.
+  - `pnpm type-check`: 5/5 packages green.
+  - `pnpm lint`: "✔ No ESLint warnings or errors".
+  - `pnpm --filter @homeseva/web build`: 100% clean Next.js production build (`✓ Compiled successfully`, all 25 routes generated).
