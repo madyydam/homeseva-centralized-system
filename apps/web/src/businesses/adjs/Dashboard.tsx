@@ -1056,7 +1056,7 @@ export default function AdjsDashboard(props: BusinessDashboardProps) {
   let role = props.role;
   if (!role && typeof window !== 'undefined') {
     try {
-      const match = document.cookie.match(/homeseva_session=([^;]+)/);
+      const match = document.cookie.match(/homeseva_user_session=([^;]+)/) || document.cookie.match(/homeseva_session=([^;]+)/);
       if (match && match[1]) {
         const parts = match[1].split('.');
         if (parts[0]) {

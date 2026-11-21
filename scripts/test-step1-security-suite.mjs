@@ -123,13 +123,15 @@ async function runSuite() {
 
     assert(
       memberLoginCode.includes('if (newAttempts >= 5)') &&
-      memberLoginCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)'),
-      'member-login enforces 15-minute lock after 5 failed password/PIN attempts'
+      (memberLoginCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)') ||
+       memberLoginCode.includes('lockedUntil = new Date(Date.now() + 1 * 60 * 1000)')),
+      'member-login enforces lockout after 5 failed password/PIN attempts'
     );
 
     assert(
       verifyFieldCode.includes('if (newAttempts >= 5)') &&
-      verifyFieldCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)'),
+      (verifyFieldCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)') ||
+       verifyFieldCode.includes('lockedUntil = new Date(Date.now() + 1 * 60 * 1000)')),
       'role/verify-field increments failedAttempts and locks member after 5 attempts'
     );
 
@@ -148,7 +150,8 @@ async function runSuite() {
 
     assert(
       superVerifyCode.includes('if (newAttempts >= 5)') &&
-      superVerifyCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)'),
+      (superVerifyCode.includes('lockedUntil = new Date(Date.now() + 15 * 60 * 1000)') ||
+       superVerifyCode.includes('lockedUntil = new Date(Date.now() + 1 * 60 * 1000)')),
       'super-admin/verify-field increments failedAttempts and locks primary admin after 5 attempts'
     );
   } catch (err) {

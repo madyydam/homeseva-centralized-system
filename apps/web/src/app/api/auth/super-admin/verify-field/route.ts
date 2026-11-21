@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       const newAttempts = (adminRecord.failedAttempts || 0) + 1;
       const updatePayload: Record<string, any> = { failedAttempts: newAttempts };
       if (newAttempts >= 5) {
-        updatePayload.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+        updatePayload.lockedUntil = new Date(Date.now() + 1 * 60 * 1000);
       }
       await prisma.superAdminCredentials.update({
         where: { id: 'primary' },

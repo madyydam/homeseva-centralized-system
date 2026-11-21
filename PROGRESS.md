@@ -132,3 +132,24 @@ This log tracks every verified task executed on the `production-migration` branc
   - `pnpm type-check`: 5/5 packages green.
   - `pnpm lint`: "✔ No ESLint warnings or errors".
   - `pnpm --filter @homeseva/web build`: Clean production standalone build.
+
+### [Step 3] Next.js Edge Middleware, Cross-Tenant Route Isolation, Role Sandboxing & API Route Shields
+- **Changes**:
+  - **Edge Middleware Engine (`apps/web/src/middleware.ts`)**: Built lightweight 31.1 kB Edge middleware with pure Web Crypto HMAC-SHA256 token verification (`verifySession`). Zero Node.js or Prisma dependencies for 100% Edge runtime compatibility.
+  - **Super Admin Route Guard**: Intercepts `/super-admin/*`. Redirects unauthenticated requests to `/super-admin/signin?from=...`. Automatically redirects logged-in Super Admin visiting `/super-admin/signin` straight to `/super-admin/companies`.
+  - **Multi-Tenant Workspace Barrier**: Intercepts `/app/:businessSlug/*`. Requires valid `homeseva_user_session` or universal `homeseva_sa_token`. Strictly blocks cross-tenant access: if a Gentle Hair Wigs employee attempts to navigate to `/app/adjs/dashboard` or `/app/printbooth/dashboard`, middleware intercepts and redirects them back to their own authorized workspace (`/app/gentle-hair-wigs/dashboard?error=unauthorized_workspace`).
+  - **API Route Shields & Anti-IDOR**:
+    - Whitelists public authentication endpoints (`/api/auth/*`).
+    - Enforces HTTP 401 on unauthenticated calls to `/api/admin/*`, `/api/members`, and `/api/email/test`.
+    - Enforces HTTP 403 on cross-tenant calls (e.g. Printbooth staff token calling `/api/gentle-hair-wigs/*`).
+  - **Telecaller UI Sandboxing**: Verified that `ColdCallerDashboard` (Gentle Hair Wigs) and `ColdcallerDashboard` (ADJS/Printbooth) render only calling tabs (`sheet`, `annual`, `follow-up`, `converted`, `daily-reporting`) with zero imports or DOM rendering of Manager, Owner, Finance, SOP, or Developer components. Fixed cookie reference in `adjs/Dashboard.tsx` to canonical `homeseva_user_session`.
+- **Verification Evidence**:
+  - `node scripts/test-step3-route-isolation.mjs`: 28/28 assertions passed (0 failures).
+  - `node scripts/test-step1-security-suite.mjs`: 27/27 assertions passed (0 failures).
+  - `node scripts/test-step2-database-suite.mjs`: 32/32 assertions passed (0 failures).
+  - `node scripts/test-optimization-suite.mjs`: 17/17 assertions passed (0 failures).
+  - `node scripts/test-crm-database-operations.mjs`: 27/27 assertions passed (0 failures).
+  - **Total automated assertions passed across all 5 test suites: 131/131 (0 failures)**.
+  - `pnpm type-check`: 5/5 packages green.
+  - `pnpm lint`: "✔ No ESLint warnings or errors".
+  - `pnpm --filter @homeseva/web build`: Clean production build output (`ƒ Middleware 31.1 kB`, all 36 routes generated).

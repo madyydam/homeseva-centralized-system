@@ -915,7 +915,7 @@ export default function SuperAdminSignInPage() {
               <div className="leading-relaxed">
                 <span className="font-semibold">Security Protocol:</span> You must verify your identity with your{' '}
                 <span className="text-white font-mono font-bold">Current Password, 4-Digit PIN, and 8-Digit Master Key</span>.
-                Any mismatched factor will reject the update. 5 failed attempts trigger an automated 15-minute account lockout.
+                Any mismatched factor will reject the update. 5 failed attempts trigger an automated 1-minute account lockout.
               </div>
             </div>
 

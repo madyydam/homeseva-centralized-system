@@ -86,9 +86,10 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
     businessSlug,
   } = params;
 
-  const appBase = process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
-    ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '')
-    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+  const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  const appBase = rawAppUrl && !rawAppUrl.includes('localhost') && !rawAppUrl.includes('vercel.app')
+    ? rawAppUrl.replace(/\/+$/, '')
+    : 'https://erphomeseva.tech';
 
   // Base domain link only (clean root domain, no deep / direct slug link)
   const loginUrl = params.loginUrl || appBase;
@@ -384,7 +385,7 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
     <div class="footer">
       <div><strong>Confidential Enterprise Document</strong></div>
       <div>This message was automatically dispatched by HomeSeva Central ERP on behalf of Super Administration.</div>
-      <div class="signature">HomeSeva Enterprise Administration</div>
+      <div class="signature">Regards, Madhur Dhadve</div>
     </div>
   </div>
 </body>
