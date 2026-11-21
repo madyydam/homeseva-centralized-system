@@ -143,26 +143,6 @@ const emailHtml = `
                 </tr>
               </table>
 
-              <!-- Production Server Notice -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
-                <tr>
-                  <td style="background: #111827; border: 1px dashed #374151; border-radius: 8px; padding: 14px 18px; font-size: 12px; color: #9ca3af; line-height: 1.5;">
-                    💡 <strong>Disaster Recovery Note:</strong> In the event of VPS failure, this backup can be restored with a single command via <code style="color: #60a5fa; background: #1f2937; padding: 2px 6px; border-radius: 4px;">bash scripts/db-restore.sh ${fileName}</code>.
-                  </td>
-                </tr>
-              </table>
-
-              <!-- CTA / Dashboard Link -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td align="center" style="padding-top: 10px;">
-                    <a href="https://erphomeseva.tech/super-admin" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; padding: 12px 32px; font-size: 14px; font-weight: 700; border-radius: 8px; box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.4);">
-                      Open Super Admin Portal →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
             </td>
           </tr>
 
