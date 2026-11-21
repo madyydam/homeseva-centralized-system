@@ -112,3 +112,23 @@ This log tracks every verified task executed on the `production-migration` branc
   - `pnpm type-check`: 5/5 packages green.
   - `pnpm lint`: "✔ No ESLint warnings or errors".
   - `pnpm --filter @homeseva/web build`: 100% clean Next.js production build (`✓ Compiled successfully`, all 25 routes generated).
+
+### [Optimization & Performance] Repository Shrink (1.23 GB Saved), Standalone Docker & Client-Side Throttling
+- **Commit**: `a87fc04`, `13ae434`, `93c4719`
+- **Changes**:
+  - **Folder Footprint Reduced (1.23 GB Saved)**: Identified bloat in local build caches (`.turbo`, `apps/desktop/dist`) and an untracked 74 MB Windows binary (`HomeSeva-Setup-1.3.0.exe`). Purged caches and updated `.gitignore` with strict binary exclusion rules (`*.exe`, `*.dmg`, `*.AppImage`). Directory size decreased from 2.60 GB to 1.37 GB.
+  - **Next.js Standalone Build**: Configured `output: 'standalone'` in `apps/web/next.config.mjs`. Docker container builds now bundle only exact dependencies into `.next/standalone` (56.7 MB minimal package) rather than copying 1 GB of `node_modules`.
+  - **Node.js Memory Capping**: Configured `NODE_OPTIONS="--max-old-space-size=1024"` in `Dockerfile.web` to prevent heap exhaustion on the 8 GB VPS host.
+  - **PostgreSQL Connection Pool Protection**: Enforced `connection_limit=15&pool_timeout=20` on `DATABASE_URL` in `docker-compose.vps.yml` to prevent runaway connection spikes across Next.js API worker threads.
+  - **Safe Pagination & Query Bounds**: Capped unbounded database queries (`take: 500` on Gentle Hair Wigs & Printbooth CRM leads, `take: 200` on Printbooth orders and tickets) to eliminate database memory spikes.
+  - **Client-Side Battery & CPU Throttling**: Integrated the HTML5 Page Visibility API (`document.hidden` / `visibilitychange`) into `DailyReportingView.tsx` to automatically freeze background polling intervals when employee tabs are minimized or hidden.
+  - **Super Admin Credentials Reset Flow**: Implemented a multi-factor re-authorization modal on `super-admin/signin` backed by `api/auth/super-admin/reset-credentials/route.ts` with Bcrypt verification and failed-attempt lockouts.
+  - **SQL Sanitization**: Purged legacy plaintext demo credentials from all raw SQL scripts in `database/` and disabled obsolete legacy `/api/auth/verify` fallback route.
+- **Verification Evidence**:
+  - `node scripts/test-optimization-suite.mjs`: 17/17 assertions passed (0 failures).
+  - `node scripts/test-step1-security-suite.mjs`: 25/25 assertions passed (0 failures).
+  - `node scripts/test-step2-database-suite.mjs`: 32/32 assertions passed (0 failures).
+  - **Total automated assertions passed: 74/74 (0 failures)**.
+  - `pnpm type-check`: 5/5 packages green.
+  - `pnpm lint`: "✔ No ESLint warnings or errors".
+  - `pnpm --filter @homeseva/web build`: Clean production standalone build.
