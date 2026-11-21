@@ -3,7 +3,7 @@ function getApiUrl(endpoint: string): string {
   const cleanPath = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
 
   // 1. Server-side runtime (Next.js server function / Server Action):
-  // Uses Vercel internal service binding if present (API_URL)
+  // Uses internal API binding if present (API_URL)
   if (typeof window === 'undefined' && process.env.API_URL) {
     const base = process.env.API_URL.endsWith('/')
       ? process.env.API_URL
@@ -19,7 +19,7 @@ function getApiUrl(endpoint: string): string {
     return new URL(cleanPath, base).toString();
   }
 
-  // 3. Client-side default: same-domain relative path handled by Vercel rewrites
+  // 3. Client-side default: same-domain relative path
   return `/api/v1/${cleanPath}`;
 }
 

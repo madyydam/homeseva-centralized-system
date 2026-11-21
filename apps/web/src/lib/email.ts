@@ -86,10 +86,9 @@ export async function sendMemberWelcomeCredentialsEmail(params: MemberCredential
     businessSlug,
   } = params;
 
-  // Enterprise production portal URL: erphomeseva.vercel.app
   const appBase = process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
     ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '')
-    : 'https://erphomeseva.vercel.app';
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
 
   const loginUrl = params.loginUrl || `${appBase}/signin/${businessSlug}`;
   const displayUrl = loginUrl.replace(/^https?:\/\//, '');

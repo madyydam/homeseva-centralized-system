@@ -13,6 +13,5 @@ export const prisma =
         : ['error'],
   });
 
-if (process.env['NODE_ENV'] !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+// Cache Prisma Client across all runtimes to prevent connection pool exhaustion
+globalForPrisma.prisma = prisma;
