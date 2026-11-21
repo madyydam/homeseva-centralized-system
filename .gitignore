@@ -46,6 +46,7 @@ cookie.txt
 
 # VPS deploy secrets (contains real passwords)
 .env.vps
+HOSTINGER_KVM2_DEPLOYMENT.md
 nginx/certs/
 apps/desktop/*.txt
 

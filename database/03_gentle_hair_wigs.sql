@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS public.telecaller_daily_reports (
   business_id TEXT NOT NULL DEFAULT 'b1000000-0000-0000-0000-000000000003',
   telecaller_id TEXT NOT NULL,
   telecaller_name TEXT NOT NULL,
+  branch TEXT DEFAULT 'viman-nagar',
   report_date DATE NOT NULL DEFAULT CURRENT_DATE,
   calls_made INT NOT NULL DEFAULT 0,
   calls_connected INT NOT NULL DEFAULT 0,
