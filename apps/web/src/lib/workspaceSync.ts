@@ -1,21 +1,43 @@
 /**
  * Generic workspace synchronization client for multi-tenant business modules.
  * Connects zero-latency in-memory caching and browser localStorage with authoritative PostgreSQL persistence.
+ * Hardened for offline resiliency, internet reconnect auto-recovery, and mobile app lifecycle visibility.
  */
 export class WorkspaceSyncClient<T extends Record<string, any>> {
   private inMemoryCache: T;
   private storageKey: string;
   private businessSlug: string;
+  private section: string;
   private isPushing = false;
+  private pendingPush = false;
   private subscribers: Array<() => void> = [];
+  private onlineHandler?: () => void;
+  private visibilityHandler?: () => void;
 
-  constructor(businessSlug: string, storageKey: string, initialData: T) {
+  constructor(businessSlug: string, storageKey: string, initialData: T, section: string = 'main') {
     this.businessSlug = businessSlug;
     this.storageKey = storageKey;
+    this.section = section;
     this.inMemoryCache = { ...initialData };
     this.hydrateFromStorage();
+
     if (typeof window !== 'undefined') {
       this.syncFromRemote();
+
+      // Lifecycle Listener 1: Internet Reconnect Recovery
+      this.onlineHandler = () => {
+        this.pushToRemote();
+        this.syncFromRemote();
+      };
+      window.addEventListener('online', this.onlineHandler);
+
+      // Lifecycle Listener 2: Mobile / Browser Visibility Recovery
+      this.visibilityHandler = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          this.syncFromRemote();
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
     }
   }
 
@@ -68,7 +90,7 @@ export class WorkspaceSyncClient<T extends Record<string, any>> {
   async syncFromRemote(): Promise<void> {
     if (typeof window === 'undefined') return;
     try {
-      const res = await fetch(`/api/business/${this.businessSlug}/sync?section=main`, {
+      const res = await fetch(`/api/business/${this.businessSlug}/sync?section=${encodeURIComponent(this.section)}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -97,26 +119,42 @@ export class WorkspaceSyncClient<T extends Record<string, any>> {
         }
       }
     } catch {
-      // Offline fallback: keep local inMemoryCache
+      // Offline fallback: keep local inMemoryCache safely intact
     }
   }
 
   /**
-   * Pushes current workspace snapshot to PostgreSQL.
+   * Pushes current workspace snapshot to PostgreSQL with retry queue.
    */
   async pushToRemote(): Promise<void> {
-    if (typeof window === 'undefined' || this.isPushing) return;
+    if (typeof window === 'undefined') return;
+    if (this.isPushing) {
+      this.pendingPush = true;
+      return;
+    }
+
     this.isPushing = true;
     try {
-      await fetch(`/api/business/${this.businessSlug}/sync`, {
+      const res = await fetch(`/api/business/${this.businessSlug}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section: 'main', data: this.inMemoryCache }),
+        body: JSON.stringify({ section: this.section, data: this.inMemoryCache }),
       });
+
+      if (!res.ok) {
+        // Queue retry if network/server is temporarily busy
+        this.pendingPush = true;
+      }
     } catch {
-      // Fail silently, data is safely saved in localStorage
+      // Offline / network drop: saved in localStorage, will retry on 'online'
+      this.pendingPush = true;
     } finally {
       this.isPushing = false;
+      if (this.pendingPush) {
+        this.pendingPush = false;
+        // Schedule throttled retry after 3 seconds
+        setTimeout(() => this.pushToRemote(), 3000);
+      }
     }
   }
 
@@ -132,5 +170,13 @@ export class WorkspaceSyncClient<T extends Record<string, any>> {
     this.persistLocal();
     this.notify();
     this.pushToRemote();
+  }
+
+  destroy() {
+    if (typeof window !== 'undefined') {
+      if (this.onlineHandler) window.removeEventListener('online', this.onlineHandler);
+      if (this.visibilityHandler) document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
+    this.subscribers = [];
   }
 }

@@ -86,6 +86,17 @@ find "$BACKUP_DIR" -name "homeseva_full_*.dump*" -mtime "+${RETENTION_DAYS}" -ex
 
 REMAINING_COUNT=$(find "$BACKUP_DIR" -name "*.dump" | wc -l)
 echo "✅ Cleanup finished. Total backup archives currently retained: ${REMAINING_COUNT}"
+
+# 6. Weekly Backup Completion Email Notification
+CHECKSUM_VAL=$(cut -d' ' -f1 < "${FILEPATH}.sha256")
+NOTIFY_RECIPIENT="${BACKUP_NOTIFY_EMAIL:-rohan.taware@homeseva.co.in}"
+echo "Sending backup completion email to ${NOTIFY_RECIPIENT}..."
+node "$SCRIPT_DIR/send-backup-email.mjs" \
+  --to "$NOTIFY_RECIPIENT" \
+  --file "$FILENAME" \
+  --size "$FILESIZE" \
+  --checksum "$CHECKSUM_VAL" || echo "⚠️ Warning: Failed to send backup notification email."
+
 echo "================================================================="
 echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] Weekly backup completed successfully."
 echo "================================================================="

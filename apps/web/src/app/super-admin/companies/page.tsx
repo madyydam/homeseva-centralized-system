@@ -214,7 +214,7 @@ export default function CompaniesPage() {
     const roleId = selectedRole.role || selectedRole.label;
 
     const targetSub = (selectedCompany.subcompanies && selectedCompany.subcompanies.length > 0)
-      ? newMemberSubcompany
+      ? (selectedRole.subcompanySlug && selectedRole.subcompanySlug !== 'SHARED' ? selectedRole.subcompanySlug : newMemberSubcompany)
       : 'SHARED';
 
     try {

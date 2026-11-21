@@ -19,7 +19,8 @@ export class HorecaEssentialsDatabase {
         salesOrders: [],
         rentalBookings: [],
         stockItems: [],
-      }
+      },
+      'essentials-sales'
     );
   }
 

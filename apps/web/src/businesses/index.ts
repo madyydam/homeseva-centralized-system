@@ -29,9 +29,10 @@ export const BUSINESS_MODULES: Record<string, BusinessModule> = {
   'nda-services': ndaServicesModule,
   'hs-real-estate': hsRealEstateModule,
 
-  // Backward compatibility alias slugs if needed
+  // Backward compatibility and vertical alias slugs
   'business-1': prefabConstructionModule,
   'crockery-rental': crockeryRentalModule,
+  'essentials-sales': horecaEssentialsModule,
   'business-2': gentleHairWigsModule,
   'business-4': ecolabDistributionModule,
 };
