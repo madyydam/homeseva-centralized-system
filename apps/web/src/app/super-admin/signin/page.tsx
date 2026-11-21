@@ -865,9 +865,233 @@ export default function SuperAdminSignInPage() {
                 )}
               </button>
             </div>
+            {/* Reset / Forgot Credentials Button */}
+            <div className="pt-3 text-center border-t border-slate-800/60 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setResetError('');
+                  setResetSuccess('');
+                  setResetForm((prev) => ({ ...prev, username: username || prev.username }));
+                  setIsResetOpen(true);
+                }}
+                className="text-xs text-slate-400 hover:text-indigo-400 transition-colors font-medium inline-flex items-center space-x-1.5"
+              >
+                <KeyRound className="h-3.5 w-3.5 text-slate-500" />
+                <span>Forgot Password / Reset Master Credentials?</span>
+              </button>
+            </div>
           </form>
         </div>
       </div>
+
+      {/* RESET MASTER CREDENTIALS MODAL */}
+      {isResetOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+          <div className="relative w-full max-w-xl my-8 rounded-3xl border border-slate-800/90 bg-slate-900/95 p-6 sm:p-7 shadow-2xl">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsResetOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white transition rounded-xl p-1.5 hover:bg-slate-800"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+                <RefreshCw className="h-5 w-5 text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Reset Super Admin Credentials</h2>
+                <p className="text-xs text-slate-400">Strict Multi-Factor Re-Authorization Flow</p>
+              </div>
+            </div>
+
+            {/* Security Warning */}
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 mb-5 text-xs text-amber-300 flex items-start space-x-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+              <div className="leading-relaxed">
+                <span className="font-semibold">Security Protocol:</span> You must verify your identity with your{' '}
+                <span className="text-white font-mono font-bold">Current Password, 4-Digit PIN, and 8-Digit Master Key</span>.
+                Any mismatched factor will reject the update. 5 failed attempts trigger an automated 15-minute account lockout.
+              </div>
+            </div>
+
+            {resetError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 mb-4 text-xs text-rose-300 flex items-center space-x-2">
+                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                <span className="font-semibold">{resetError}</span>
+              </div>
+            )}
+
+            {resetSuccess && (
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 mb-4 text-xs text-emerald-300 flex items-center space-x-2">
+                <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span className="font-semibold">{resetSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleResetSubmit} className="space-y-4">
+              {/* SECTION 1: Current Verification */}
+              <div className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-950/70 p-3.5">
+                <div className="text-[11px] font-bold tracking-wider uppercase text-slate-400 flex items-center space-x-1.5">
+                  <Shield className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Step 1: Verify Current Master Identity</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Master Username</label>
+                    <input
+                      type="text"
+                      required
+                      value={resetForm.username}
+                      onChange={(e) => setResetForm({ ...resetForm, username: e.target.value })}
+                      placeholder="e.g. madyydam"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 px-3 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPass ? 'text' : 'password'}
+                        required
+                        value={resetForm.currentPassword}
+                        onChange={(e) => setResetForm({ ...resetForm, currentPassword: e.target.value })}
+                        placeholder="Current password"
+                        className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 pl-3 pr-8 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPass(!showCurrentPass)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      >
+                        {showCurrentPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Current 4-Digit PIN</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      inputMode="numeric"
+                      required
+                      value={resetForm.currentPin4}
+                      onChange={(e) => setResetForm({ ...resetForm, currentPin4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                      placeholder="••••"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 px-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-cyan-500 font-mono text-center tracking-widest font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Current 8-Digit Key</label>
+                    <input
+                      type="password"
+                      maxLength={8}
+                      inputMode="numeric"
+                      required
+                      value={resetForm.currentPin8}
+                      onChange={(e) => setResetForm({ ...resetForm, currentPin8: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                      placeholder="••••••••"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 px-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-purple-500 font-mono text-center tracking-widest font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: New Master Credentials */}
+              <div className="space-y-2.5 rounded-2xl border border-slate-800 bg-slate-950/70 p-3.5">
+                <div className="text-[11px] font-bold tracking-wider uppercase text-emerald-400 flex items-center space-x-1.5">
+                  <KeySquare className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Step 2: Define New Master Credentials</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">New Master Password (min 8 chars)</label>
+                  <div className="relative">
+                    <input
+                      type={showNewPass ? 'text' : 'password'}
+                      required
+                      minLength={8}
+                      value={resetForm.newPassword}
+                      onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
+                      placeholder="New strong password"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 pl-3 pr-8 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPass(!showNewPass)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    >
+                      {showNewPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">New 4-Digit Security PIN</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      inputMode="numeric"
+                      required
+                      value={resetForm.newPin4}
+                      onChange={(e) => setResetForm({ ...resetForm, newPin4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                      placeholder="••••"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 px-3 text-xs text-emerald-300 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500 font-mono text-center tracking-widest font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">New 8-Digit Master Key</label>
+                    <input
+                      type="password"
+                      maxLength={8}
+                      inputMode="numeric"
+                      required
+                      value={resetForm.newPin8}
+                      onChange={(e) => setResetForm({ ...resetForm, newPin8: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                      placeholder="••••••••"
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 py-2 px-3 text-xs text-emerald-300 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500 font-mono text-center tracking-widest font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsResetOpen(false)}
+                  className="flex-1 rounded-xl border border-slate-800 py-2.5 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 py-2.5 text-xs font-bold text-white shadow-lg transition flex items-center justify-center space-x-1.5"
+                >
+                  {resetLoading ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      <span>Verify & Reset Credentials</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Bottom spacer for centering */}
       <div className="relative z-10" />

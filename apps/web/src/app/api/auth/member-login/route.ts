@@ -44,19 +44,40 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // 2. Query member by email in this business
+    // 2. Query member strictly by businessId, roleId, and email
     const targetMember = await prisma.roleMember.findFirst({
       where: {
         businessId: business.id,
+        roleId: rId,
         email: em,
         isActive: true,
       },
     });
 
     if (!targetMember) {
+      // Check if this email is assigned to any other role in this business workspace
+      const otherRolesInBusiness = await prisma.roleMember.findMany({
+        where: {
+          businessId: business.id,
+          email: em,
+          isActive: true,
+        },
+        select: { roleId: true },
+      });
+
+      if (otherRolesInBusiness.length > 0) {
+        const assignedRoleNames = otherRolesInBusiness.map((r) => `"${r.roleId}"`).join(', ');
+        return NextResponse.json({
+          success: false,
+          error: `Access Denied: You are not authorized for role "${rId}". Your assigned role(s) in this business: ${assignedRoleNames}.`,
+          wrongRole: true,
+          assignedRoles: otherRolesInBusiness.map((r) => r.roleId),
+        }, { status: 403 });
+      }
+
       return NextResponse.json({
         success: false,
-        error: `No member account found with email "${em}" in this business. Please contact your Super Administrator to allot access.`,
+        error: `No member account found with email "${em}" in this business workspace. Please contact your Super Administrator to allocate access.`,
       }, { status: 401 });
     }
 
@@ -71,30 +92,6 @@ export async function POST(req: NextRequest) {
           error: `Account locked after 5 failed attempts. Please retry in ${remainingMinutes} minute(s).`,
         }, { status: 403 });
       }
-    }
-
-    // 3. Smart role check: Verify if member is trying to login to a different role
-    const normalizeRole = (r: string) => {
-      const norm = r.trim().toLowerCase().replace(/[\s\-_]+/g, '');
-      if (norm === 'coldcaller' || norm === 'telecaller' || norm === 'caller') {
-        return 'caller';
-      }
-      if (norm === 'owner' || norm === 'studiopartner' || norm === 'studiopartnerowner' || norm === 'partner') {
-        return 'owner';
-      }
-      if (norm === 'manager' || norm === 'studiomanager' || norm === 'storeoperationsmanager' || norm === 'operationsmanager') {
-        return 'manager';
-      }
-      return norm;
-    };
-
-    if (normalizeRole(targetMember.roleId) !== normalizeRole(rId)) {
-      return NextResponse.json({
-        success: false,
-        error: `You are not ${rId}. You are assigned to the role "${targetMember.roleId}". Please select "${targetMember.roleId}" and try again.`,
-        wrongRole: true,
-        actualRole: targetMember.roleId,
-      }, { status: 403 });
     }
 
     // 4. Validate password (Bcrypt cryptographic verification with zero-downtime auto-upgrade)

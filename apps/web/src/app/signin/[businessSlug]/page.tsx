@@ -364,32 +364,10 @@ function BusinessSignInContent({ params }: SignInPageProps) {
 
         let data = await res.json();
 
-        // If wrong role selected for this member, show exact prompt
-        if (!data.success && data.wrongRole) {
-          setErrorMsg(data.error);
+        if (!data.success) {
+          setErrorMsg(data.error || 'Authentication failed. Please check your credentials.');
           isSubmittingSessionRef.current = false;
           return false;
-        }
-
-        // Graceful fallback to legacy role verify if table not yet migrated or other issue
-        if (!data.success) {
-          const fallbackRes = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              businessSlug: apiSlug,
-              role: rRole,
-              password: rPass,
-              pin: rPin,
-            }),
-          });
-          const fallbackData = await fallbackRes.json();
-          if (!fallbackData.success) {
-            setErrorMsg(data.error || fallbackData.error || 'Authentication failed. Please check your credentials.');
-            isSubmittingSessionRef.current = false;
-            return false;
-          }
-          data = fallbackData;
         }
 
         // ✅ Security handshake complete: cookie is confirmed saved in the browser!
