@@ -83,9 +83,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limitParam = searchParams.get('limit');
+    const take = limitParam ? Math.min(1000, Math.max(1, parseInt(limitParam, 10) || 500)) : (since ? undefined : 500);
+    const skip = since || (!limitParam && !searchParams.get('page')) ? undefined : (page - 1) * (take || 500);
+
     const leads = await prisma.gentleHairWigsLead.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      ...(take ? { take } : {}),
+      ...(skip ? { skip } : {}),
     });
 
     let formatted = leads.map(formatLead);

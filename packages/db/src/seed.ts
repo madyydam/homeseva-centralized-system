@@ -45,17 +45,21 @@ async function main() {
   });
   console.log(`✅ Super Admin credentials seeded for username: "${superAdmin.username}" (primary)`);
 
-  // Also maintain the legacy User entry for backward compatibility
-  await prisma.user.upsert({
-    where: { roleId_businessId: { roleId: 'SUPER_ADMIN', businessId: '' } },
-    update: { passwordHash },
-    create: {
-      roleId: 'SUPER_ADMIN',
-      passwordHash,
-      isSuperAdmin: true,
-      mustChangePass: false,
-    },
-  });
+  // Also maintain the legacy User entry for backward compatibility if table exists
+  try {
+    await (prisma as any).user?.upsert({
+      where: { roleId_businessId: { roleId: 'SUPER_ADMIN', businessId: '' } },
+      update: { passwordHash },
+      create: {
+        roleId: 'SUPER_ADMIN',
+        passwordHash,
+        isSuperAdmin: true,
+        mustChangePass: false,
+      },
+    });
+  } catch (_err) {
+    // Ignore if legacy users table is not present
+  }
 
   // 2. Seed All 10 Canonical Multi-Tenant Businesses
   console.log('🏢 Seeding 10 canonical businesses...');

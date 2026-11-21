@@ -49,6 +49,7 @@ export async function GET() {
         businessId: { in: [canonicalBizId, 'adjs', 'printbooth'] },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
 
     return NextResponse.json({

@@ -14,6 +14,9 @@ import {
   Check,
   Eye,
   EyeOff,
+  X,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import WaveBackground from '../../../components/WaveBackground';
 
@@ -32,6 +35,65 @@ export default function SuperAdminSignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Reset Credentials Modal State
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [resetForm, setResetForm] = useState({
+    username: '',
+    currentPassword: '',
+    currentPin4: '',
+    currentPin8: '',
+    newPassword: '',
+    newPin4: '',
+    newPin8: '',
+  });
+
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError('');
+    setResetSuccess('');
+
+    try {
+      const res = await fetch('/api/auth/super-admin/reset-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resetForm),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setResetError(data.error || 'Failed to verify current credentials or reset master key.');
+        setResetLoading(false);
+        return;
+      }
+
+      setResetSuccess(data.message || 'Master credentials updated successfully! You can now sign in.');
+      setResetLoading(false);
+      setUsername(resetForm.username);
+      setPassword(resetForm.newPassword);
+      setPin4(resetForm.newPin4);
+      setPin8(resetForm.newPin8);
+      // Clear reset form except username
+      setResetForm((prev) => ({
+        ...prev,
+        currentPassword: '',
+        currentPin4: '',
+        currentPin8: '',
+        newPassword: '',
+        newPin4: '',
+        newPin8: '',
+      }));
+    } catch {
+      setResetError('Connection error while contacting authorization server.');
+      setResetLoading(false);
+    }
+  };
 
   // 4 Locks State
   const [locks, setLocks] = useState<{

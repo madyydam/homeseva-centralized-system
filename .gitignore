@@ -49,3 +49,12 @@ cookie.txt
 nginx/certs/
 apps/desktop/*.txt
 
+# compiled executables & installers
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.zip
+*.tar.gz
+

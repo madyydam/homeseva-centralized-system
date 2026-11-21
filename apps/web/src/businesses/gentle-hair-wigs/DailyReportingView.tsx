@@ -415,6 +415,7 @@ export function DailyReportingView({
 
   useEffect(() => {
     const updateTime = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       const now = new Date();
       setCurrentTimeStr(
         now.toLocaleTimeString('en-US', {
@@ -427,7 +428,16 @@ export function DailyReportingView({
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) updateTime();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
 
   // Calculate worked hours & auto-classify status:
