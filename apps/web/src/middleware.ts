@@ -25,6 +25,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth/me',
   '/api/auth/logout',
   '/api/auth/verify',
+  '/api/version',
 ];
 
 /**
