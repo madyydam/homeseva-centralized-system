@@ -137,7 +137,10 @@ export const SomeshwarInvoiceTemplate: React.FC<SomeshwarInvoiceTemplateProps> =
                     {idx + 1}
                   </td>
                   <td className="py-2.5 px-4 border-r border-slate-900 font-medium text-slate-900">
-                    {line.particulars || line.description}
+                    {(line.description || line.particulars || 'Item')
+                      .replace(/\s*\(\d+.*?\)$/, '')
+                      .replace(/\s+\d+\s*nos\b.*/i, '')
+                      .trim()}
                   </td>
                   <td className="py-2.5 px-3 text-center border-r border-slate-900 font-medium">
                     {line.quantity}

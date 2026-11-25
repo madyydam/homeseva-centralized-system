@@ -167,7 +167,7 @@ export const LedgerView: React.FC = () => {
             </button>
 
             {/* Single Add Stock Entry Button */}
-            {(role === 'owner' || role === 'manager') && (
+            {(role === 'owner' || role === 'manager' || (role as string) === 'General Manager' || (role as string) === 'general_manager') && (
               <button
                 onClick={() => {
                   if (!addEntryItemId && items.length > 0 && items[0]) {

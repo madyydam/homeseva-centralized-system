@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { InventoryProvider, useInventory } from './InventoryContext';
 import { Header } from './components/Header';
@@ -54,7 +54,20 @@ export function CrockeryRentalApp({ role: propRole }: BusinessDashboardProps = {
 function MainApp() {
   const { role, bookings, invoices, generateInvoice } = useInventory();
   const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('crockery_active_tab');
+      if (saved) return saved;
+    }
+    return 'dashboard';
+  });
+
+  // Persist active tab to localStorage so refresh stays on same module
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crockery_active_tab', activeTab);
+    }
+  }, [activeTab]);
 
   // Modals state
   const [showNewBooking, setShowNewBooking] = useState(false);
@@ -69,6 +82,27 @@ function MainApp() {
   const overdueCount = useMemo(() => {
     return bookings.filter((b) => b.status === 'Overdue').length;
   }, [bookings]);
+
+  // Auto-update banner: poll /api/health or build timestamp to detect new deploys
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useEffect(() => {
+    let lastEtag: string | null = null;
+    const checkUpdate = async () => {
+      try {
+        const res = await fetch('/', { method: 'HEAD', cache: 'no-store' });
+        const etag = res.headers.get('etag') || res.headers.get('last-modified') || '';
+        if (lastEtag && etag && lastEtag !== etag) {
+          setUpdateAvailable(true);
+        }
+        lastEtag = etag || lastEtag;
+      } catch {}
+    };
+    checkUpdate();
+    const interval = setInterval(checkUpdate, 5 * 60 * 1000); // every 5 min
+    const onVisible = () => { if (!document.hidden) checkUpdate(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
 
   const navItems = useMemo(
     () => [
@@ -93,6 +127,18 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+      {/* Auto-Update Banner */}
+      {updateAvailable && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] bg-amber-600 text-white text-xs font-bold flex items-center justify-between px-4 py-2.5 shadow-xl">
+          <span>🔄 New version available! Refresh to get latest updates.</span>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-3 py-1 bg-white text-amber-700 rounded-lg font-bold hover:bg-amber-50 active:scale-95 transition cursor-pointer"
+          >
+            Update Now
+          </button>
+        </div>
+      )}
       {/* Top Header - Slim & Clean */}
       <Header
         activeTab={activeTab}

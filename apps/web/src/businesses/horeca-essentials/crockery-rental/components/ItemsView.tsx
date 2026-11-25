@@ -331,7 +331,7 @@ export const ItemsView: React.FC = () => {
               <span>Export Excel</span>
             </button>
 
-            {(role === 'owner' || role === 'manager') && (
+            {(role === 'owner' || role === 'manager' || (role as string) === 'General Manager' || (role as string) === 'general_manager') && (
               <>
                 <button
                   onClick={() => setShowImportModal(true)}
@@ -498,7 +498,7 @@ export const ItemsView: React.FC = () => {
                         <History className="h-3.5 w-3.5" />
                       </button>
 
-                      {(role === 'owner' || role === 'manager') && (
+                      {(role === 'owner' || role === 'manager' || (role as string) === 'General Manager' || (role as string) === 'general_manager') && (
                         <>
                           <button
                             onClick={() => setEditingItem(item)}
