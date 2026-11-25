@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const rawSlug = searchParams.get('slug');
+    const division = searchParams.get('division') || searchParams.get('subcompany');
 
     if (rawSlug) {
       const canonicalSlug = (rawSlug === 'crockery-rental' || rawSlug === 'essentials-sales')
@@ -63,10 +64,16 @@ export async function GET(req: NextRequest) {
       }));
 
       // Strict sub-company vertical role isolation for Crockery Rental vs Essentials Sales
-      if (rawSlug === 'crockery-rental') {
-        activeRoles = activeRoles.filter((r) => r.subcompany_slug === 'crockery-rental');
-      } else if (rawSlug === 'essentials-sales') {
-        activeRoles = activeRoles.filter((r) => r.subcompany_slug === 'essentials-sales');
+      const targetSubcompany = (rawSlug === 'crockery-rental' || division === 'crockery-rental')
+        ? 'crockery-rental'
+        : (rawSlug === 'essentials-sales' || division === 'essentials-sales')
+        ? 'essentials-sales'
+        : (rawSlug === 'printbooth' || division === 'printbooth')
+        ? 'printbooth'
+        : null;
+
+      if (targetSubcompany) {
+        activeRoles = activeRoles.filter((r) => r.subcompany_slug === targetSubcompany);
       }
 
       const activeTabs = (business.tabs || []).map((t) => ({
@@ -82,13 +89,13 @@ export async function GET(req: NextRequest) {
         success: true,
         business: {
           id: business.id,
-          name: rawSlug === 'crockery-rental'
+          name: targetSubcompany === 'crockery-rental'
             ? 'Crockery Rentals'
-            : (rawSlug === 'essentials-sales' ? 'HoReCa Essentials' : business.name),
+            : (targetSubcompany === 'essentials-sales' ? 'HoReCa Essentials' : business.name),
           slug: rawSlug,
-          subtitle: rawSlug === 'crockery-rental'
+          subtitle: targetSubcompany === 'crockery-rental'
             ? 'Banquet Tableware & Buffet Hire Operations'
-            : (rawSlug === 'essentials-sales' ? 'Commercial Kitchenware Supply' : business.subtitle),
+            : (targetSubcompany === 'essentials-sales' ? 'Commercial Kitchenware Supply' : business.subtitle),
           description: business.description,
           themeColor: business.themeColor,
           logoUrl: business.logoUrl,

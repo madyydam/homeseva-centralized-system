@@ -200,7 +200,7 @@ export const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
         const r = Number(next.rate) || 0;
         const d = Number(next.days) || 1;
         next.amount = Math.round(q * r * d * 100) / 100;
-        next.particulars = `${next.description} ${q}nos @${r}per Nos X${d}day`;
+        next.particulars = next.description;
         return next;
       })
     );

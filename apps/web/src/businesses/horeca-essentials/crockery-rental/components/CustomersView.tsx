@@ -13,16 +13,21 @@ import {
   X,
   CreditCard,
   Building,
+  Download,
+  Upload,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { ImportCustomersExcelModal } from './ImportCustomersExcelModal';
 
 export const CustomersView: React.FC = () => {
-  const { customers, bookings, invoices, payments, addCustomer } = useInventory();
+  const { customers, bookings, invoices, payments, addCustomer, bulkAddCustomers } = useInventory();
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<'all' | 'regular' | 'caterer' | 'blacklisted'>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  // New customer modal
+  // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [altPhone, setAltPhone] = useState('');
@@ -67,6 +72,53 @@ export const CustomersView: React.FC = () => {
     setPhone('');
     setAddress('');
     setShowAddModal(false);
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const exportData = filteredCustomers.map((c, idx) => {
+        const metrics = customerMetricsMap.get(c.id);
+        return {
+          'Sr No': idx + 1,
+          'Customer Name': c.name,
+          'Phone': c.phone,
+          'Alternative Phone': c.alt_phone || '',
+          'Delivery / Billing Address': c.address || '',
+          'GSTIN': c.gstin || '',
+          'Tag': c.tag,
+          'Total Bookings': metrics?.custBookings.length || 0,
+          'Total Billed (₹)': metrics?.totalBilled || 0,
+          'Total Paid (₹)': metrics?.totalPaid || 0,
+          'Outstanding Balance (₹)': metrics?.totalOutstanding || 0,
+          'Notes': c.notes || '',
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      worksheet['!cols'] = [
+        { wch: 8 },
+        { wch: 30 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 40 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 35 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Crockery_Customers_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting customers excel:', err);
+      alert('Failed to export customers to Excel.');
+    }
   };
 
   // Precompute metrics map for all customers to avoid linear scans on every render
@@ -156,8 +208,8 @@ export const CustomersView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative w-full sm:w-72">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="relative w-full sm:w-60">
               <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
@@ -168,9 +220,30 @@ export const CustomersView: React.FC = () => {
               />
             </div>
 
+            {/* Excel Export Button */}
+            <button
+              onClick={handleExportExcel}
+              title="Export customer directory to Excel (.xlsx)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export Excel</span>
+            </button>
+
+            {/* Excel Bulk Import Button */}
+            <button
+              onClick={() => setShowImportModal(true)}
+              title="Bulk import customers from Excel with downloadable sample template"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600/30 bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 active:scale-95 transition cursor-pointer"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import Excel</span>
+            </button>
+
+            {/* Single Add Customer Button - Kept Intact */}
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
               <span>Add Customer</span>
@@ -492,6 +565,14 @@ export const CustomersView: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Bulk Excel Import Modal */}
+      <ImportCustomersExcelModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={(newCustomers) => {
+          bulkAddCustomers(newCustomers);
+        }}
+      />
     </div>
   );
 };

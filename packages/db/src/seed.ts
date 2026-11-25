@@ -12,53 +12,51 @@ async function main() {
   console.log('🌱 Starting comprehensive multi-tenant database seed...');
 
   // 1. Seed Super Admin Credentials
-  const superUsername = process.env['SUPER_ADMIN_USERNAME'] || 'superadmin';
-  const superPassword = process.env['SUPER_ADMIN_PASSWORD'] || 'ChangeMeSuperAdmin@2026';
-  const superPin4 = process.env['SUPER_ADMIN_PIN4'] || '1234';
-  const superPin8 = process.env['SUPER_ADMIN_PIN8'] || '12345678';
-
-  const [passwordHash, pin4Hash, pin8Hash] = await Promise.all([
-    hashBcrypt(superPassword),
-    hashBcrypt(superPin4),
-    hashBcrypt(superPin8),
-  ]);
-
-  const superAdmin = await prisma.superAdminCredentials.upsert({
+  const existingSuperAdmin = await prisma.superAdminCredentials.findFirst({
     where: { id: 'primary' },
-    update: {
-      username: superUsername,
-      passwordHash,
-      pin4Hash,
-      pin8Hash,
-      failedAttempts: 0,
-      lockedUntil: null,
-    },
-    create: {
-      id: 'primary',
-      username: superUsername,
-      passwordHash,
-      pin4Hash,
-      pin8Hash,
-      failedAttempts: 0,
-      lockedUntil: null,
-    },
   });
-  console.log(`✅ Super Admin credentials seeded for username: "${superAdmin.username}" (primary)`);
 
-  // Also maintain the legacy User entry for backward compatibility if table exists
-  try {
-    await (prisma as any).user?.upsert({
-      where: { roleId_businessId: { roleId: 'SUPER_ADMIN', businessId: '' } },
-      update: { passwordHash },
-      create: {
-        roleId: 'SUPER_ADMIN',
+  if (existingSuperAdmin) {
+    console.log(`🔒 Super Admin record already exists for "${existingSuperAdmin.username}". Preserving live credentials untouched.`);
+  } else {
+    const superUsername = process.env['SUPER_ADMIN_USERNAME'] || 'superadmin';
+    const superPassword = process.env['SUPER_ADMIN_PASSWORD'] || 'ChangeMeSuperAdmin@2026';
+    const superPin4 = process.env['SUPER_ADMIN_PIN4'] || '1234';
+    const superPin8 = process.env['SUPER_ADMIN_PIN8'] || '12345678';
+
+    const [passwordHash, pin4Hash, pin8Hash] = await Promise.all([
+      hashBcrypt(superPassword),
+      hashBcrypt(superPin4),
+      hashBcrypt(superPin8),
+    ]);
+
+    await prisma.superAdminCredentials.create({
+      data: {
+        id: 'primary',
+        username: superUsername,
         passwordHash,
-        isSuperAdmin: true,
-        mustChangePass: false,
+        pin4Hash,
+        pin8Hash,
+        failedAttempts: 0,
+        lockedUntil: null,
       },
     });
-  } catch (_err) {
-    // Ignore if legacy users table is not present
+    console.log(`✅ Initial Super Admin bootstrap credentials seeded for "${superUsername}"`);
+    // Also maintain the legacy User entry for backward compatibility if table exists
+    try {
+      await (prisma as any).user?.upsert({
+        where: { roleId_businessId: { roleId: 'SUPER_ADMIN', businessId: '' } },
+        update: { passwordHash },
+        create: {
+          roleId: 'SUPER_ADMIN',
+          passwordHash,
+          isSuperAdmin: true,
+          mustChangePass: false,
+        },
+      });
+    } catch (_err) {
+      // Ignore if legacy users table is not present
+    }
   }
 
   // 2. Seed All 10 Canonical Multi-Tenant Businesses

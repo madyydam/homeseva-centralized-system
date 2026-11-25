@@ -212,29 +212,32 @@ export const HomesevaInvoiceTemplate: React.FC<HomesevaInvoiceTemplateProps> = (
                 <th className="py-1 px-2 w-20 text-center font-bold">HSN/SAC</th>
                 <th className="py-1 px-2 w-16 text-center font-bold">Quantity</th>
                 <th className="py-1 px-2 w-16 text-center font-bold">Rate</th>
-                <th className="py-1 px-2 w-12 text-center font-bold">per</th>
+                <th className="py-1 px-2 w-14 text-center font-bold">Days</th>
                 <th className="py-1 px-3 w-28 text-right font-bold">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {lineItems.map((line, idx) => (
-                <tr key={line.id || idx} className="divide-x divide-slate-900 align-top">
-                  <td className="py-1 px-1.5 text-center font-medium">{idx + 1}</td>
-                  <td className="py-1 px-3 font-medium">
-                    <span className="font-bold block text-slate-900">CCG Rental Charges</span>
-                    <span className="text-slate-700 block italic text-[11px]">
-                      {line.particulars || `${line.description} ${line.quantity}nos @${line.rate}per Nos X${line.days || rentDays}day`}
-                    </span>
-                  </td>
-                  <td className="py-1 px-2 text-center font-mono text-slate-800">{line.hsn_sac || '997319'}</td>
-                  <td className="py-1 px-2 text-center">{line.quantity || ''}</td>
-                  <td className="py-1 px-2 text-center">{line.rate || ''}</td>
-                  <td className="py-1 px-2 text-center">{line.per || 'Nos'}</td>
-                  <td className="py-1 px-3 text-right font-bold text-slate-900">
-                    {Number(line.amount).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+              {lineItems.map((line, idx) => {
+                const cleanItemName = (line.description || line.particulars || 'Item')
+                  .replace(/\s*\(\d+.*?\)$/, '')
+                  .replace(/\s+\d+\s*nos\b.*/i, '')
+                  .trim();
+                return (
+                  <tr key={line.id || idx} className="divide-x divide-slate-900 align-top">
+                    <td className="py-1 px-1.5 text-center font-medium">{idx + 1}</td>
+                    <td className="py-1.5 px-3 font-bold text-slate-900">
+                      {cleanItemName}
+                    </td>
+                    <td className="py-1 px-2 text-center font-mono text-slate-800">{line.hsn_sac || '997319'}</td>
+                    <td className="py-1 px-2 text-center">{line.quantity || ''}</td>
+                    <td className="py-1 px-2 text-center">{line.rate || ''}</td>
+                    <td className="py-1 px-2 text-center font-medium text-slate-900">{line.days || rentDays || 1}</td>
+                    <td className="py-1 px-3 text-right font-bold text-slate-900">
+                      {Number(line.amount).toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
 
               {/* CGST Line inside particulars table */}
               <tr className="divide-x divide-slate-900">

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useInventory } from '../InventoryContext';
 import { Item, ItemCategory, RentBasis, StockMovementType, StockMovement } from '../types';
+import { ImportItemsExcelModal } from './ImportItemsExcelModal';
 import {
   Package,
   PlusCircle,
@@ -21,10 +22,13 @@ import {
   Power,
   ArrowUpDown,
   TrendingDown,
+  FileSpreadsheet,
+  Upload,
+  Download,
 } from 'lucide-react';
 
 export const ItemsView: React.FC = () => {
-  const { items, addItem, updateItem, addStockAdjustment, role, ledger } = useInventory();
+  const { items, addItem, bulkAddItems, updateItem, addStockAdjustment, role, ledger } = useInventory();
   const [selectedCategory, setSelectedCategory] = useState<ItemCategory | 'all'>('all');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'low_stock' | 'rented' | 'cleaning' | 'inactive'>('all');
@@ -32,6 +36,7 @@ export const ItemsView: React.FC = () => {
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [adjustingItem, setAdjustingItem] = useState<Item | null>(null);
   const [adjustType, setAdjustType] = useState<StockMovementType>('PURCHASE');
@@ -156,6 +161,54 @@ export const ItemsView: React.FC = () => {
     updateItem({ ...item, active: nextActive });
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const exportData = items.map((item, idx) => ({
+        'Sr No': idx + 1,
+        'Item Name': item.name,
+        'Category': item.category,
+        'Pack Size (pcs)': item.pack_size,
+        'Rent Rate (₹/day)': item.rent_per_day,
+        'Rent Basis': item.rent_basis,
+        'Replacement Cost (₹)': item.replacement_cost,
+        'Total Owned': item.total_quantity,
+        'In Godown (Available)': item.in_godown,
+        'Out on Rent': item.out_on_rent,
+        'In Cleaning / Wash': item.in_cleaning,
+        'Written Off (Loss)': item.written_off,
+        'Low Stock Threshold': item.low_stock_threshold || 50,
+        'Status': item.active ? 'Active' : 'Inactive',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      worksheet['!cols'] = [
+        { wch: 8 },
+        { wch: 30 },
+        { wch: 15 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 20 },
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 12 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Crockery Stock');
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Crockery_Inventory_Stock_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting items excel:', err);
+      alert('Failed to export Excel file. Please try again.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Inventory Intelligence & Fleet Metrics Banner */}
@@ -268,15 +321,36 @@ export const ItemsView: React.FC = () => {
               </select>
             </div>
 
-            {/* Add New Item Button */}
+            {/* Excel Export & Import & Single Add Item Actions */}
+            <button
+              onClick={handleExportExcel}
+              title="Export all items and inventory stock to Excel (.xlsx)"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export Excel</span>
+            </button>
+
             {(role === 'owner' || role === 'manager') && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-amber-700 active:scale-95 transition cursor-pointer"
-              >
-                <PlusCircle className="h-4 w-4" />
-                <span>+ Add Item</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  title="Import items via Excel with downloadable sample template"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-blue-600/30 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 active:scale-95 transition cursor-pointer"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Import Excel</span>
+                </button>
+
+                {/* Single Add Item Button - Kept Intact */}
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-amber-700 active:scale-95 transition cursor-pointer"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  <span>+ Add Item</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1070,6 +1144,15 @@ export const ItemsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Excel Import Modal */}
+      <ImportItemsExcelModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={(newItems) => {
+          bulkAddItems(newItems);
+        }}
+      />
     </div>
   );
 };

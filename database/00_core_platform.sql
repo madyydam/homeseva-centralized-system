@@ -397,22 +397,8 @@ BEGIN
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 12. SEED: SUPER ADMIN (Credentials: madyydam, bcrypt hashed)
 -- -----------------------------------------------------------------------------
-INSERT INTO public.super_admin_credentials (id, username, password_hash, pin4_hash, pin8_hash, failed_attempts, locked_until)
-VALUES (
-  'primary',
-  'madyydam',
-  '$2b$10$pZqlONT6aGnVFnVRJg2zne8UoQCAMttvV0HImdWUIiW2zYplVr1fK',
-  '$2b$10$fr7EF8LAXz1yZKjI6A9auudV7EUOeRFB3SaWpKvSFXtzv4nteD7eK',
-  '$2b$10$TJKWKvaQBBS62ZfYVolRSOUS9PUTdCFiT7F7i8tbw8z8ECsdZaE.q',
-  0,
-  NULL
-)
-ON CONFLICT (id) DO NOTHING;
-
--- -----------------------------------------------------------------------------
--- 13. SEED: THE 10 PRODUCTION BUSINESS REGISTRY
+-- 12. SEED: THE 10 PRODUCTION BUSINESS REGISTRY
 -- -----------------------------------------------------------------------------
 INSERT INTO public.businesses (id, slug, name, subtitle, description, theme_color, is_active) VALUES
 ('b1000000-0000-0000-0000-000000000001', 'prefab-construction', 'Prefab Construction Solutions', 'Civil & Modular Sites', 'Civil engineering, modular building solutions and site project management', 'blue', true),

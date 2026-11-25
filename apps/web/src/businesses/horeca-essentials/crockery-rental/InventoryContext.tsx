@@ -68,10 +68,12 @@ interface InventoryContextType {
   updateInvoice: (id: string, updates: Partial<Invoice>) => void;
   recordPayment: (payment: Omit<Payment, 'id'>) => void;
   addItem: (item: Omit<Item, 'id' | 'in_godown' | 'out_on_rent' | 'in_cleaning' | 'written_off'>) => void;
+  bulkAddItems: (newItemsData: Omit<Item, 'id' | 'in_godown' | 'out_on_rent' | 'in_cleaning' | 'written_off'>[]) => void;
   updateItem: (item: Item) => void;
   addStockAdjustment: (itemId: string, type: StockMovementType, quantity: number, reason: string) => void;
   markWashed: (itemId: string, quantity: number) => void;
   addCustomer: (customer: Omit<Customer, 'id' | 'created_at'>) => Customer;
+  bulkAddCustomers: (newCustomersData: Omit<Customer, 'id' | 'created_at'>[]) => void;
   resetAllData: () => void;
 }
 
@@ -677,8 +679,8 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
 
       invoiceLines.push({
         id: `il-${Date.now()}-${item.id}`,
-        description: `${item.item_name} (${count} pcs ${item.rent_basis === 'per_day' ? `x ${days} days` : 'event rate'})`,
-        particulars: `${item.item_name} ${count}nos @${item.rate_snapshot}per Nos X${days}day`,
+        description: item.item_name,
+        particulars: item.item_name,
         hsn_sac: '997319',
         quantity: count,
         rate: item.rate_snapshot,
@@ -888,6 +890,46 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
     syncToPostgres('add_stock_movement', movement);
   };
 
+  // Bulk Add Items from Excel
+  const bulkAddItems = (newItemsData: Omit<Item, 'id' | 'in_godown' | 'out_on_rent' | 'in_cleaning' | 'written_off'>[]) => {
+    if (!newItemsData || newItemsData.length === 0) return;
+    const now = Date.now();
+    const createdItems: Item[] = [];
+    const movements: StockMovement[] = [];
+
+    newItemsData.forEach((itemData, idx) => {
+      const newItem: Item = {
+        ...itemData,
+        id: `item-${now}-${idx}`,
+        in_godown: itemData.total_quantity,
+        out_on_rent: 0,
+        in_cleaning: 0,
+        written_off: 0,
+      };
+      createdItems.push(newItem);
+
+      movements.push({
+        id: `mov-${now}-${idx}`,
+        item_id: newItem.id,
+        item_name: newItem.name,
+        type: 'PURCHASE',
+        quantity: newItem.total_quantity,
+        bucket_to: 'In godown',
+        user: role.toUpperCase(),
+        reason: 'Bulk stock imported from Excel spreadsheet',
+        created_at: new Date(now + idx).toISOString(),
+      });
+    });
+
+    const nextItems = [...items, ...createdItems];
+    saveItems(nextItems);
+    createdItems.forEach((i) => syncToPostgres('upsert_item', i));
+
+    const nextLedger = [...movements, ...ledger];
+    saveLedger(nextLedger);
+    movements.forEach((m) => syncToPostgres('add_stock_movement', m));
+  };
+
   const updateItem = (item: Item) => {
     const nextItems = items.map((i) => (i.id === item.id ? item : i));
     saveItems(nextItems);
@@ -990,6 +1032,24 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
     return newCustomer;
   };
 
+  // Bulk Add Customers from Excel
+  const bulkAddCustomers = (newCustomersData: Omit<Customer, 'id' | 'created_at'>[]) => {
+    if (!newCustomersData || newCustomersData.length === 0) return;
+    const now = Date.now();
+    const createdCustomers: Customer[] = [];
+    newCustomersData.forEach((cData, idx) => {
+      const newCustomer: Customer = {
+        ...cData,
+        id: `cust-${now}-${idx}`,
+        created_at: new Date(now + idx).toISOString(),
+      };
+      createdCustomers.push(newCustomer);
+    });
+    const nextCustomers = [...customers, ...createdCustomers];
+    saveCustomers(nextCustomers);
+    createdCustomers.forEach((c) => syncToPostgres('upsert_customer', c));
+  };
+
   const resetAllData = () => {
     setRoleState(initialRole ?? 'owner');
     setProfileState(initialBusinessProfile);
@@ -1030,10 +1090,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       updateInvoice,
       recordPayment,
       addItem,
+      bulkAddItems,
       updateItem,
       addStockAdjustment,
       markWashed,
       addCustomer,
+      bulkAddCustomers,
       resetAllData,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

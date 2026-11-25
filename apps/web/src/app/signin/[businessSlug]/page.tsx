@@ -103,12 +103,6 @@ const DEFAULT_BUSINESS_ROLES: Record<string, DynamicRole[]> = {
     { id: '3', role_id: 'Rental Logistics Supervisor', label: 'Rental Logistics Supervisor', department: 'Rental', description: 'Banquet and event hire logistics, delivery & return checks' },
     { id: '4', role_id: 'Inventory & Warehousing Desk', label: 'Inventory & Warehousing Desk', department: 'Inventory', description: 'Stock tracking, breakage register, and warehouse audits' },
     { id: '5', role_id: 'Banquet Billing & Invoicing', label: 'Banquet Billing & Invoicing', department: 'Finance', description: 'Invoicing, advances, security deposits, and settlement register' },
-    { id: '6', role_id: 'Owner (Sales)', label: 'Owner (Essentials Sales)', department: 'Executive', description: 'Executive P&L oversight, enterprise kitchenware contracts & growth' },
-    { id: '7', role_id: 'General Manager (Sales)', label: 'General Manager (Essentials Sales)', department: 'Management', description: 'Commercial kitchenware sales oversight, wholesale distribution & expansion' },
-    { id: '8', role_id: 'Store Manager', label: 'Store Manager (Sales)', department: 'Operations', description: 'Daily B2B orders, kitchenware stock coordination & customer requests' },
-    { id: '9', role_id: 'Sales Representative (Essentials)', label: 'Sales Representative (Essentials)', department: 'Sales', description: 'Commercial cutlery, chinaware, glassware & amenities sales' },
-    { id: '10', role_id: 'Billing & Accounts', label: 'Billing & Accounts (Sales)', department: 'Finance', description: 'Invoices, GST returns, accounts receivables & payment reconciliation' },
-    { id: '11', role_id: 'Logistics & Dispatch', label: 'Logistics & Dispatch (Sales)', department: 'Logistics', description: 'Commercial kitchenware delivery manifests, transport logistics & LR receipts' },
   ],
   'crockery-rental': [
     { id: '1', role_id: 'Owner', label: 'Owner (Crockery Rental)', department: 'Executive', description: 'Complete business oversight, banquet revenue P&L & rental expansion' },
@@ -222,12 +216,15 @@ function BusinessSignInContent({ params }: SignInPageProps) {
   const [selectedSubcompany, setSelectedSubcompany] = useState<'printbooth' | null>(initialSubcompany);
 
   // Dynamic roles fetched from PostgreSQL API (pre-populated with catalog defaults)
-  const initialDivKey = businessSlug === 'crockery-rental' ? 'crockery-rental' : (initialDivision || businessSlug);
+  const activeDivKey = isHorecaEssentials
+    ? (selectedDivision || (businessSlug === 'crockery-rental' ? 'crockery-rental' : 'essentials-sales'))
+    : (isAdjs && selectedSubcompany === 'printbooth' ? 'printbooth' : businessSlug);
+
   const fallbackRoles: DynamicRole[] = useMemo(() =>
-    DEFAULT_BUSINESS_ROLES[initialDivKey] ||
+    DEFAULT_BUSINESS_ROLES[activeDivKey] ||
     DEFAULT_BUSINESS_ROLES[businessSlug] ||
     (isHorecaEssentials ? (DEFAULT_BUSINESS_ROLES['crockery-rental'] || []) : (isAdjs ? (DEFAULT_BUSINESS_ROLES['adjs'] || []) : [])),
-    [initialDivKey, businessSlug, isHorecaEssentials, isAdjs]
+    [activeDivKey, businessSlug, isHorecaEssentials, isAdjs]
   );
   const [roles, setRoles] = useState<DynamicRole[]>(fallbackRoles);
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0]?.role_id || '');
@@ -631,25 +628,39 @@ function BusinessSignInContent({ params }: SignInPageProps) {
     async function loadRoles() {
       try {
         setIsLoadingRoles(true);
-        const apiSlug = businessSlug === 'crockery-rental' ? 'horeca-essentials' : (isAdjs ? 'adjs' : businessSlug);
-        const res = await fetch(`/api/auth/businesses?slug=${apiSlug}`);
+        const currentDiv = isHorecaEssentials
+          ? (selectedDivision || (businessSlug === 'crockery-rental' ? 'crockery-rental' : 'essentials-sales'))
+          : (isAdjs && selectedSubcompany === 'printbooth' ? 'printbooth' : undefined);
+
+        const apiSlug = businessSlug === 'crockery-rental' ? 'crockery-rental' : (isAdjs ? 'adjs' : businessSlug);
+        const queryParams = new URLSearchParams({ slug: apiSlug });
+        if (currentDiv) {
+          queryParams.set('division', currentDiv);
+        }
+
+        const res = await fetch(`/api/auth/businesses?${queryParams.toString()}`);
         const data = await res.json();
         if (data.success && Array.isArray(data.business?.roles) && data.business.roles.length > 0) {
           let loadedRoles = data.business.roles;
-          if (isHorecaEssentials) {
-            const currentDiv = selectedDivision || (businessSlug === 'crockery-rental' ? 'crockery-rental' : 'essentials-sales');
-            if (currentDiv === 'crockery-rental') {
-              const filtered = loadedRoles.filter((r: any) =>
-                !r.role_id.toLowerCase().includes('sales representative')
-              );
-              if (filtered.length > 0) loadedRoles = filtered;
-            } else if (currentDiv === 'essentials-sales') {
-              const filtered = loadedRoles.filter((r: any) =>
-                !r.role_id.toLowerCase().includes('rental logistics') &&
-                !r.role_id.toLowerCase().includes('banquet billing')
-              );
-              if (filtered.length > 0) loadedRoles = filtered;
-            }
+          if (isHorecaEssentials && currentDiv) {
+            loadedRoles = loadedRoles.filter((r: any) =>
+              r.subcompany_slug === currentDiv ||
+              (currentDiv === 'crockery-rental' && (
+                r.role_id === 'Owner' ||
+                r.role_id === 'General Manager' ||
+                r.role_id === 'Rental Logistics Supervisor' ||
+                r.role_id === 'Inventory & Warehousing Desk' ||
+                r.role_id === 'Banquet Billing & Invoicing'
+              )) ||
+              (currentDiv === 'essentials-sales' && (
+                r.role_id === 'Owner (Sales)' ||
+                r.role_id === 'General Manager (Sales)' ||
+                r.role_id === 'Store Manager' ||
+                r.role_id === 'Sales Representative (Essentials)' ||
+                r.role_id === 'Billing & Accounts' ||
+                r.role_id === 'Logistics & Dispatch'
+              ))
+            );
           }
           if (loadedRoles.length > 0) {
             setRoles(loadedRoles);
@@ -659,23 +670,29 @@ function BusinessSignInContent({ params }: SignInPageProps) {
               setSelectedRole(loadedRoles[0].role_id);
               latestRoleRef.current = loadedRoles[0].role_id;
             }
-          } else if (fallbackRoles.length > 0) {
+          } else if (fallbackRoles.length > 0 && fallbackRoles[0]) {
             setRoles(fallbackRoles);
+            setSelectedRole(fallbackRoles[0].role_id);
+            latestRoleRef.current = fallbackRoles[0].role_id;
           }
-        } else if (fallbackRoles.length > 0) {
+        } else if (fallbackRoles.length > 0 && fallbackRoles[0]) {
           setRoles(fallbackRoles);
+          setSelectedRole(fallbackRoles[0].role_id);
+          latestRoleRef.current = fallbackRoles[0].role_id;
         }
       } catch (err) {
         console.error('Failed to load roles from API:', err);
-        if (fallbackRoles.length > 0) {
+        if (fallbackRoles.length > 0 && fallbackRoles[0]) {
           setRoles(fallbackRoles);
+          setSelectedRole(fallbackRoles[0].role_id);
+          latestRoleRef.current = fallbackRoles[0].role_id;
         }
       } finally {
         setIsLoadingRoles(false);
       }
     }
     loadRoles();
-  }, [businessSlug, selectedDivision, isHorecaEssentials, isAdjs, fallbackRoles]);
+  }, [businessSlug, selectedDivision, selectedSubcompany, isHorecaEssentials, isAdjs, fallbackRoles]);
 
 
 

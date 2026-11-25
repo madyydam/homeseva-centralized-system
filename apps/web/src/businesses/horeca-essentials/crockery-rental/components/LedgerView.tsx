@@ -9,6 +9,9 @@ import {
   ShieldCheck,
   Calendar,
   Layers,
+  PlusCircle,
+  Download,
+  X,
 } from 'lucide-react';
 
 const MOVEMENT_TYPES: { key: string; label: string }[] = [
@@ -23,10 +26,17 @@ const MOVEMENT_TYPES: { key: string; label: string }[] = [
 ];
 
 export const LedgerView: React.FC = () => {
-  const { ledger, items } = useInventory();
+  const { ledger, items, addStockAdjustment, role } = useInventory();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedItemId, setSelectedItemId] = useState<string>('all');
   const [search, setSearch] = useState('');
+
+  // Single Add Stock Entry state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addEntryItemId, setAddEntryItemId] = useState(items[0]?.id || '');
+  const [addEntryType, setAddEntryType] = useState<StockMovementType>('PURCHASE');
+  const [addEntryQty, setAddEntryQty] = useState(50);
+  const [addEntryReason, setAddEntryReason] = useState('');
 
   const filteredLedger = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -44,6 +54,46 @@ export const LedgerView: React.FC = () => {
       );
     });
   }, [ledger, selectedType, selectedItemId, search]);
+
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const exportData = filteredLedger.map((entry, idx) => ({
+        'Sr No': idx + 1,
+        'Timestamp': new Date(entry.created_at).toLocaleString('en-IN'),
+        'Item Name': entry.item_name,
+        'Movement Type': entry.type,
+        'Quantity (pcs)': entry.quantity,
+        'Flow From': entry.bucket_from || '—',
+        'Flow To': entry.bucket_to || '—',
+        'Booking Reference': entry.booking_number || '—',
+        'User': entry.user,
+        'Reason / Notes': entry.reason,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      worksheet['!cols'] = [
+        { wch: 8 },
+        { wch: 22 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 35 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Ledger');
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Crockery_Stock_Ledger_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting ledger to Excel:', err);
+      alert('Failed to export Stock Ledger to Excel.');
+    }
+  };
 
   const getTypeBadge = (type: StockMovementType) => {
     switch (type) {
@@ -81,11 +131,11 @@ export const LedgerView: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <select
               value={selectedItemId}
               onChange={(e) => setSelectedItemId(e.target.value)}
-              className="rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground"
+              className="rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground font-medium"
             >
               <option value="all">-- Filter By Item --</option>
               {items.map((i) => (
@@ -95,7 +145,7 @@ export const LedgerView: React.FC = () => {
               ))}
             </select>
 
-            <div className="relative w-full sm:w-60">
+            <div className="relative w-full sm:w-56">
               <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
@@ -105,6 +155,33 @@ export const LedgerView: React.FC = () => {
                 className="w-full rounded-lg border border-input bg-background pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
               />
             </div>
+
+            {/* Export Ledger Button */}
+            <button
+              onClick={handleExportExcel}
+              title="Export Stock Ledger to Excel (.xlsx)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Export Ledger</span>
+            </button>
+
+            {/* Single Add Stock Entry Button */}
+            {(role === 'owner' || role === 'manager') && (
+              <button
+                onClick={() => {
+                  if (!addEntryItemId && items.length > 0 && items[0]) {
+                    setAddEntryItemId(items[0].id);
+                  }
+                  setShowAddModal(true);
+                }}
+                title="Record manual stock adjustment or new purchase entry"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs active:scale-95 transition cursor-pointer"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>+ Add Stock Entry</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -114,7 +191,7 @@ export const LedgerView: React.FC = () => {
             <button
               key={t.key}
               onClick={() => setSelectedType(t.key)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                 selectedType === t.key
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'bg-muted/40 text-muted-foreground hover:bg-muted'
@@ -168,23 +245,23 @@ export const LedgerView: React.FC = () => {
                       {entry.item_name}
                     </td>
                     <td className="p-3.5">{getTypeBadge(entry.type)}</td>
-                  <td className="p-3.5 text-center font-mono font-bold text-sm text-foreground">
-                    {entry.quantity} pcs
-                  </td>
-                  <td className="p-3.5 text-xs">
-                    {entry.bucket_from || entry.bucket_to ? (
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        {entry.bucket_from && <span className="font-semibold text-foreground">{entry.bucket_from}</span>}
-                        {entry.bucket_from && entry.bucket_to && <ArrowRight className="h-3 w-3" />}
-                        {entry.bucket_to && <span className="font-semibold text-emerald-600">{entry.bucket_to}</span>}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="p-3.5 font-mono text-xs font-semibold text-foreground">
-                    {entry.booking_number || '—'}
-                  </td>
+                    <td className="p-3.5 text-center font-mono font-bold text-sm text-foreground">
+                      {entry.quantity} pcs
+                    </td>
+                    <td className="p-3.5 text-xs">
+                      {entry.bucket_from || entry.bucket_to ? (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          {entry.bucket_from && <span className="font-semibold text-foreground">{entry.bucket_from}</span>}
+                          {entry.bucket_from && entry.bucket_to && <ArrowRight className="h-3 w-3" />}
+                          {entry.bucket_to && <span className="font-semibold text-emerald-600">{entry.bucket_to}</span>}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="p-3.5 font-mono text-xs font-semibold text-foreground">
+                      {entry.booking_number || '—'}
+                    </td>
                     <td className="p-3.5 text-xs">
                       <span className="font-semibold text-foreground">{entry.user}:</span>{' '}
                       <span className="text-muted-foreground">{entry.reason}</span>
@@ -196,6 +273,121 @@ export const LedgerView: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Single Add Stock Entry Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="h-5 w-5 text-amber-600" />
+                <h3 className="font-bold text-foreground">Record Single Stock Entry</h3>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-muted-foreground hover:bg-muted cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const targetId = addEntryItemId || (items[0]?.id || '');
+                if (!targetId) {
+                  alert('Please select an item');
+                  return;
+                }
+                if (addEntryQty <= 0) {
+                  alert('Please enter a valid quantity greater than 0');
+                  return;
+                }
+                if (!addEntryReason.trim()) {
+                  alert('Please provide a reason or reference for this entry');
+                  return;
+                }
+                addStockAdjustment(targetId, addEntryType, addEntryQty, addEntryReason.trim());
+                setShowAddModal(false);
+                setAddEntryReason('');
+                setAddEntryQty(50);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-foreground mb-1">Select Item</label>
+                <select
+                  value={addEntryItemId || items[0]?.id || ''}
+                  onChange={(e) => setAddEntryItemId(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-foreground font-medium"
+                >
+                  {items.map((it) => (
+                    <option key={it.id} value={it.id}>
+                      {it.name} (In Godown: {it.in_godown} pcs | Total: {it.total_quantity})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-foreground mb-1">Movement / Entry Type</label>
+                <select
+                  value={addEntryType}
+                  onChange={(e) => setAddEntryType(e.target.value as StockMovementType)}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-foreground font-medium"
+                >
+                  <option value="PURCHASE">PURCHASE (New Stock Delivery / Inward)</option>
+                  <option value="ADJUSTMENT">ADJUSTMENT (Stock Audit Correction)</option>
+                  <option value="AUDIT_CORRECTION">AUDIT_CORRECTION (Physical Count Recalibration)</option>
+                  <option value="RETURN_BROKEN">RETURN_BROKEN (Breakage Damage Write-off)</option>
+                  <option value="RETURN_MISSING">RETURN_MISSING (Missing Stock Loss Write-off)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-foreground mb-1">Quantity (pcs)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={addEntryQty}
+                  onChange={(e) => setAddEntryQty(Number(e.target.value) || 0)}
+                  placeholder="e.g. 50"
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-foreground font-mono font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-foreground mb-1">Reason / Notes / PO Ref</label>
+                <input
+                  type="text"
+                  value={addEntryReason}
+                  onChange={(e) => setAddEntryReason(e.target.value)}
+                  placeholder="e.g. Purchase order PO-981 / Physical audit count correction"
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-foreground font-medium"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl text-muted-foreground hover:bg-muted font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition shadow-sm active:scale-95"
+                >
+                  Record Stock Entry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
