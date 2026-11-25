@@ -13,6 +13,7 @@ import {
   CreditCard,
   Building2,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 
 interface InvoiceModalProps {
@@ -22,7 +23,8 @@ interface InvoiceModalProps {
 }
 
 export const InvoiceModal: React.FC<InvoiceModalProps> = ({ invoice, onClose, onRecordPayment }) => {
-  const { updateInvoice } = useInventory();
+  const { updateInvoice, deleteInvoice, role } = useInventory();
+  const canDelete = role === 'owner' || role === 'manager' || (role as string) === 'General Manager' || (role as string) === 'general_manager';
   const [currentFirm, setCurrentFirm] = useState<InvoiceFirm>(invoice.firm || 'someshwar');
   const [zoomPercent, setZoomPercent] = useState<number>(100);
 
@@ -202,6 +204,22 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ invoice, onClose, on
               >
                 <CreditCard className="h-4 w-4" />
                 <span className="hidden sm:inline">Pay</span>
+              </button>
+            )}
+
+            {/* Delete Invoice Button */}
+            {canDelete && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Delete Invoice #${invoice.invoice_number} for ${invoice.customer_name}?`)) {
+                    deleteInvoice(invoice.id);
+                    onClose();
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 px-2.5 py-1.5 text-xs font-bold hover:bg-rose-500/20 transition cursor-pointer"
+                title="Delete Invoice"
+              >
+                <Trash2 className="h-4 w-4" />
               </button>
             )}
 

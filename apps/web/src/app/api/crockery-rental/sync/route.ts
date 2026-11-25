@@ -631,6 +631,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, invoiceId: savedInvoice.id });
       }
 
+      // 4b. Delete Invoice
+      case 'delete_invoice': {
+        const { id } = payload || {};
+        if (!id) {
+          return NextResponse.json({ success: false, error: 'Missing invoice id' }, { status: 400 });
+        }
+        await prisma.crockeryInvoice.deleteMany({
+          where: { id, businessId: canonicalBizId },
+        });
+        return NextResponse.json({ success: true, deletedId: id });
+      }
+
       // 5. Record Payment
       case 'record_payment': {
         const p: Payment = payload;

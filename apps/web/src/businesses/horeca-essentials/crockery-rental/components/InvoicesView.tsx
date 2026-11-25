@@ -7,19 +7,10 @@ import {
   FileText,
   Search,
   PlusCircle,
-  Printer,
   Share2,
-  CheckCircle2,
-  Clock,
-  Eye,
   CreditCard,
-  Building2,
-  Calendar,
-  AlertTriangle,
-  ChevronRight,
-  Download,
-  Filter,
-  Sparkles,
+  Eye,
+  Trash2,
 } from 'lucide-react';
 
 interface InvoicesViewProps {
@@ -28,16 +19,19 @@ interface InvoicesViewProps {
 }
 
 export const InvoicesView: React.FC<InvoicesViewProps> = ({ onSelectInvoice, onRecordPayment }) => {
-  const { invoices } = useInventory();
+  const { invoices, deleteInvoice, role } = useInventory();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'final'>('all');
   const [firmFilter, setFirmFilter] = useState<'all' | InvoiceFirm>('all');
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>(
-    invoices[0]?.id || ''
-  );
 
   // New Create Invoice Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const canDelete =
+    role === 'owner' ||
+    role === 'manager' ||
+    (role as string) === 'General Manager' ||
+    (role as string) === 'general_manager';
 
   const filteredInvoices = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -54,10 +48,6 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({ onSelectInvoice, onR
     });
   }, [invoices, statusFilter, firmFilter, search]);
 
-  const activeInvoice = useMemo(() => {
-    return invoices.find((i) => i.id === selectedInvoiceId) || filteredInvoices[0] || null;
-  }, [invoices, selectedInvoiceId, filteredInvoices]);
-
   const { totalBilled, totalOutstanding, someshwarCount, homesevaCount } = useMemo(() => {
     let billed = 0;
     let outstanding = 0;
@@ -66,8 +56,8 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({ onSelectInvoice, onR
     for (let i = 0; i < invoices.length; i++) {
       const inv = invoices[i];
       if (!inv) continue;
-      billed += inv.total_amount;
-      outstanding += inv.balance_due;
+      billed += Number(inv.total_amount) || 0;
+      outstanding += Number(inv.balance_due) || 0;
       if (inv.firm === 'homeseva') {
         homeseva++;
       } else {
@@ -103,9 +93,15 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({ onSelectInvoice, onR
     window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
   };
 
+  const handleDeleteInvoice = (e: React.MouseEvent, inv: Invoice) => {
+    e.stopPropagation();
+    if (window.confirm(`Delete Invoice #${inv.invoice_number} for ${inv.customer_name}?`)) {
+      deleteInvoice(inv.id);
+    }
+  };
+
   const handleInvoiceCreated = (created: Invoice) => {
     setShowCreateModal(false);
-    setSelectedInvoiceId(created.id);
     onSelectInvoice(created);
   };
 
@@ -239,53 +235,79 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({ onSelectInvoice, onR
         </div>
       </div>
 
-      {/* Main Split Content: Invoices History List on Left + Live Document Preview on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Invoices History List (5 cols) */}
-        <div className="lg:col-span-5 rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Invoice History ({filteredInvoices.length})
-            </span>
-            <span className="text-[11px] text-muted-foreground">Click row to open details</span>
+      {/* Full-Width Invoices Table — Click any row to open Bill Popup */}
+      <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border bg-muted/30 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Bills & Invoices ({filteredInvoices.length})
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            Click any bill row to open popup preview, print or PDF
+          </span>
+        </div>
+
+        {filteredInvoices.length === 0 ? (
+          <div className="p-14 text-center text-xs text-muted-foreground space-y-3">
+            <FileText className="h-9 w-9 mx-auto text-muted-foreground/40" />
+            <p className="font-semibold text-sm text-foreground">No bills found.</p>
+            <p className="text-xs text-muted-foreground">Create a new invoice or adjust your search/filter.</p>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Create New Invoice</span>
+            </button>
           </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/40 text-muted-foreground font-bold border-b border-border text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Invoice No.</th>
+                  <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4">Customer</th>
+                  <th className="py-3 px-4">Entity</th>
+                  <th className="py-3 px-4">Booking Ref</th>
+                  <th className="py-3 px-4 text-center">Items / Days</th>
+                  <th className="py-3 px-4 text-right">Total Bill</th>
+                  <th className="py-3 px-4 text-right">Balance Due</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border font-medium">
+                {filteredInvoices.map((inv) => {
+                  const firmKey = inv.firm === 'homeseva' ? 'homeseva' : 'someshwar';
+                  const firmConfig = INVOICE_FIRMS[firmKey] || INVOICE_FIRMS.someshwar;
+                  const itemCount = (inv.lines || []).filter((l) => l.type !== 'tax').length;
 
-          {filteredInvoices.length === 0 ? (
-            <div className="p-12 text-center text-xs text-muted-foreground space-y-3">
-              <FileText className="h-8 w-8 mx-auto text-muted-foreground/40" />
-              <p className="font-semibold">No invoices found matching current filter.</p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold"
-              >
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span>Create New Invoice</span>
-              </button>
-            </div>
-          ) : (
-            <div className="divide-y divide-border max-h-[750px] overflow-y-auto">
-              {filteredInvoices.map((inv) => {
-                const isSelected = activeInvoice?.id === inv.id;
-                const firmKey = inv.firm || 'someshwar';
-                const firmConfig = INVOICE_FIRMS[firmKey];
-
-                return (
-                  <div
-                    key={inv.id}
-                    onClick={() => setSelectedInvoiceId(inv.id)}
-                    className={`p-4 transition cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? 'bg-amber-500/10 border-l-4 border-amber-600'
-                        : 'hover:bg-muted/40'
-                    }`}
-                  >
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-xs text-foreground">
+                  return (
+                    <tr
+                      key={inv.id}
+                      onClick={() => onSelectInvoice(inv)}
+                      className="hover:bg-amber-500/5 transition cursor-pointer group"
+                    >
+                      <td className="py-3.5 px-4 font-mono font-black text-foreground whitespace-nowrap">
+                        <span className="group-hover:text-amber-600 transition">
                           #{inv.invoice_number}
                         </span>
+                      </td>
 
-                        {/* Firm Badge */}
+                      <td className="py-3.5 px-4 text-muted-foreground font-mono whitespace-nowrap">
+                        {new Date(inv.issued_at).toLocaleDateString('en-IN')}
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-foreground">{inv.customer_name}</div>
+                        {inv.customer_phone && (
+                          <div className="text-[11px] font-mono text-muted-foreground">
+                            {inv.customer_phone}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
                             firmKey === 'someshwar'
@@ -295,329 +317,98 @@ export const InvoicesView: React.FC<InvoicesViewProps> = ({ onSelectInvoice, onR
                         >
                           {firmConfig.name.split(' ')[0]}
                         </span>
+                      </td>
 
-                        {/* Status Badge */}
+                      <td className="py-3.5 px-4 font-mono text-muted-foreground whitespace-nowrap">
+                        {inv.booking_number ? `#${inv.booking_number}` : 'DIRECT'}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="text-foreground font-semibold">{itemCount} items</span>
+                        <span className="text-muted-foreground"> • </span>
+                        <span className="font-mono text-amber-700 dark:text-amber-400 font-semibold">
+                          {inv.rent_days || 1}d
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-foreground whitespace-nowrap">
+                        ₹{inv.total_amount.toLocaleString('en-IN')}
+                      </td>
+
+                      <td
+                        className={`py-3.5 px-4 text-right font-mono font-bold whitespace-nowrap ${
+                          inv.balance_due > 0 ? 'text-rose-600' : 'text-emerald-600'
+                        }`}
+                      >
+                        {inv.balance_due > 0
+                          ? `₹${inv.balance_due.toLocaleString('en-IN')}`
+                          : 'Paid ✓'}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase ${
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             inv.status === 'paid'
-                              ? 'bg-emerald-500/10 text-emerald-600'
-                              : 'bg-amber-500/10 text-amber-600'
+                              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
                           }`}
                         >
                           {inv.status}
                         </span>
-                      </div>
+                      </td>
 
-                      <h4 className="font-bold text-sm text-foreground truncate">
-                        {inv.customer_name}
-                      </h4>
-
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                        <span>{new Date(inv.issued_at).toLocaleDateString('en-IN')}</span>
-                        <span>•</span>
-                        <span>{inv.lines.filter((l) => l.type === 'rent').length} items</span>
-                        {inv.booking_number && (
-                          <>
-                            <span>•</span>
-                            <span className="font-mono">Ref #{inv.booking_number}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="font-mono font-bold text-sm text-foreground">
-                        ₹{inv.total_amount.toLocaleString('en-IN')}
-                      </div>
-                      <div
-                        className={`text-xs font-mono font-semibold ${
-                          inv.balance_due > 0 ? 'text-rose-600' : 'text-emerald-600'
-                        }`}
+                      <td
+                        className="py-3.5 px-4 text-right whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {inv.balance_due > 0 ? `Due: ₹${inv.balance_due.toLocaleString('en-IN')}` : 'Paid ✓'}
-                      </div>
-                    </div>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => onSelectInvoice(inv)}
+                            title="Open Bill Popup"
+                            className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-amber-600 hover:border-amber-500/40 hover:bg-amber-500/10 transition cursor-pointer"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
 
-                    <ChevronRight
-                      className={`h-4 w-4 shrink-0 transition ${
-                        isSelected ? 'text-amber-600 translate-x-0.5' : 'text-muted-foreground'
-                      }`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                          <button
+                            onClick={() => handleShareWhatsApp(inv)}
+                            title="Send via WhatsApp"
+                            className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition cursor-pointer"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </button>
 
-        {/* Right Column: Dedicated "Invoice Details & Line Items" Section (7 cols) */}
-        <div className="lg:col-span-7 rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
-          {activeInvoice ? (
-            <div className="space-y-6">
-              {/* Details Header & Top Actions */}
-              <div className="p-5 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="font-mono font-black text-lg text-foreground">
-                      Invoice #{activeInvoice.invoice_number}
-                    </h3>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        (activeInvoice.firm || 'someshwar') === 'someshwar'
-                          ? 'bg-lime-100 text-lime-800 border border-lime-200 dark:bg-lime-950/60 dark:text-lime-400'
-                          : 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-400'
-                      }`}
-                    >
-                      {INVOICE_FIRMS[activeInvoice.firm || 'someshwar'].name}
-                    </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        activeInvoice.status === 'paid'
-                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                      }`}
-                    >
-                      {activeInvoice.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Financial Year: {activeInvoice.financial_year} • Issued on{' '}
-                    {new Date(activeInvoice.issued_at).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </p>
-                </div>
+                          {inv.balance_due > 0 && (
+                            <button
+                              onClick={() => onRecordPayment(inv)}
+                              title="Collect Payment"
+                              className="p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition cursor-pointer"
+                            >
+                              <CreditCard className="h-3.5 w-3.5" />
+                            </button>
+                          )}
 
-                {/* Quick Action Buttons */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onSelectInvoice(activeInvoice)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
-                  >
-                    <Printer className="h-3.5 w-3.5" />
-                    <span>View / Print A4</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleShareWhatsApp(activeInvoice)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
-                    title="Send to customer WhatsApp"
-                  >
-                    <Share2 className="h-3.5 w-3.5" />
-                    <span>WhatsApp</span>
-                  </button>
-
-                  {activeInvoice.balance_due > 0 && (
-                    <button
-                      onClick={() => onRecordPayment(activeInvoice)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 px-3 py-2 text-xs font-bold hover:bg-emerald-500/20 transition cursor-pointer"
-                    >
-                      <CreditCard className="h-3.5 w-3.5" />
-                      <span>Collect Payment</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Customer and Logistics Info Cards */}
-              <div className="px-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-border bg-muted/30 p-3.5 space-y-1 text-xs">
-                  <span className="font-bold uppercase tracking-wider text-muted-foreground text-[10px] block">
-                    Billed To / Buyer
-                  </span>
-                  <div className="font-bold text-sm text-foreground">
-                    {activeInvoice.customer_name}
-                  </div>
-                  <p className="text-muted-foreground whitespace-pre-line">{activeInvoice.customer_address}</p>
-                  {activeInvoice.customer_phone && (
-                    <p className="font-mono text-foreground font-semibold pt-0.5">
-                      Phone: {activeInvoice.customer_phone}
-                    </p>
-                  )}
-                  {activeInvoice.customer_gstin && (
-                    <p className="font-mono text-foreground font-bold">
-                      GSTIN: {activeInvoice.customer_gstin}
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-border bg-muted/30 p-3.5 space-y-1 text-xs">
-                  <span className="font-bold uppercase tracking-wider text-muted-foreground text-[10px] block">
-                    Logistics & Rental Term
-                  </span>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Entity Format:</span>
-                    <strong className="font-semibold text-foreground">
-                      {INVOICE_FIRMS[activeInvoice.firm || 'someshwar'].name}
-                    </strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Delivery Date:</span>
-                    <strong className="font-mono text-foreground">{activeInvoice.delivery_date}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Return Date:</span>
-                    <strong className="font-mono text-foreground">{activeInvoice.return_date}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rental Days:</span>
-                    <strong className="font-mono text-amber-700 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-400 px-1 rounded">
-                      {activeInvoice.rent_days} Day(s)
-                    </strong>
-                  </div>
-                  {activeInvoice.dispatch_doc_no && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Dispatch Doc:</span>
-                      <strong className="font-mono text-foreground">{activeInvoice.dispatch_doc_no}</strong>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Line Items Table Breakdown */}
-              <div className="px-6 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Itemized Billing & Line Items ({activeInvoice.lines.length})
-                  </h4>
-                  <span className="text-[11px] text-muted-foreground">SAC: 997319 (Rental Services)</span>
-                </div>
-
-                <div className="rounded-xl border border-border overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 text-muted-foreground font-bold border-b border-border text-[11px]">
-                      <tr>
-                        <th className="py-2.5 px-3">#</th>
-                        <th className="py-2.5 px-3">Description</th>
-                        <th className="py-2.5 px-3 text-center">Qty</th>
-                        <th className="py-2.5 px-3 text-right">Rate / Day</th>
-                        <th className="py-2.5 px-3 text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {activeInvoice.lines.map((l, idx) => (
-                        <tr
-                          key={l.id || idx}
-                          className={l.type === 'damage' ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}
-                        >
-                          <td className="py-2 px-3 text-muted-foreground font-mono">{idx + 1}</td>
-                          <td className="py-2 px-3 font-semibold text-foreground">
-                            {l.particulars || l.description}
-                          </td>
-                          <td className="py-2 px-3 text-center font-mono">{l.quantity}</td>
-                          <td className="py-2 px-3 text-right font-mono">₹{l.rate}</td>
-                          <td className="py-2 px-3 text-right font-mono font-bold text-foreground">
-                            ₹{Number(l.amount).toLocaleString('en-IN')}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Financial Calculation Breakdown Footer */}
-              <div className="p-6 bg-muted/20 border-t border-border flex flex-col sm:flex-row justify-between items-start gap-4">
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">Bank Information ({INVOICE_FIRMS[activeInvoice.firm || 'someshwar'].name})</p>
-                  <p>Bank: {INVOICE_FIRMS[activeInvoice.firm || 'someshwar'].bank.bankName}</p>
-                  <p className="font-mono">A/c: {INVOICE_FIRMS[activeInvoice.firm || 'someshwar'].bank.accountNumber}</p>
-                  <p className="font-mono">IFSC: {INVOICE_FIRMS[activeInvoice.firm || 'someshwar'].bank.branchAndIfsc}</p>
-                </div>
-
-                <div className="w-full sm:w-72 space-y-1.5 text-xs">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Rent Charges:</span>
-                    <span className="font-mono text-foreground font-semibold">
-                      ₹{activeInvoice.rent_amount.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-
-                  {activeInvoice.transport_charge > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Transport & Logistics:</span>
-                      <span className="font-mono text-foreground">
-                        ₹{activeInvoice.transport_charge.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-
-                  {activeInvoice.damage_amount > 0 && (
-                    <div className="flex justify-between text-rose-600 font-semibold">
-                      <span>Damage / Breakage:</span>
-                      <span className="font-mono">
-                        +₹{activeInvoice.damage_amount.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-
-                  {activeInvoice.discount > 0 && (
-                    <div className="flex justify-between text-emerald-600 font-semibold">
-                      <span>Promotional Discount:</span>
-                      <span className="font-mono">
-                        -₹{activeInvoice.discount.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between text-muted-foreground pt-1 border-t border-border">
-                    <span>GST ({activeInvoice.tax_rate}%):</span>
-                    <span className="font-mono text-foreground">
-                      ₹{activeInvoice.tax_amount.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-
-                  {activeInvoice.round_off !== undefined && activeInvoice.round_off !== 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Round Off:</span>
-                      <span className="font-mono text-foreground">
-                        {activeInvoice.round_off >= 0 ? `+${activeInvoice.round_off}` : activeInvoice.round_off}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border">
-                    <span>Total Tax Invoice:</span>
-                    <span className="font-mono text-base font-black">
-                      ₹{activeInvoice.total_amount.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Advance Payment Received:</span>
-                    <span className="font-mono text-emerald-600 font-bold">
-                      ₹{(activeInvoice.advance_paid || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex justify-between items-center p-3 rounded-lg text-sm font-black ${
-                      activeInvoice.balance_due > 0
-                        ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
-                        : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
-                    }`}
-                  >
-                    <span>NET BALANCE DUE:</span>
-                    <span className="font-mono text-lg">
-                      ₹{activeInvoice.balance_due.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-16 text-center text-muted-foreground space-y-2">
-              <FileText className="h-8 w-8 mx-auto text-muted-foreground/50" />
-              <p className="text-sm font-bold">No Invoice Selected</p>
-              <p className="text-xs">Select an invoice from the history list or click "Create Invoice" to generate one.</p>
-            </div>
-          )}
-        </div>
+                          {canDelete && (
+                            <button
+                              onClick={(e) => handleDeleteInvoice(e, inv)}
+                              title="Delete Bill"
+                              className="p-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* CREATE INVOICE MODAL (STEP 1: SELECT FIRM -> STEP 2: DETAILS -> SAVE) */}
+      {/* CREATE INVOICE MODAL */}
       {showCreateModal && (
         <CreateInvoiceModal
           onClose={() => setShowCreateModal(false)}

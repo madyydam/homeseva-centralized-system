@@ -43,15 +43,38 @@ import {
 } from 'lucide-react';
 import { useSidebarCollapse } from '@/hooks/useSidebarCollapse';
 
+function normalizeCrockeryRole(raw?: string): UserRole {
+  const val = (raw || '').trim().toLowerCase();
+  if (!val || val === 'owner' || val === 'super admin' || val === 'super_admin' || val === 'admin' || val === 'director') {
+    return 'owner';
+  }
+  if (val === 'manager' || val.includes('manager')) {
+    return 'manager';
+  }
+  if (val === 'godown' || val.includes('inventory') || val.includes('warehous')) {
+    return 'godown';
+  }
+  if (val === 'accountant' || val.includes('billing') || val.includes('finance') || val.includes('invoicing')) {
+    return 'accountant';
+  }
+  if (val === 'counter' || val.includes('logistics') || val.includes('supervisor') || val.includes('rental')) {
+    return 'counter';
+  }
+  return 'manager';
+}
+
 export function CrockeryRentalApp({ role: propRole }: BusinessDashboardProps = {}) {
+  const normalizedRole = normalizeCrockeryRole(propRole);
   return (
-    <InventoryProvider initialRole={(propRole as UserRole) ?? 'owner'}>
-      <MainApp />
+    <InventoryProvider initialRole={normalizedRole}>
+      <MainApp displayRole={propRole} />
     </InventoryProvider>
   );
 }
 
-function MainApp() {
+const CLIENT_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID || 'dev';
+
+function MainApp({ displayRole }: { displayRole?: string | undefined }) {
   const { role, bookings, invoices, generateInvoice } = useInventory();
   const { isSidebarCollapsed, toggleSidebar } = useSidebarCollapse();
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -83,26 +106,48 @@ function MainApp() {
     return bookings.filter((b) => b.status === 'Overdue').length;
   }, [bookings]);
 
-  // Auto-update banner: poll /api/health or build timestamp to detect new deploys
+  // Auto-update popup: poll /api/version to detect new server builds immediately
   const [updateAvailable, setUpdateAvailable] = useState(false);
   useEffect(() => {
-    let lastEtag: string | null = null;
     const checkUpdate = async () => {
       try {
-        const res = await fetch('/', { method: 'HEAD', cache: 'no-store' });
-        const etag = res.headers.get('etag') || res.headers.get('last-modified') || '';
-        if (lastEtag && etag && lastEtag !== etag) {
+        const res = await fetch(`/api/version?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverBuild = data?.buildId;
+        if (
+          serverBuild &&
+          serverBuild !== 'dev' &&
+          CLIENT_BUILD_ID !== 'dev' &&
+          serverBuild !== CLIENT_BUILD_ID
+        ) {
           setUpdateAvailable(true);
         }
-        lastEtag = etag || lastEtag;
       } catch {}
     };
     checkUpdate();
-    const interval = setInterval(checkUpdate, 5 * 60 * 1000); // every 5 min
-    const onVisible = () => { if (!document.hidden) checkUpdate(); };
+    const interval = setInterval(checkUpdate, 60 * 1000); // check every 60s
+    const onVisible = () => {
+      if (!document.hidden) checkUpdate();
+    };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+    window.addEventListener('focus', checkUpdate);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', checkUpdate);
+    };
   }, []);
+
+  const handleApplyUpdate = async () => {
+    try {
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        const keys = await window.caches.keys();
+        await Promise.all(keys.map((k) => window.caches.delete(k)));
+      }
+    } catch {}
+    window.location.reload();
+  };
 
   const navItems = useMemo(
     () => [
@@ -125,15 +170,25 @@ function MainApp() {
     [overdueCount, role]
   );
 
+  // Redirect away from tabs restricted for the signed-in role
+  useEffect(() => {
+    if (!navItems.some((item) => item.id === activeTab)) {
+      setActiveTab('dashboard');
+    }
+  }, [navItems, activeTab]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      {/* Auto-Update Banner */}
+      {/* Auto-Update Popup Toast */}
       {updateAvailable && (
-        <div className="fixed top-0 left-0 right-0 z-[9999] bg-amber-600 text-white text-xs font-bold flex items-center justify-between px-4 py-2.5 shadow-xl">
-          <span>🔄 New version available! Refresh to get latest updates.</span>
+        <div className="fixed top-4 right-4 z-[9999] flex items-center gap-3 rounded-2xl border border-amber-400 bg-slate-900 text-white px-4 py-3 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="text-xs">
+            <p className="font-black text-amber-400">🔄 New Update Available!</p>
+            <p className="text-[11px] text-slate-300">A newer version is live. Click Update to refresh.</p>
+          </div>
           <button
-            onClick={() => window.location.reload()}
-            className="px-3 py-1 bg-white text-amber-700 rounded-lg font-bold hover:bg-amber-50 active:scale-95 transition cursor-pointer"
+            onClick={handleApplyUpdate}
+            className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition active:scale-95 cursor-pointer"
           >
             Update Now
           </button>
@@ -241,7 +296,19 @@ function MainApp() {
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
                   <div className="w-full rounded-lg bg-slate-900 border border-slate-800 px-2 py-1.5 text-xs font-bold text-amber-400 capitalize">
-                    {role === 'owner' ? '👑 Owner' : role === 'manager' ? '💼 Manager' : role === 'counter' ? '📞 Counter Staff' : role === 'godown' ? '📦 Godown Staff' : role === 'accountant' ? '📊 Accountant' : `${role}`}
+                    {displayRole
+                      ? `${role === 'owner' ? '👑 ' : role === 'manager' ? '💼 ' : role === 'godown' ? '📦 ' : role === 'accountant' ? '📊 ' : '📞 '}${displayRole}`
+                      : role === 'owner'
+                      ? '👑 Owner'
+                      : role === 'manager'
+                      ? '💼 Manager'
+                      : role === 'counter'
+                      ? '📞 Counter Staff'
+                      : role === 'godown'
+                      ? '📦 Godown Staff'
+                      : role === 'accountant'
+                      ? '📊 Accountant'
+                      : `${role}`}
                   </div>
                 </div>
               ) : (

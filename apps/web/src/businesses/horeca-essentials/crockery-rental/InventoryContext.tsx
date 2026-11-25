@@ -66,6 +66,7 @@ interface InventoryContextType {
   ) => Invoice;
   createInvoice: (invoice: Invoice) => Invoice;
   updateInvoice: (id: string, updates: Partial<Invoice>) => void;
+  deleteInvoice: (id: string) => void;
   recordPayment: (payment: Omit<Payment, 'id'>) => void;
   addItem: (item: Omit<Item, 'id' | 'in_godown' | 'out_on_rent' | 'in_cleaning' | 'written_off'>) => void;
   bulkAddItems: (newItemsData: Omit<Item, 'id' | 'in_godown' | 'out_on_rent' | 'in_cleaning' | 'written_off'>[]) => void;
@@ -171,7 +172,19 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(STORAGE_KEYS.INVOICES);
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+          const parsed: Invoice[] = JSON.parse(saved);
+          if (!localStorage.getItem('crockery_cleaned_test_bill_377_v1')) {
+            return parsed.filter(
+              (inv) =>
+                !(
+                  inv.invoice_number === '26-27/CCG/377' &&
+                  (inv.customer_name || '').trim().toLowerCase() === 'edwqas'
+                )
+            );
+          }
+          return parsed;
+        }
       } catch (_) {}
     }
     return initialInvoices;
@@ -215,6 +228,25 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
           'crockery_packages_v2',
         ];
         legacyKeys.forEach((k) => localStorage.removeItem(k));
+
+        // One-time removal of test bill #26-27/CCG/377 (edwqas)
+        const testCleanupFlag = 'crockery_cleaned_test_bill_377_v1';
+        if (!localStorage.getItem(testCleanupFlag)) {
+          const savedInv = localStorage.getItem(STORAGE_KEYS.INVOICES);
+          if (savedInv) {
+            const parsedInv: Invoice[] = JSON.parse(savedInv);
+            const cleanedInv = parsedInv.filter(
+              (inv) =>
+                !(
+                  inv.invoice_number === '26-27/CCG/377' &&
+                  (inv.customer_name || '').trim().toLowerCase() === 'edwqas'
+                )
+            );
+            localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(cleanedInv));
+            setInvoicesState(cleanedInv);
+          }
+          localStorage.setItem(testCleanupFlag, '1');
+        }
       } catch (_) {}
     }
 
@@ -823,6 +855,12 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
     syncToPostgres('upsert_invoice', updated);
   };
 
+  const deleteInvoice = (id: string) => {
+    const next = invoices.filter((i) => i.id !== id);
+    saveInvoices(next);
+    syncToPostgres('delete_invoice', { id });
+  };
+
   // Record payment
   const recordPayment = (paymentData: Omit<Payment, 'id'>) => {
     const newPayment: Payment = {
@@ -1088,6 +1126,7 @@ export const InventoryProvider: React.FC<{ children: ReactNode; initialRole?: Us
       generateInvoice,
       createInvoice,
       updateInvoice,
+      deleteInvoice,
       recordPayment,
       addItem,
       bulkAddItems,
